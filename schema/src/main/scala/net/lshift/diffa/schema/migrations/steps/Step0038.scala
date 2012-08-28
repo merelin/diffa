@@ -50,17 +50,7 @@ object Step0038 extends MigrationStep {
       column("prefix_length", Types.INTEGER, true).
       column("max_length", Types.INTEGER, true).
       column("step", Types.INTEGER, true).
-      column("view_name", Types.VARCHAR, 50, true).
-      column("target_type", Types.VARCHAR, 20, false, "endpoint").
-      pk("domain", "endpoint", "name", "target_type")
-
-    migration.alterTable("prefix_categories").
-      addForeignKey("fk_pfcg_evws", Array("domain", "endpoint", "view_name"), "endpoint_views", Array("domain", "endpoint", "name"))
-
-    // Make sure names across all category tables are unique
-
-    migration.alterTable("prefix_categories").
-      addForeignKey("fk_pfcg_ucns", Array("domain", "endpoint", "name", "target_type"), "unique_category_names", Array("domain", "endpoint", "name", "target_type"))
+      pk("domain", "endpoint", "name")
 
     // Create a parent record for all to-be-migrated prefix categories on endpoints proper
 
