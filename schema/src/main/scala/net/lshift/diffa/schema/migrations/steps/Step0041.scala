@@ -142,12 +142,6 @@ object Step0041 extends VerifiedMigrationStep {
     migration.alterTable("range_categories").dropColumn("view_name")
     migration.alterTable("range_categories").addPrimaryKey("domain", "endpoint", "name")
 
-    migration.alterTable("unique_category_names").dropForeignKey("fk_ucns_evws")
-    migration.alterTable("unique_category_names").dropPrimaryKey()
-    migration.alterTable("unique_category_names").dropColumn("target_type")
-    migration.alterTable("unique_category_names").dropColumn("view_name")
-    migration.alterTable("unique_category_names").addPrimaryKey("domain", "endpoint", "name")
-
     migration.alterTable("prefix_categories").
       addForeignKey("fk_pfcg_ucns", Array("domain", "endpoint", "name"), "unique_category_names", Array("domain", "endpoint", "name"))
 

@@ -36,15 +36,10 @@ object Step0038 extends MigrationStep {
       column("domain", Types.VARCHAR, 50, false).
       column("endpoint", Types.VARCHAR, 50, false).
       column("name", Types.VARCHAR, 50, false).
-      column("view_name", Types.VARCHAR, 50, true).
-      column("target_type", Types.VARCHAR, 20, false, "endpoint").
-      pk("domain", "endpoint", "name", "target_type")
+      pk("domain", "endpoint", "name")
 
     migration.alterTable("unique_category_names").
       addForeignKey("fk_ucns_edpt", Array("domain", "endpoint"), "endpoint", Array("domain", "name"))
-
-    migration.alterTable("unique_category_names").
-      addForeignKey("fk_ucns_evws", Array("domain", "endpoint", "view_name"), "endpoint_views", Array("domain", "endpoint", "name"))
 
     // Create the new table for prefix categories
 
