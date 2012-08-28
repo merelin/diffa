@@ -121,13 +121,6 @@ object Step0041 extends VerifiedMigrationStep {
 
     // 4. Remove the view_name and target_type columns from the old table layout
 
-    migration.alterTable("prefix_categories").dropForeignKey("fk_pfcg_ucns")
-    migration.alterTable("prefix_categories").dropForeignKey("fk_pfcg_evws")
-    migration.alterTable("prefix_categories").dropPrimaryKey()
-    migration.alterTable("prefix_categories").dropColumn("target_type")
-    migration.alterTable("prefix_categories").dropColumn("view_name")
-    migration.alterTable("prefix_categories").addPrimaryKey("domain", "endpoint", "name")
-
     migration.alterTable("set_categories").dropForeignKey("fk_stcg_ucns")
     migration.alterTable("set_categories").dropForeignKey("fk_stcg_evws")
     migration.alterTable("set_categories").dropPrimaryKey()
