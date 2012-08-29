@@ -23,3 +23,4 @@
 ## Upgrading
 
 Please note that Diffa will not automatically upgrade itself to this version from release 1.4.
+
