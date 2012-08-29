@@ -86,7 +86,8 @@ object Step0038 extends VerifiedMigrationStep {
     migration.copyTableContents("category_descriptor", "unique_category_names",
       Seq("domain", "name", "endpoint")).
       join("endpoint_categories", "category_descriptor_id", "category_id", Seq("domain", "name", "id")).
-      whereSource(Map("constraint_type" -> "prefix"))
+      whereSource(Map("constraint_type" -> "prefix")).
+      notNull(Seq("domain", "name", "id"))
 
     // Create a parent record for all to-be-migrated prefix categories on endpoint views
 
