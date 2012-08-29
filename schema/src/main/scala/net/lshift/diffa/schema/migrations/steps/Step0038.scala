@@ -161,8 +161,8 @@ object Step0038 extends VerifiedMigrationStep {
     // Create a parent record for all to-be-migrated set categories on endpoint views
 
     migration.copyTableContents("category_descriptor", "unique_category_view_names",
-      Seq("domain", "name", "endpoint")).
-      join("endpoint_views_categories", "category_descriptor_id", "category_id", Seq("domain", "category_name", "endpoint")).
+      Seq("domain", "name", "endpoint", "view_name")).
+      join("endpoint_views_categories", "category_descriptor_id", "category_id", Seq("domain", "category_name", "endpoint", "name")).
       whereSource(Map("constraint_type" -> "set"))
 
     // Migrate all set categories on endpoint views
@@ -226,8 +226,8 @@ object Step0038 extends VerifiedMigrationStep {
     // Create a parent record for all to-be-migrated range categories on endpoint views
 
     migration.copyTableContents("category_descriptor", "unique_category_view_names",
-      Seq("domain", "name", "endpoint")).
-      join("endpoint_views_categories", "category_descriptor_id", "category_id", Seq("domain", "category_name", "endpoint")).
+      Seq("domain", "name", "endpoint", "view_name")).
+      join("endpoint_views_categories", "category_descriptor_id", "category_id", Seq("domain", "category_name", "endpoint", "name")).
       whereSource(Map("constraint_type" -> "range"))
 
     // Migrate all range categories on endpoint views
