@@ -18,10 +18,11 @@ package net.lshift.diffa.agent.itest.config
 import org.junit.Assert._
 import net.lshift.diffa.agent.itest.support.TestConstants._
 import scala.collection.JavaConversions._
-import net.lshift.diffa.client.ScanningParticipantRestClient
+import net.lshift.diffa.client.ScanningParticipantRestClientFactory
 import net.lshift.diffa.participant.scanning.StringPrefixConstraint
 import org.junit.Test
 import net.lshift.diffa.kernel.config._
+import net.lshift.diffa.schema.servicelimits.ServiceLimit
 
 class UsersScanningTest {
   val limits = new PairServiceLimitsView {
@@ -29,9 +30,10 @@ class UsersScanningTest {
   }
 
   val pair = DiffaPairRef("foo","bar")
+  val endpoint = Endpoint(name = "usersScanningTestEndpoint", scanUrl = agentURL + "/security/scan")
 
   val domainCredentialsLookup = new FixedDomainCredentialsLookup(pair.domain, Some(BasicAuthCredentials("guest", "guest")))
-  val participant = new ScanningParticipantRestClient(pair, agentURL + "/security/scan", limits, domainCredentialsLookup)
+  val participant = ScanningParticipantRestClientFactory.create(pair, endpoint, limits, domainCredentialsLookup)
 
   @Test
   def aggregationShouldIncludeGuestUser {

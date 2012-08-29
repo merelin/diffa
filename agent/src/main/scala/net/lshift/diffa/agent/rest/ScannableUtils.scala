@@ -19,11 +19,19 @@ import java.security.MessageDigest
 import org.apache.commons.codec.binary.Hex
 import collection.JavaConversions._
 import net.lshift.diffa.participant.scanning._
+import java.util.Comparator
+import net.lshift.diffa.kernel.config.{CollationOrdering, AsciiCollationOrdering}
+import net.lshift.diffa.kernel.frontend.SystemConfiguration
+import org.slf4j.LoggerFactory
+import net.lshift.diffa.schema.configs.InternalCollation
 
 /**
  * Utilities for helping to make Diffa itself scannable.
  */
 object ScannableUtils {
+
+  private val log = LoggerFactory.getLogger(getClass)
+
   def generateDigest(values:String*) = {
     val digest = MessageDigest.getInstance("MD5")
     values.filter(_ != null).foreach(v => digest.update(v.getBytes("UTF-8")))
@@ -40,9 +48,21 @@ object ScannableUtils {
     })
   }
 
-  def maybeAggregate(entries:Seq[ScanResultEntry], aggregations:Seq[ScanAggregation]):java.util.List[ScanResultEntry] = {
+
+  var defaultComparison: Comparator[AnyRef] = new Comparator[AnyRef] {
+    def compare(a: AnyRef, b: AnyRef): Int = compare(a.asInstanceOf[String], b.asInstanceOf[String])
+    def compare(a:String, b:String): Int = a.compareTo(b)
+  }
+
+  def maybeAggregate(entries:Seq[ScanResultEntry], aggregations:Seq[ScanAggregation], config:SystemConfiguration) :java.util.List[ScanResultEntry] = {
+    val collation = config.getSystemConfigOption(InternalCollation)
+    maybeAggregate(entries, aggregations, CollationOrdering.named(collation))
+  }
+
+
+  def maybeAggregate(entries:Seq[ScanResultEntry], aggregations:Seq[ScanAggregation], collator: Collation):java.util.List[ScanResultEntry] = {
     if (aggregations.length > 0) {
-      val digester = new DigestBuilder(aggregations)
+      val digester = new DigestBuilder(aggregations, collator)
       entries.foreach(digester.add(_))
       digester.toDigests
     } else {

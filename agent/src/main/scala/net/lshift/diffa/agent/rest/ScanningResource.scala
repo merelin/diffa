@@ -17,15 +17,12 @@
 package net.lshift.diffa.agent.rest
 
 import net.lshift.diffa.kernel.actors.PairPolicyClient
-import net.lshift.diffa.docgen.annotations.{MandatoryParams, Description}
-import net.lshift.diffa.docgen.annotations.MandatoryParams.MandatoryParam
 import javax.ws.rs.core.Response
 import net.lshift.diffa.kernel.frontend.Configuration
 import javax.ws.rs._
 import net.lshift.diffa.kernel.diag.DiagnosticsManager
 import net.lshift.diffa.kernel.config.{DiffaPairRef, DomainConfigStore}
 import org.slf4j.{LoggerFactory, Logger}
-import net.lshift.diffa.docgen.annotations.OptionalParams.OptionalParam
 import net.lshift.diffa.kernel.util.AlertCodes._
 
 class ScanningResource(val pairPolicyClient:PairPolicyClient,
@@ -39,7 +36,6 @@ class ScanningResource(val pairPolicyClient:PairPolicyClient,
 
   @GET
   @Path("/states")
-  @Description("Lists the scanning state for every configured pair within this domain.")
   def getAllPairStates = {
     val states = diagnostics.retrievePairScanStatesForDomain(domain)
     Response.ok(scala.collection.JavaConversions.mapAsJavaMap(states)).build
@@ -47,28 +43,39 @@ class ScanningResource(val pairPolicyClient:PairPolicyClient,
 
   @POST
   @Path("/pairs/{pairKey}/scan")
-  @Description("Starts a scan for the given pair.")
-  @MandatoryParams(Array(new MandatoryParam(name="pairKey", datatype="string", description="Pair Key")))
-  @OptionalParam(name = "view", datatype="string", description="Child View to Scan")
   def startScan(@PathParam("pairKey") pairKey:String, @FormParam("view") view:String) = {
 
-    val infoString = formatAlertCode(domain, pairKey, API_SCAN_STARTED) + " scan initiated by " + currentUser
-    val message = if (view != null) {
-      infoString + " for " + view + " view"
-    } else {
-      infoString
+    val ref = DiffaPairRef(pairKey, domain)
+
+    val pair = domainConfigStore.getPairDef(ref)
+    val up = domainConfigStore.getEndpointDef(domain, pair.upstreamName)
+    val down = domainConfigStore.getEndpointDef(domain, pair.downstreamName)
+
+    if (!up.supportsScanning && !down.supportsScanning) {
+
+      val msg = "Neither %s nor %s support scanning".format(pair.upstreamName, pair.downstreamName)
+      Response.status(Response.Status.BAD_REQUEST).entity(msg).`type`("text/plain").build()
+
     }
+    else {
 
-    log.info(message)
+      val infoString = formatAlertCode(domain, pairKey, API_SCAN_STARTED) + " scan initiated by " + currentUser
+      val message = if (view != null) {
+        infoString + " for " + view + " view"
+      } else {
+        infoString
+      }
 
-    pairPolicyClient.scanPair(DiffaPairRef(pairKey, domain), if (view != null) Some(view) else None)
-    Response.status(Response.Status.ACCEPTED).build
+      log.info(message)
+
+      pairPolicyClient.scanPair(ref, Option(view), Some(currentUser))
+      Response.status(Response.Status.ACCEPTED).build
+
+    }
   }
 
   @DELETE
   @Path("/pairs/{pairKey}/scan")
-  @Description("Cancels any current and/or pending scans for the given pair.")
-  @MandatoryParams(Array(new MandatoryParam(name="pairKey", datatype="string", description="Pair Key")))
   def cancelScanning(@PathParam("pairKey") pairKey:String) = {
     pairPolicyClient.cancelScans(DiffaPairRef(pairKey, domain))
     Response.status(Response.Status.OK).build

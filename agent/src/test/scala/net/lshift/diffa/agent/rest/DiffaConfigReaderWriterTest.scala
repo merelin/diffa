@@ -38,8 +38,10 @@ class DiffaConfigReaderWriterTest {
           inboundUrl = "http://inbound",
           scanUrl = "http://localhost:1234/scan",
           contentRetrievalUrl = "http://localhost:1234/content",
+          collation=UnicodeCollationOrdering.name,
           categories = Map(
             "a" -> new RangeCategoryDescriptor("date", "2009", "2010"),
+            "b" -> new SetCategoryDescriptor(Set("a", "b", "c")),
             "b" -> new SetCategoryDescriptor(Set("a", "b", "c")),
             "c" -> new RangeCategoryDescriptor("date", "1888", "1889", "individual")),
           views = List(EndpointViewDef(name = "little-view",
@@ -59,21 +61,22 @@ class DiffaConfigReaderWriterTest {
             )))
         ),
       pairs = Set(
-        PairDef("ab", "same", 5, "upstream1", "downstream1", "0 0 0 * 0 0",
-          views = List(PairViewDef(name = "little-view", scanCronSpec = "0 0 0 * * 0"))),
-        PairDef("ac", "same", 5, "upstream1", "downstream1", allowManualScans = false)),
-      repairActions = Set(
-        RepairActionDef(name="Resend Sauce", scope="entity", url="http://example.com/resend/{id}", pair="ab"),
-        RepairActionDef(name="Delete Result", scope="entity", url="http://example.com/delete/{id}", pair="ab")
-      ),
-      escalations = Set(
-        EscalationDef(name="Delete From Upstream", action="Delete Result", actionType="repair", event="upstream-missing", origin="scan", pair="ab"),
-        EscalationDef(name="Resend Missing Downstream", action="Resend Sauce", actionType="repair", event="downstream-missing", origin="scan", pair="ab"),
-        EscalationDef(name="Resend On Mismatch", action="Resend Sauce", actionType="repair", event="mismatch", origin="scan", pair="ab")
-      ),
-      reports = Set(
-        PairReportDef(name="Bulk Fix Differences", reportType="differences", target="http://example.com/bulk_diff_handler", pair="ab")
-      )
+        PairDef("ab", "same", 5, "upstream1", "downstream1", "0 0 0 * 0 0", scanCronEnabled=false,
+          views = List(PairViewDef(name = "little-view", scanCronSpec = "0 0 0 * * 0")),
+          repairActions = Set(
+            RepairActionDef(name="Resend Sauce", scope="entity", url="http://example.com/resend/{id}"),
+            RepairActionDef(name="Delete Result", scope="entity", url="http://example.com/delete/{id}")
+          ),
+          reports = Set(
+            PairReportDef(name="Bulk Fix Differences", reportType="differences", target="http://example.com/bulk_diff_handler")
+          ),
+          escalations = Set(
+            EscalationDef(name="Delete From Upstream", action="Delete Result", actionType="repair", rule="upstreamVsn is null", delay=20),
+            EscalationDef(name="Resend Missing Downstream", action="Resend Sauce", actionType="repair", rule="downstreamVsn is null", delay=30),
+            EscalationDef(name="Resend On Mismatch", action="Resend Sauce", actionType="repair", rule="upstreamVsn is not null and downstreamVsn is not null and upstreamVsn != downstreamVsn", delay=0)
+          )
+        ),
+        PairDef("ac", "same", 5, "upstream1", "downstream1", allowManualScans = false))
     )
 
     val readerWriter = new DiffaConfigReaderWriter
@@ -87,7 +90,8 @@ class DiffaConfigReaderWriterTest {
         <member>abc</member>
         <endpoint name="upstream1"
                   inbound-url="http://inbound"
-                  scan-url="http://localhost:1234/scan" content-url="http://localhost:1234/content">
+                  scan-url="http://localhost:1234/scan" content-url="http://localhost:1234/content"
+                  collation="unicode">
           <range-category name="a" data-type="date" lower="2009" upper="2010"/>
           <set-category name="b">
             <value>a</value>
@@ -103,19 +107,21 @@ class DiffaConfigReaderWriterTest {
           </view>
         </endpoint>
         <endpoint name="downstream1"
-                  scan-url="http://localhost:5432/scan" version-url="http://localhost:5432/generate-version">
+                  scan-url="http://localhost:5432/scan" version-url="http://localhost:5432/generate-version"
+                  collation="ascii">
           <prefix-category name="c" prefix-length="1" max-length="5" step="1"/>
           <prefix-category name="d" prefix-length="1" max-length="6" step="1"/>
           <view name="little-view">
             <prefix-category name="c" prefix-length="2" max-length="5" step="1" />
           </view>
         </endpoint>
-        <pair key="ab" upstream="upstream1" downstream="downstream1" version-policy="same" matching-timeout="5" scan-schedule="0 0 0 * 0 0">
+        <pair key="ab" upstream="upstream1" downstream="downstream1" version-policy="same" matching-timeout="5"
+              scan-schedule="0 0 0 * 0 0" scan-schedule-enabled="false">
           <repair-action url="http://example.com/resend/{id}" name="Resend Sauce" scope="entity" />
           <repair-action url="http://example.com/delete/{id}" name="Delete Result" scope="entity" />
-          <escalation name="Delete From Upstream" action="Delete Result" type="repair" event="upstream-missing" origin="scan" />
-          <escalation name="Resend Missing Downstream" action="Resend Sauce" type="repair" event="downstream-missing" origin="scan" />
-          <escalation name="Resend On Mismatch" action="Resend Sauce" type="repair" event="mismatch" origin="scan" />
+          <escalation name="Delete From Upstream" action="Delete Result" type="repair" rule="upstreamVsn is null" delay="20" />
+          <escalation name="Resend Missing Downstream" action="Resend Sauce" type="repair" rule="downstreamVsn is null" delay="30" />
+          <escalation name="Resend On Mismatch" action="Resend Sauce" type="repair" rule="upstreamVsn is not null and downstreamVsn is not null and upstreamVsn != downstreamVsn" delay="0" />
           <report name="Bulk Fix Differences" report-type="differences" target="http://example.com/bulk_diff_handler" />
           <view name="little-view" scan-schedule="0 0 0 * * 0" />
         </pair>

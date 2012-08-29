@@ -32,6 +32,7 @@ import net.lshift.diffa.kernel.util.AlertCodes._
 import akka.dispatch.Await
 import akka.util.duration._
 import akka.util.Timeout
+import net.lshift.diffa.kernel.scanning.ScanActivityStore
 
 case class PairActorSupervisor(policyManager:VersionPolicyManager,
                                systemConfig:SystemConfigStore,
@@ -41,6 +42,7 @@ case class PairActorSupervisor(policyManager:VersionPolicyManager,
                                participantFactory:ParticipantFactory,
                                stores:VersionCorrelationStoreFactory,
                                diagnostics:DiagnosticsManager,
+                               scanActivityStore:ScanActivityStore,
                                changeEventBusyTimeoutMillis:Long,
                                changeEventQuietTimeoutMillis:Long,
                                indexWriterCloseInterval: Int,
@@ -57,11 +59,11 @@ case class PairActorSupervisor(policyManager:VersionPolicyManager,
   }
 
  def createPairActor(pairRef: DiffaPairRef) = {
-   val pair = systemConfig.getPair(pairRef)
+   val pair = domainConfig.getPairDef(pairRef)
    policyManager.lookupPolicy(pair.versionPolicyName) match {
      case Some(pol) =>
-       val us = domainConfig.getEndpoint(pair.domain.name,  pair.upstream)
-       val ds = domainConfig.getEndpoint(pair.domain.name,  pair.downstream)
+       val us = domainConfig.getEndpoint(pair.domain,  pair.upstreamName)
+       val ds = domainConfig.getEndpoint(pair.domain,  pair.downstreamName)
 
        val usp = participantFactory.createUpstreamParticipant(us, pairRef)
        val dsp = participantFactory.createDownstreamParticipant(ds, pairRef)
@@ -69,7 +71,7 @@ case class PairActorSupervisor(policyManager:VersionPolicyManager,
        Some(actorSystem.actorOf(Props(
          new PairActor(pair, us, ds, usp, dsp, pol, stores(pairRef),
            differencesManager, pairScanListener,
-           diagnostics, domainConfig, changeEventBusyTimeoutMillis, changeEventQuietTimeoutMillis,
+           diagnostics, domainConfig, scanActivityStore, changeEventBusyTimeoutMillis, changeEventQuietTimeoutMillis,
            indexWriterCloseInterval, actorSystem)
        )))
      case None =>
@@ -97,14 +99,14 @@ case class PairActorSupervisor(policyManager:VersionPolicyManager,
   def difference(pairRef:DiffaPairRef) =
     findActor(pairRef) ! DifferenceMessage
 
-  def scanPair(pair:DiffaPairRef, scanView:Option[String]) = {
+  def scanPair(pair:DiffaPairRef, scanView:Option[String], initiatingUser:Option[String]) = {
     log.debug("Initiating scan %s with view %s".format(pair.identifier, scanView))
     // Update the scan state ourselves. The policy itself will send an update shortly, but since that happens
     // asynchronously, we might have returned before then, and this may potentially result in clients seeing
     // a "Up To Date" view, even though we're just about to transition out of that state.
     pairScanListener.pairScanStateChanged(pair, PairScanState.SCANNING)
     
-    findActor(pair) ! ScanMessage(scanView)
+    findActor(pair) ! ScanMessage(scanView, initiatingUser)
   }
 
   def cancelScans(pairRef:DiffaPairRef) = {

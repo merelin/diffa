@@ -32,14 +32,17 @@ import org.quartz.CronScheduleBuilder.cronSchedule
 import org.quartz.JobBuilder.newJob
 import net.lshift.diffa.kernel.actors.PairPolicyClient
 import net.lshift.diffa.kernel.config.system.SystemConfigStore
-import net.lshift.diffa.kernel.config.{DiffaPairRef, DomainConfigStore, DiffaPair}
 import scala.collection.JavaConversions._
 import reflect.BeanProperty
+import net.lshift.diffa.kernel.config.{DiffaPairRef, DomainConfigStore, DiffaPair}
 
 /**
  * Quartz backed implementation of the ScanScheduler.
  */
-class QuartzScanScheduler(systemConfig:SystemConfigStore, pairPolicyClient:PairPolicyClient, name:String)
+class QuartzScanScheduler(systemConfig:SystemConfigStore,
+                          domainConfig:DomainConfigStore,
+                          pairPolicyClient:PairPolicyClient,
+                          name:String)
     extends ScanScheduler
     with Closeable {
 
@@ -59,7 +62,7 @@ class QuartzScanScheduler(systemConfig:SystemConfigStore, pairPolicyClient:PairP
 
       if (view == "") {
         try {
-          pairPolicyClient.scanPair(DiffaPairRef(pairKey, domain), None)
+          pairPolicyClient.scanPair(DiffaPairRef(pairKey, domain), None, None)
           log.info(formatAlertCode(domain, pairKey, BASIC_SCHEDULED_SCAN_STARTED) + " starting basic scheduled scan")
         } catch {
             // Catch, log, and drop exceptions to prevent the scheduler trying to do any misfire handling
@@ -68,7 +71,7 @@ class QuartzScanScheduler(systemConfig:SystemConfigStore, pairPolicyClient:PairP
         }
       } else {
         try {
-          pairPolicyClient.scanPair(DiffaPairRef(pairKey, domain), Some(view))
+          pairPolicyClient.scanPair(DiffaPairRef(pairKey, domain), Some(view), None)
           log.info(formatAlertCode(domain, pairKey, VIEW_SCHEDULED_SCAN_STARTED) + " starting scheduled scan for view " + view)
         } catch {
             // Catch, log, and drop exceptions to prevent the scheduler trying to do any misfire handling
@@ -82,16 +85,19 @@ class QuartzScanScheduler(systemConfig:SystemConfigStore, pairPolicyClient:PairP
   })
 
   // Ensure that a trigger is registered for each pair on startup
-  systemConfig.listPairs.foreach(onUpdatePair(_))
+  systemConfig.listPairs.foreach(p => onUpdatePair(p.asRef))
 
-  def onUpdatePair(pair:DiffaPair) {
-    val existingJob = jobForPair(pair)
-    val jobId = jobIdentifier(pair)
+  def onUpdatePair(pairRef:DiffaPairRef) {
+
+    val pair = domainConfig.getPairDef(pairRef)
+
+    val existingJob = jobForPair(pairRef)
+    val jobId = jobIdentifier(pairRef)
     val jobName = jobId.toString
 
     def buildTriggerKey(view:String) = triggerKey(if (view != null) jobName + "%" + view else jobName)
 
-    def assertSchedule(oldTrigger:Option[CronTrigger],  view:String, cron:String) {
+    def assertSchedule(oldTrigger:Option[CronTrigger], view:String, cron:String) {
       // Don't reschedule if nothing has changed
       if (oldTrigger.isDefined && oldTrigger.get.getCronExpression == cron) return;
 
@@ -111,12 +117,13 @@ class QuartzScanScheduler(systemConfig:SystemConfigStore, pairPolicyClient:PairP
       scheduler.scheduleJob(trigger)
     }
     
-    def cronSpecDefined(spec:String) = spec != null && spec.length > 0;
+    def hasActiveCronSpec(obj: { def scanCronSpec: String; def scanCronEnabled: Boolean }) =
+      obj.scanCronEnabled && (obj.scanCronSpec != null) && (obj.scanCronSpec.length > 0)
 
     // Calculate the schedules that we're after
     val schedules:Map[String, String] =
-      (if(cronSpecDefined(pair.scanCronSpec)) Map[String,String]("" -> pair.scanCronSpec) else Map[String,String]()) ++
-      pair.views.filter(v => cronSpecDefined(v.scanCronSpec)).map(v => v.name -> v.scanCronSpec).toMap
+      (if(hasActiveCronSpec(pair)) Map[String,String]("" -> pair.scanCronSpec) else Map[String,String]()) ++
+      pair.views.filter(v => hasActiveCronSpec(v)).map(v => v.name -> v.scanCronSpec).toMap
 
     if (schedules.size == 0) {
       if (existingJob != null) {
@@ -141,7 +148,7 @@ class QuartzScanScheduler(systemConfig:SystemConfigStore, pairPolicyClient:PairP
     }
   }
 
-  def onDeletePair(pair:DiffaPair) {
+  def onDeletePair(pair:DiffaPairRef) {
     val existingJob = jobForPair(pair)
     if (existingJob != null) {
       scheduler.deleteJob(jobIdentifier(pair))
@@ -155,8 +162,8 @@ class QuartzScanScheduler(systemConfig:SystemConfigStore, pairPolicyClient:PairP
     scheduler.shutdown()
   }
 
-  private def jobForPair(pair:DiffaPair) = scheduler.getJobDetail(jobIdentifier(pair))
-  private def jobIdentifier(pair:DiffaPair) = new JobKey(pair.identifier)
+  private def jobForPair(pair:DiffaPairRef) = scheduler.getJobDetail(jobIdentifier(pair))
+  private def jobIdentifier(pair:DiffaPairRef) = new JobKey(pair.identifier)
   private def createScheduler() = {
     val threadPool = new SimpleThreadPool(1, Thread.NORM_PRIORITY)
     threadPool.initialize()

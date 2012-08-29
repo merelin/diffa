@@ -18,6 +18,7 @@ package net.lshift.diffa.kernel.frontend
 
 import org.slf4j.{Logger, LoggerFactory}
 import net.lshift.diffa.kernel.config._
+import limits.ValidServiceLimits
 import net.lshift.diffa.kernel.matching.MatchingManager
 import net.lshift.diffa.kernel.differencing.{DifferencesManager, VersionCorrelationStoreFactory}
 import net.lshift.diffa.kernel.participants.EndpointLifecycleListener
@@ -61,9 +62,9 @@ class Configuration(val configStore: DomainConfigStore,
     diffaConfig.properties.foreach { case (k, v) => configStore.setConfigOption(domain, k, v) }
 
     // Remove missing members, and create/update the rest
-    val removedMembers = configStore.listDomainMembers(domain).filter(m => diffaConfig.members.find(newM => newM == m.user.name).isEmpty)
+    val removedMembers = configStore.listDomainMembers(domain).filter(m => diffaConfig.members.find(newM => newM == m.user).isEmpty)
     removedMembers.foreach(m => {
-      val userToRemove = m.user.name
+      val userToRemove = m.user
       callingUser match {
         case Some(currentUser) if userToRemove == currentUser => // don't this guy kill himself
         case _                                                => configStore.removeDomainMembership(domain, userToRemove)
@@ -81,27 +82,6 @@ class Configuration(val configStore: DomainConfigStore,
     diffaConfig.endpoints.foreach(createOrUpdateEndpoint(domain, _, false))   // Don't restart pairs - that'll happen in the next step
     diffaConfig.pairs.foreach(p => createOrUpdatePair(domain, p))
 
-    // Remove missing repair actions, and create/update the rest
-    val removedActions =
-      configStore.listRepairActions(domain).filter(a => diffaConfig.repairActions
-        .find(newA => newA.name == a.name && newA.pair == a.pair).isEmpty)
-    removedActions.foreach(a => deleteRepairAction(domain, a.name, a.pair))
-    diffaConfig.repairActions.foreach(createOrUpdateRepairAction(domain,_))
-      
-    // Remove missing escalations, and create/update the rest
-    val removedEscalations =
-      configStore.listEscalations(domain).filter(e => diffaConfig.escalations
-        .find(newE => newE.name == e.name && newE.pair == e.pair).isEmpty)
-    removedEscalations.foreach(e => deleteEscalation(domain, e.name, e.pair))
-    diffaConfig.escalations.foreach(createOrUpdateEscalation(domain,_))
-
-    // Remove missing reports, and create/update the rest
-    val removedReports =
-      configStore.listReports(domain).filter(r => diffaConfig.reports
-        .find(newR => newR.name == r.name && newR.pair == r.pair).isEmpty)
-    removedReports.foreach(r => deleteReport(domain, r.name, r.pair))
-    diffaConfig.reports.foreach(createOrUpdateReport(domain,_))
-
     // Remove old pairs and endpoints
     val removedPairs = configStore.listPairs(domain).filter(currP => diffaConfig.pairs.find(newP => newP.key == currP.key).isEmpty)
     removedPairs.foreach(p => deletePair(domain, p.key))
@@ -115,13 +95,9 @@ class Configuration(val configStore: DomainConfigStore,
     if (doesDomainExist(domain))
       Some(DiffaConfig(
         properties = configStore.allConfigOptions(domain),
-        members = configStore.listDomainMembers(domain).map(_.user.name).toSet,
+        members = configStore.listDomainMembers(domain).map(_.user).toSet,
         endpoints = configStore.listEndpoints(domain).toSet,
-        pairs = configStore.listPairs(domain).toSet,
-        repairActions = configStore.listRepairActions(domain).map(
-          a => RepairActionDef(a.name, a.url, a.scope, a.pair)).toSet,
-        escalations = configStore.listEscalations(domain).toSet,
-        reports = configStore.listReports(domain).toSet
+        pairs = configStore.listPairs(domain).map(_.withoutDomain).toSet
       ))
     else
       None
@@ -146,7 +122,7 @@ class Configuration(val configStore: DomainConfigStore,
 
       if (changes.length > 0) {
         configStore.listPairsForEndpoint(domain, endpointDef.name).foreach(p => {
-          versionCorrelationStoreFactory(p.asRef).ensureUpgradeable(p.whichSide(existing), changes)
+          versionCorrelationStoreFactory(p.asRef).ensureUpgradeable(p.withoutDomain.whichSide(existing), changes)
         })
       }
     } catch {
@@ -158,7 +134,7 @@ class Configuration(val configStore: DomainConfigStore,
 
     // Inform each related pair that it has been updated
     if (restartPairs) {
-      configStore.listPairsForEndpoint(domain, endpoint.name).foreach(notifyPairUpdate(_))
+      configStore.listPairsForEndpoint(domain, endpoint.name).foreach(p => notifyPairUpdate(p.asRef))
     }
   }
 
@@ -167,7 +143,7 @@ class Configuration(val configStore: DomainConfigStore,
     endpointListener.onEndpointRemoved(domain, endpoint)
   }
 
-  def listPairs(domain:String) : Seq[PairDef] = configStore.listPairs(domain)
+  def listPairs(domain:String) : Seq[PairDef] = configStore.listPairs(domain).map(_.withoutDomain)
   def listEndpoints(domain:String) : Seq[EndpointDef] = configStore.listEndpoints(domain)
   def listUsers(domain:String) : Seq[User] = systemConfigStore.listUsers
 
@@ -177,8 +153,7 @@ class Configuration(val configStore: DomainConfigStore,
   // This might have to get refactored in light of the fact that we are now pretty much
   // just using REST to configure the agent
   def getEndpointDef(domain:String, x:String) = configStore.getEndpointDef(domain, x)
-  def getPairDef(domain:String, x:String) = configStore.getPairDef(domain, x)
-  def getPair(domain:String, x:String) = systemConfigStore.getPair(domain, x)
+  def getPairDef(domain:String, x:String) : PairDef = configStore.getPairDef(domain, x).withoutDomain
   def getUser(x:String) = systemConfigStore.getUser(x)
 
   def createOrUpdateUser(domain:String, u: User): Unit = {
@@ -193,7 +168,7 @@ class Configuration(val configStore: DomainConfigStore,
   * */
   def declarePair(domain:String, pairDef: PairDef): Unit = createOrUpdatePair(domain, pairDef)
 
-  def createOrUpdatePair(domain:String, pairDef: PairDef): Unit = {
+  def createOrUpdatePair(domain:String, pairDef: PairDef) {
     pairDef.validate(null, configStore.listEndpoints(domain).toSet)
     configStore.createOrUpdatePair(domain, pairDef)
     withCurrentPair(domain, pairDef.key, notifyPairUpdate(_))
@@ -201,14 +176,14 @@ class Configuration(val configStore: DomainConfigStore,
 
   def deletePair(domain:String, key: String): Unit = {
 
-    withCurrentPair(domain, key, (p:DiffaPair) => {
-      val pair = p.asRef
-      supervisors.foreach(_.stopActor(pair))
+    withCurrentPair(domain, key, (p:DiffaPairRef) => {
+
+      supervisors.foreach(_.stopActor(p))
       matchingManager.onDeletePair(p)
-      versionCorrelationStoreFactory.remove(pair)
+      versionCorrelationStoreFactory.remove(p)
       scanScheduler.onDeletePair(p)
-      differencesManager.onDeletePair(pair)
-      diagnostics.onDeletePair(pair)
+      differencesManager.onDeletePair(p)
+      diagnostics.onDeletePair(p)
     })
 
     serviceLimitsStore.deletePairLimitsByDomain(domain)
@@ -220,7 +195,7 @@ class Configuration(val configStore: DomainConfigStore,
    * this will return normally.
    * @see withCurrentPair
    */
-  def maybeWithPair(domain:String, pairKey: String, f:Function1[DiffaPair,Unit]) = {
+  def maybeWithPair(domain:String, pairKey: String, f:Function1[DiffaPairRef,Unit]) = {
     try {
       withCurrentPair(domain,pairKey,f)
     }
@@ -233,68 +208,107 @@ class Configuration(val configStore: DomainConfigStore,
    * This will execute the lambda if the pair exists.
    * @throws MissingObjectException If the pair does not exist.
    */
-  def withCurrentPair(domain:String, pairKey: String, f:Function1[DiffaPair,Unit]) = {
-    val current = systemConfigStore.getPair(domain, pairKey)
+  def withCurrentPair(domain:String, pairKey: String, f:Function1[DiffaPairRef,Unit]) = {
+    val current = configStore.getPairDef(domain, pairKey).asRef
     f(current)
   }
 
-  def declareRepairAction(domain:String, action: RepairActionDef) {
-    createOrUpdateRepairAction(domain, action)
+  def declareRepairAction(domain:String, pairKey:String, action: RepairActionDef) {
+    createOrUpdateRepairAction(domain, pairKey, action)
   }
 
-  def createOrUpdateRepairAction(domain:String, action: RepairActionDef) {
+  def createOrUpdateRepairAction(domain:String, pairKey:String, action: RepairActionDef) {
     action.validate()
-    configStore.createOrUpdateRepairAction(domain, action)
+    updatePair(domain, pairKey, pair => replaceByName(pair.repairActions, action))
   }
 
   def deleteRepairAction(domain:String, name: String, pairKey: String) {
-    configStore.deleteRepairAction(domain, name, pairKey)
+    updatePair(domain, pairKey, pair => pair.repairActions.retain(_.name != name))
   }
 
-  def listRepairActions (domain:String) : Seq[RepairActionDef] = {
-    configStore.listRepairActions(domain)
+  def clearRepairActions(domain:String, pairKey:String) {
+    updatePair(domain, pairKey, pair => pair.repairActions.clear())
   }
 
   def listRepairActionsForPair(domain:String, pairKey: String): Seq[RepairActionDef] = {
-    configStore.listRepairActionsForPair(domain, pairKey)
+    configStore.getPairDef(domain, pairKey).repairActions.toSeq
   }
 
-  def createOrUpdateEscalation(domain:String, escalation: EscalationDef) {
+  def createOrUpdateEscalation(domain:String, pairKey:String, escalation: EscalationDef) {
     escalation.validate()
-    configStore.createOrUpdateEscalation(domain, escalation)
+    updatePair(domain, pairKey, pair => replaceByName(pair.escalations, escalation))
   }
 
   def deleteEscalation(domain:String, name: String, pairKey: String) {
-    configStore.deleteEscalation(domain, name, pairKey)
+    updatePair(domain, pairKey, pair => pair.escalations.retain(_.name != name))
   }
 
-  def listEscalations(domain:String) : Seq[EscalationDef] = {
-    configStore.listEscalations(domain)
+  def clearEscalations(domain:String, pairKey:String) {
+    updatePair(domain, pairKey, pair => pair.escalations.clear())
   }
 
   def listEscalationForPair(domain:String, pairKey: String): Seq[EscalationDef] = {
-    configStore.listEscalationsForPair(domain, pairKey)
+    configStore.getPairDef(domain, pairKey).escalations.toSeq
   }
 
   def deleteReport(domain:String, name: String, pairKey: String) {
-    configStore.deleteReport(domain, name, pairKey)
+    updatePair(domain, pairKey, pair => pair.reports.retain(_.name != name))
   }
 
-  def createOrUpdateReport(domain:String, report: PairReportDef) {
+  def createOrUpdateReport(domain:String, pairKey:String, report: PairReportDef) {
     report.validate()
-    configStore.createOrUpdateReport(domain, report)
+    updatePair(domain, pairKey, pair => replaceByName(pair.reports, report))
   }
 
   def makeDomainMember(domain:String, userName:String) = configStore.makeDomainMember(domain,userName)
   def removeDomainMembership(domain:String, userName:String) = configStore.removeDomainMembership(domain, userName)
   def listDomainMembers(domain:String) = configStore.listDomainMembers(domain)
 
-  def notifyPairUpdate(p:DiffaPair) {
-    val pairRef = p.asRef
-    supervisors.foreach(_.startActor(pairRef))
+  def notifyPairUpdate(p:DiffaPairRef) {
+    supervisors.foreach(_.startActor(p))
     matchingManager.onUpdatePair(p)
-    differencesManager.onUpdatePair(pairRef)
+    differencesManager.onUpdatePair(p)
     scanScheduler.onUpdatePair(p)
-    pairPolicyClient.difference(pairRef)
+    pairPolicyClient.difference(p)
   }
+
+  def getEffectiveDomainLimit(domain:String, limitName:String) = {
+    val limit = ValidServiceLimits.lookupLimit(limitName)
+    serviceLimitsStore.getEffectiveLimitByNameForDomain(domain, limit)
+  }
+
+  def getEffectivePairLimit(pair:DiffaPairRef, limitName:String) = {
+    val limit = ValidServiceLimits.lookupLimit(limitName)
+    serviceLimitsStore.getEffectiveLimitByNameForPair(pair.domain, pair.key, limit)
+  }
+
+  def setHardDomainLimit(domain:String, limitName:String, value:Int) = {
+    val limit = ValidServiceLimits.lookupLimit(limitName)
+    serviceLimitsStore.setDomainHardLimit(domain, limit, value)
+  }
+
+  def setDefaultDomainLimit(domain:String, limitName:String, value:Int) = {
+    val limit = ValidServiceLimits.lookupLimit(limitName)
+    serviceLimitsStore.setDomainDefaultLimit(domain, limit, value)
+  }
+
+  def setPairLimit(pair:DiffaPairRef, limitName:String, value:Int) = {
+    val limit = ValidServiceLimits.lookupLimit(limitName)
+    serviceLimitsStore.setPairLimit(pair.domain, pair.key, limit, value)
+  }
+
+  private def updatePair(domain:String, pairKey:String, f:PairDef => Unit) {
+    val pair = configStore.getPairDef(domain, pairKey).withoutDomain
+    f(pair)
+    configStore.createOrUpdatePair(domain, pair)
+  }
+
+  private def replaceByName[T <: {def name:String}](list:java.util.Set[T], obj:T) {
+    list.find(_.name == obj.name) match {
+      case Some(a) => list.remove(a)
+      case None    =>
+    }
+    list.add(obj)
+  }
+
 }

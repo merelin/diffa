@@ -21,7 +21,6 @@ import org.springframework.beans.factory.annotation.Autowired
 import javax.ws.rs.core.{UriInfo, Context}
 import javax.ws.rs.{PathParam, Path}
 import net.lshift.diffa.kernel.client.ActionsClient
-import net.lshift.diffa.kernel.differencing.DifferencesManager
 import net.lshift.diffa.kernel.diag.DiagnosticsManager
 import net.lshift.diffa.kernel.actors.PairPolicyClient
 import net.lshift.diffa.kernel.frontend.{Changes, Configuration}
@@ -32,11 +31,17 @@ import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.security.core.userdetails.UserDetails
 import org.slf4j.LoggerFactory
 import net.lshift.diffa.kernel.util.AlertCodes._
-import net.lshift.diffa.kernel.config.{DomainCredentialsManager, User, DomainConfigStore}
 import net.lshift.diffa.kernel.config.system.CachedSystemConfigStore
 import net.lshift.diffa.kernel.limiting.DomainRateLimiterFactory
+import net.lshift.diffa.kernel.differencing.{DomainDifferenceStore, DifferencesManager}
+import net.lshift.diffa.kernel.config.{BreakerHelper, DomainCredentialsManager, User, DomainConfigStore}
 
-@Path("/domains/{domain}")
+/**
+ * The policy is that we will publish spaces as the replacement term for domains
+ * but to avoid having to refactor a bunch of of code straight away, we'll just change
+ * the path specification from /domains to /spaces and implement a redirect.
+ */
+@Path("/spaces/{domain}")
 @Component
 @PreAuthorize("hasPermission(#domain, 'domain-user')")
 class DomainResource {
@@ -55,8 +60,9 @@ class DomainResource {
   @Autowired var systemConfigStore:CachedSystemConfigStore = null
   @Autowired var changes:Changes = null
   @Autowired var changeEventRateLimiterFactory: DomainRateLimiterFactory = null
-  @Autowired var domainSequenceCache:DomainSequenceCache = null
   @Autowired var reports:ReportManager = null
+  @Autowired var diffStore:DomainDifferenceStore = null
+  @Autowired var breakers:BreakerHelper = null
 
   private def getCurrentUser(domain:String) : String = SecurityContextHolder.getContext.getAuthentication.getPrincipal match {
     case user:UserDetails => user.getUsername
@@ -80,7 +86,7 @@ class DomainResource {
   @Path("/config")
   def getConfigResource(@Context uri:UriInfo,
                         @PathParam("domain") domain:String) =
-    withValidDomain(domain, new ConfigurationResource(config, domain, getCurrentUser(domain), uri))
+    withValidDomain(domain, new ConfigurationResource(config, breakers, domain, getCurrentUser(domain), uri))
 
   @Path("/credentials")
   def getCredentialsResource(@Context uri:UriInfo,
@@ -90,11 +96,11 @@ class DomainResource {
   @Path("/diffs")
   def getDifferencesResource(@Context uri:UriInfo,
                              @PathParam("domain") domain:String) =
-    withValidDomain(domain, new DifferencesResource(differencesManager, domainSequenceCache, domainConfigStore, domain, uri))
+    withValidDomain(domain, new DifferencesResource(differencesManager, domainConfigStore, domain, uri))
 
   @Path("/escalations")
   def getEscalationsResource(@PathParam("domain") domain:String) =
-    withValidDomain(domain, new EscalationsResource(config, domain))
+    withValidDomain(domain, new EscalationsResource(config, diffStore, domain))
 
   @Path("/actions")
   def getActionsResource(@Context uri:UriInfo,
@@ -122,4 +128,8 @@ class DomainResource {
   @Path("/inventory")
   def getInventoryResource(@PathParam("domain") domain:String) =
     withValidDomain(domain, new InventoryResource(changes, domainConfigStore, domain))
+
+  @Path("/limits")
+  def getLimitsResource(@PathParam("domain") domain:String) =
+    withValidDomain(domain, new DomainServiceLimitsResource(config, domain))
 }

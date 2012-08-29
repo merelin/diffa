@@ -46,10 +46,10 @@ class CachedSystemConfigStore(underlying:SystemConfigStore, cacheProvider:CacheP
   }
 
   // TODO Currently the only operations that are cached are the frequently invoked
-  // lookups of users by username, token and their respective memeberships for authentication purposes
+  // lookups of users by username, token and their respective memberships for authentication purposes
   // Ultimately, all operations on this store should get cached
 
-  def createOrUpdateDomain(domain:Domain) = underlying.createOrUpdateDomain(domain)
+  def createOrUpdateDomain(domain:String) = underlying.createOrUpdateDomain(domain)
   def deleteDomain(domain:String) = underlying.deleteDomain(domain)
   def doesDomainExist(name: String) = underlying.doesDomainExist(name)
   def listDomains = underlying.listDomains
@@ -57,14 +57,9 @@ class CachedSystemConfigStore(underlying:SystemConfigStore, cacheProvider:CacheP
   def clearSystemConfigOption(key: String) = underlying.clearSystemConfigOption(key)
   def maybeSystemConfigOption(key: String) = underlying.maybeSystemConfigOption(key)
   def systemConfigOptionOrDefault(key: String, defaultVal: String) = underlying.systemConfigOptionOrDefault(key, defaultVal)
-  def getPair(domain: String, pairKey: String) = underlying.getPair(domain, pairKey)
-  def getPair(pair: DiffaPairRef) = underlying.getPair(pair)
   def listPairs = underlying.listPairs
   def listEndpoints = underlying.listEndpoints
-
-  @Deprecated def createOrUpdateUser(user: User) = underlying.createOrUpdateUser(user)
-  def createUser(user: User) = underlying.createUser(user)
-  def updateUser(user: User) = underlying.updateUser(user)
+  def createOrUpdateUser(user: User) = underlying.createOrUpdateUser(user)
   def getUserToken(username: String) = underlying.getUserToken(username)
 
   def clearUserToken(username: String) = {
@@ -117,7 +112,7 @@ class CachedSystemConfigStore(underlying:SystemConfigStore, cacheProvider:CacheP
   }
 
   private def evictMember(member: Member) = {
-    val username = member.user.name
+    val username = member.user
     membershipCache.evict(username)
   }
 }

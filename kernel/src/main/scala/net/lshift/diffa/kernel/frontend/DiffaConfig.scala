@@ -21,6 +21,9 @@ import reflect.BeanProperty
 import org.quartz.CronExpression
 import java.util.HashMap
 import scala.collection.JavaConversions._
+import net.lshift.diffa.kernel.util.{DownstreamEndpoint, UpstreamEndpoint, EndpointSide}
+import net.lshift.diffa.participant.scanning.Collation
+import net.lshift.diffa.kernel.escalation.EscalationManager
 
 /**
  * Describes a complete Diffa configuration in the context of a domain - this means that all of the objects
@@ -30,19 +33,13 @@ case class DiffaConfig(
   members:Set[String] = Set(),
   properties:Map[String, String] = Map(),
   endpoints:Set[EndpointDef] = Set(),
-  pairs:Set[PairDef] = Set(),
-  repairActions:Set[RepairActionDef] = Set(),
-  escalations:Set[EscalationDef] = Set(),
-  reports:Set[PairReportDef] = Set()
+  pairs:Set[PairDef] = Set()
 ) {
 
   def validate() {
     val path = "config"
     endpoints.foreach(_.validate(path))
     pairs.foreach(_.validate(path, endpoints))
-    repairActions.foreach(_.validate(path))
-    escalations.foreach(_.validate(path))
-    reports.foreach(_.validate(path))
   }
 }
 
@@ -64,11 +61,17 @@ case class EndpointDef (
   @BeanProperty var versionGenerationUrl: String = null,
   @BeanProperty var inboundUrl: String = null,
   @BeanProperty var categories: java.util.Map[String,CategoryDescriptor] = new HashMap[String, CategoryDescriptor],
-  @BeanProperty var views: java.util.List[EndpointViewDef] = new java.util.ArrayList[EndpointViewDef]) {
+  @BeanProperty var views: java.util.List[EndpointViewDef] = new java.util.ArrayList[EndpointViewDef],
+  @BeanProperty var collation: String = AsciiCollationOrdering.name) {
 
   def this() = this(name = null)
 
   val DEFAULT_URL_LENGTH_LIMIT = 1024
+
+  /**
+   * Inidication of whether scanning is supported by the given endpoint.
+   */
+  def supportsScanning = scanUrl != null && scanUrl.length() > 0
 
   def validate(path:String = null) {
     // Nullify any of the URLs that are blank
@@ -85,7 +88,11 @@ case class EndpointDef (
     ValidationUtil.ensureLengthLimit(endPointPath, "contentRetrievalUrl", contentRetrievalUrl, DEFAULT_URL_LENGTH_LIMIT)
     ValidationUtil.ensureLengthLimit(endPointPath, "versionGenerationUrl", versionGenerationUrl, DEFAULT_URL_LENGTH_LIMIT)
     ValidationUtil.ensureLengthLimit(endPointPath, "inboundUrl", inboundUrl, DEFAULT_URL_LENGTH_LIMIT)
-    
+
+    collation = ValidationUtil.maybeDefault(collation, AsciiCollationOrdering.name)
+    ValidationUtil.ensureMembership(endPointPath, "collation", collation,
+      Set(AsciiCollationOrdering.name, UnicodeCollationOrdering.name))
+
     Array(scanUrl,
           contentRetrievalUrl,
           versionGenerationUrl,
@@ -101,11 +108,45 @@ case class EndpointDef (
     ValidationUtil.ensureUniqueChildren(endPointPath, "views", "name", views.map(v => v.name))
     views.foreach(v => v.validate(this, endPointPath))
   }
+
+
+  def lookupCollation: Collation = CollationOrdering.named(collation)
+}
+
+/**
+ * This is the next generation version of the Endpoint, but with serialization and friendly fields.
+ * This has been made java friendly to ensure it can be serialized correctly when inserted into caches.
+ * When Hibernate has been removed completely, the Endpoint object can be deleted all together and
+ * get replaced with this more useful definition.
+ */
+case class DomainEndpointDef(
+  @BeanProperty var space: Long = -1L,
+  @BeanProperty var domain: String = null,
+  @BeanProperty var name: String = null,
+  @BeanProperty var scanUrl: String = null,
+  @BeanProperty var contentRetrievalUrl: String = null,
+  @BeanProperty var versionGenerationUrl: String = null,
+  @BeanProperty var inboundUrl: String = null,
+  @BeanProperty var categories: java.util.Map[String,CategoryDescriptor] = new java.util.TreeMap[String, CategoryDescriptor],
+  @BeanProperty var views: java.util.List[EndpointViewDef] = new java.util.ArrayList[EndpointViewDef],
+  @BeanProperty var collation: String = AsciiCollationOrdering.name) {
+  def this() = this(domain = null)
+
+  @Deprecated def withoutDomain() = EndpointDef(
+    name = name,
+    scanUrl = scanUrl,
+    contentRetrievalUrl = contentRetrievalUrl,
+    versionGenerationUrl = versionGenerationUrl,
+    inboundUrl = inboundUrl,
+    views = views,
+    categories = categories,
+    collation = collation
+  )
 }
 
 case class EndpointViewDef(
   @BeanProperty var name:String = null,
-  @BeanProperty var categories: java.util.Map[String,CategoryDescriptor] = new HashMap[String, CategoryDescriptor]
+  @BeanProperty var categories: java.util.Map[String,CategoryDescriptor] = new java.util.TreeMap[String, CategoryDescriptor]
 ) {
   def this() = this(name = null)
 
@@ -148,10 +189,38 @@ case class PairDef(
   @BeanProperty var upstreamName: String = null,
   @BeanProperty var downstreamName: String = null,
   @BeanProperty var scanCronSpec: String = null,
+  @BeanProperty var scanCronEnabled: Boolean = true,
   @BeanProperty var allowManualScans: java.lang.Boolean = null,
-  @BeanProperty var views:java.util.List[PairViewDef] = new java.util.ArrayList[PairViewDef]) {
+  @BeanProperty var views:java.util.List[PairViewDef] = new java.util.ArrayList[PairViewDef],
+  @BeanProperty var repairActions:java.util.Set[RepairActionDef] = new java.util.HashSet[RepairActionDef],
+  @BeanProperty var reports:java.util.Set[PairReportDef] = new java.util.HashSet[PairReportDef],
+  @BeanProperty var escalations:java.util.Set[EscalationDef] = new java.util.HashSet[EscalationDef]
+) {
 
   def this() = this(key = null)
+
+  def asRef(domain:String) = DiffaPairRef(key, domain)
+
+  def asDomainPairDef(domainName:String) = DomainPairDef(
+    domain = domainName,
+    key = this.key,
+    matchingTimeout = this.matchingTimeout,
+    upstreamName = this.upstreamName,
+    downstreamName = this.downstreamName,
+    scanCronSpec = this.scanCronSpec,
+    allowManualScans = this.allowManualScans,
+    views = this.views
+  )
+
+  def whichSide(endpoint:EndpointDef):EndpointSide = {
+    if (upstreamName == endpoint.name) {
+      UpstreamEndpoint
+    } else if (downstreamName == endpoint.name) {
+      DownstreamEndpoint
+    } else {
+      throw new IllegalArgumentException(endpoint.name + " is not a member of pair " + key)
+    }
+  }
 
   def validate(path:String = null, endpoints:Set[EndpointDef] = null) {
     val pairPath = ValidationUtil.buildPath(path, "pair", Map("key" -> key))
@@ -200,12 +269,17 @@ case class PairDef(
 
       views.foreach(v => v.validate(this, pairPath, upstreamEp, downstreamEp))
     }
+    
+    repairActions.foreach(_.validate(pairPath))
+    escalations.foreach(_.validate(pairPath))
+    reports.foreach(_.validate(pairPath))
   }
 }
 
 case class PairViewDef(
   @BeanProperty var name:String = null,
-  @BeanProperty var scanCronSpec:String = null
+  @BeanProperty var scanCronSpec:String = null,
+  @BeanProperty var scanCronEnabled:Boolean = true
 ) {
   def this() = this(name = null)
 
@@ -236,25 +310,66 @@ case class PairViewDef(
 }
 
 /**
+ * This is the next generation version of the DiffaPair, but with serialization and friendly fields.
+ * This has been made java friendly to ensure it can be serialized correctly when inserted into caches.
+ * When Hibernate has been removed completely, the DiffaPair object can be deleted all together and
+ * get replaced with this more useful definition.
+ */
+case class DomainPairDef(
+  @BeanProperty var domain: String = null,
+  @BeanProperty var space: java.lang.Long = null,
+  @BeanProperty var key: String = null,
+  @BeanProperty var versionPolicyName: String = null,
+  @BeanProperty var matchingTimeout: Int = 0,
+  @BeanProperty var upstreamName: String = null,
+  @BeanProperty var downstreamName: String = null,
+  @BeanProperty var scanCronSpec: String = null,
+  @BeanProperty var scanCronEnabled: Boolean = true,
+  @BeanProperty var allowManualScans: java.lang.Boolean = null,
+  @BeanProperty var views:java.util.List[PairViewDef] = new java.util.ArrayList[PairViewDef],
+  @BeanProperty var repairActions:java.util.Set[RepairActionDef] = new java.util.HashSet[RepairActionDef],
+  @BeanProperty var reports:java.util.Set[PairReportDef] = new java.util.HashSet[PairReportDef],
+  @BeanProperty var escalations:java.util.Set[EscalationDef] = new java.util.HashSet[EscalationDef]
+) {
+
+  def this() = this(domain = null)
+
+  def asRef = DiffaPairRef(key, domain)
+
+  def withoutDomain = PairDef(
+    key = key,
+    versionPolicyName = versionPolicyName,
+    matchingTimeout = matchingTimeout,
+    upstreamName = upstreamName,
+    downstreamName = downstreamName,
+    scanCronSpec = scanCronSpec,
+    scanCronEnabled = scanCronEnabled,
+    allowManualScans = allowManualScans,
+    views = views,
+    repairActions = repairActions,
+    reports = reports,
+    escalations = escalations
+  )
+
+  def identifier = asRef.identifier
+}
+
+/**
  * Serializable representation of a RepairAction within the context of a domain.
  */
 case class RepairActionDef (
   @BeanProperty var name: String = null,
   @BeanProperty var url: String = null,
-  @BeanProperty var scope: String = null,
-  @BeanProperty var pair: String = null
+  @BeanProperty var scope: String = null
 ) {
   import RepairAction._
 
   def this() = this(name = null)
 
   def validate(path:String = null) {
-    val actionPath = ValidationUtil.buildPath(
-      ValidationUtil.buildPath(path, "pair", Map("key" -> pair)),
-      "repair-action", Map("name" -> name))
+    val actionPath = ValidationUtil.buildPath(path, "repair-action", Map("name" -> name))
 
     ValidationUtil.ensureLengthLimit(actionPath, "name", name, DefaultLimits.KEY_LENGTH_LIMIT)
-    ValidationUtil.ensureLengthLimit(actionPath, "pair", pair, DefaultLimits.KEY_LENGTH_LIMIT)
 
     // Ensure that the scope is supported
     this.scope = scope match {
@@ -262,9 +377,6 @@ case class RepairActionDef (
       case _ => throw new ConfigValidationException(actionPath, "Invalid action scope: "+scope)
     }
   }
-
-  def asRepairAction(domain:String)
-    = RepairAction(name, url, scope, DiffaPair(key=pair,domain=Domain(name=domain)))
 }
 
 /**
@@ -272,64 +384,45 @@ case class RepairActionDef (
  */
 case class EscalationDef (
   @BeanProperty var name: String = null,
-  @BeanProperty var pair: String = null,
   @BeanProperty var action: String = null,
   @BeanProperty var actionType: String = null,
-  @BeanProperty var event: String = null,
-  @BeanProperty var origin: String = null
+  @BeanProperty var rule: String = null,
+  @BeanProperty var delay: Int = 0
 ) {
   import EscalationEvent._
-  import EscalationOrigin._
   import EscalationActionType._
 
   def this() = this(name = null)
 
   def validate(path:String = null) {
-    val escalationPath = ValidationUtil.buildPath(
-      ValidationUtil.buildPath(path, "pair", Map("key" -> pair)),
-      "escalation", Map("name" -> name))
+    val escalationPath = ValidationUtil.buildPath(path, "escalation", Map("name" -> name))
+
+    action = ValidationUtil.maybeNullify(action)
+    rule = ValidationUtil.maybeNullify(rule)
 
     ValidationUtil.ensureLengthLimit(escalationPath, "name", name, DefaultLimits.KEY_LENGTH_LIMIT)
-    ValidationUtil.ensureLengthLimit(escalationPath, "pair", pair, DefaultLimits.KEY_LENGTH_LIMIT)
     ValidationUtil.ensureLengthLimit(escalationPath, "action", action, DefaultLimits.KEY_LENGTH_LIMIT)
+    ValidationUtil.ensureLengthLimit(escalationPath, "rule", rule, DefaultLimits.URL_LENGTH_LIMIT)
 
     // Ensure that the action type is supported, and validate the parameters that depend on it
     actionType match {
-      case REPAIR =>
-        // Ensure that the origin is supported
-        origin match {
-          case SCAN =>
-          case _    => throw new ConfigValidationException(escalationPath, "Invalid escalation origin: " + origin)
-        }
-        event match {
-          case UPSTREAM_MISSING | DOWNSTREAM_MISSING | MISMATCH  => event
-          case _ =>
-            throw new ConfigValidationException(escalationPath,
-              "Invalid escalation event source type %s for action type %s".format(event, actionType))
-        }
+      case REPAIR | IGNORE =>
+        EscalationManager.validateRule(rule, escalationPath)
       case REPORT =>
-        // We don't support origins for reports
-        if (origin != null)
-          throw new ConfigValidationException(escalationPath, "Origin not supported on report escalations.")
-
-        event match {
-          case SCAN_FAILED | SCAN_COMPLETED => event
+        rule match {
+          case SCAN_FAILED | SCAN_COMPLETED => rule
           case _ =>
             throw new ConfigValidationException(escalationPath,
-              "Invalid escalation event source type %s for action type %s".format(event, actionType))
+              "Invalid escalation event source type %s for action type %s".format(rule, actionType))
         }
       case _    =>
         throw new ConfigValidationException(escalationPath, "Invalid escalation action type: " + actionType)
     }
   }
-
-  def asEscalation(domain:String)
-    = Escalation(name, DiffaPair(key=pair,domain=Domain(name=domain)), action, actionType, event, origin)
 }
 
 case class PairReportDef(
   @BeanProperty var name:String = null,
-  @BeanProperty var pair: String = null,
   @BeanProperty var reportType:String = null,
   @BeanProperty var target:String = null
 ) {
@@ -338,12 +431,9 @@ case class PairReportDef(
   def this() = this(name = null)
 
   def validate(path:String = null) {
-    val escalationPath = ValidationUtil.buildPath(
-        ValidationUtil.buildPath(path, "pair", Map("key" -> pair)),
-    "report", Map("name" -> name))
+    val escalationPath = ValidationUtil.buildPath(path, "report", Map("name" -> name))
 
     ValidationUtil.ensureLengthLimit(escalationPath, "name", this.name, DefaultLimits.KEY_LENGTH_LIMIT)
-    ValidationUtil.ensureLengthLimit(escalationPath, "pair", this.pair, DefaultLimits.KEY_LENGTH_LIMIT)
 
     reportType match {
       case DIFFERENCES  =>

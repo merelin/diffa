@@ -89,10 +89,7 @@ class DiffaCastorSerializableConfig {
     this.properties = c.properties.map { case (k, v) => new DiffaProperty(k, v) }.toList
     this.endpoints = c.endpoints.map { e => (new CastorSerializableEndpoint).fromDiffaEndpoint(e) }.toList
     this.pairs = c.pairs.map(p => {
-      def repairActionsForPair(pairKey: String) = c.repairActions.filter(_.pair == pairKey).toList
-      def escalationsForPair(pairKey: String) = c.escalations.filter(_.pair == pairKey).toList
-      def reportsForPair(pairKey: String) = c.reports.filter(_.pair == pairKey).toList
-      CastorSerializablePair.fromPairDef(p, repairActionsForPair(p.key), escalationsForPair(p.key), reportsForPair(p.key))
+      CastorSerializablePair.fromPairDef(p)
     }).toList
     this
   }
@@ -102,10 +99,7 @@ class DiffaCastorSerializableConfig {
       members = members.toSet,
       properties = properties.map(p => p.key -> p.value).toMap,
       endpoints = endpoints.map(_.toDiffaEndpoint).toSet,
-      pairs = (for (p <- pairs) yield p.toPairDef).toSet,
-      repairActions = (for (p <- pairs; a <- p.repairActions) yield { a.pair = p.key ; a }).toSet,
-      escalations = (for (p <- pairs; e <- p.escalations) yield { e.pair = p.key ; e }).toSet,
-      reports = (for (p <- pairs; r <- p.reports) yield { r.pair = p.key ; r }).toSet
+      pairs = (for (p <- pairs) yield p.toPairDef).toSet
     )
 
 }
@@ -142,6 +136,7 @@ class CastorSerializableEndpoint extends Categorized {
   @BeanProperty var versionGenerationUrl: String = null
   @BeanProperty var inboundUrl: String = null
   @BeanProperty var views: java.util.List[CastorSerializableEndpointView] = new java.util.ArrayList[CastorSerializableEndpointView]
+  @BeanProperty var collation: String = null
 
   def fromDiffaEndpoint(e:EndpointDef) = {
     this.name = e.name
@@ -151,6 +146,7 @@ class CastorSerializableEndpoint extends Categorized {
     this.inboundUrl = e.inboundUrl
     this.fromDiffaCategories(e.categories)
     this.views = e.views.map(v => new CastorSerializableEndpointView().fromDiffaEndpointView(v));
+    this.collation = e.collation
 
     this
   }
@@ -160,7 +156,8 @@ class CastorSerializableEndpoint extends Categorized {
       name = name, inboundUrl = inboundUrl,
       scanUrl = scanUrl, contentRetrievalUrl = contentRetrievalUrl, versionGenerationUrl = versionGenerationUrl,
       categories = toDiffaCategories,
-      views = views.map(v => v.toDiffaEndpointView)
+      views = views.map(v => v.toDiffaEndpointView),
+      collation = collation
     )
 }
 
@@ -221,19 +218,35 @@ class CastorSerializablePair(
   @BeanProperty var escalations: java.util.List[EscalationDef] = new java.util.ArrayList[EscalationDef],
   @BeanProperty var reports: java.util.List[PairReportDef] = new java.util.ArrayList[PairReportDef],
   @BeanProperty var scanCronSpec: String = null,
+  @BeanProperty var scanCronEnabled: java.lang.Boolean = null,
   @BeanProperty var allowManualScans: java.lang.Boolean = null,
-  @BeanProperty var views: java.util.List[PairViewDef] = new java.util.ArrayList[PairViewDef],
+  @BeanProperty var views: java.util.List[CastorSerializablePairView] = new java.util.ArrayList[CastorSerializablePairView],
   @BeanProperty var eventsToLog: Int = 0,
   @BeanProperty var maxExplainFiles: Int = 0
 ) {
   def this() = this(key = null)
 
-  def toPairDef = PairDef(key, versionPolicy, matchingTimeout, upstream, downstream, scanCronSpec, allowManualScans, views)
+  def toPairDef = PairDef(key, versionPolicy, matchingTimeout, upstream, downstream, scanCronSpec,
+                         (scanCronEnabled == null || scanCronEnabled), allowManualScans, views.map(_.toPairViewDef),
+                         new java.util.HashSet(repairActions), new java.util.HashSet(reports), new java.util.HashSet(escalations))
+}
+
+class CastorSerializablePairView(
+  @BeanProperty var name:String = null,
+  @BeanProperty var scanCronSpec:String = null,
+  @BeanProperty var scanCronEnabled:java.lang.Boolean = null
+) {
+  def this() = this(name = null)
+
+  def toPairViewDef = PairViewDef(name, scanCronSpec, scanCronEnabled == null || scanCronEnabled)
 }
 
 object CastorSerializablePair {
-  def fromPairDef(p: PairDef, repairActions: java.util.List[RepairActionDef],
-                              escalations: java.util.List[EscalationDef], reports: java.util.List[PairReportDef]): CastorSerializablePair =
+  def fromPairDef(p: PairDef): CastorSerializablePair =
     new CastorSerializablePair(p.key, p.upstreamName, p.downstreamName, p.versionPolicyName, p.matchingTimeout,
-                               repairActions, escalations, reports, p.scanCronSpec, p.allowManualScans, p.views)
+                               p.repairActions.toList, p.escalations.toList, p.reports.toList, p.scanCronSpec, (if (p.scanCronEnabled) null else false),
+                               p.allowManualScans, p.views.map(fromPairViewDef))
+
+  def fromPairViewDef(p: PairViewDef): CastorSerializablePairView =
+    new CastorSerializablePairView(p.name, p.scanCronSpec, (if (p.scanCronEnabled) null else false))
 }

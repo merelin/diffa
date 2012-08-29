@@ -16,11 +16,11 @@
 
 package net.lshift.diffa.agent.rest
 
-import net.lshift.diffa.docgen.annotations.{MandatoryParams, Description}
-import net.lshift.diffa.docgen.annotations.MandatoryParams.MandatoryParam
-import net.lshift.diffa.docgen.annotations.MandatoryParams.MandatoryParam._
 import javax.ws.rs._
 import net.lshift.diffa.kernel.frontend.{EscalationDef, Configuration}
+import net.lshift.diffa.kernel.differencing.DomainDifferenceStore
+import net.lshift.diffa.kernel.config.DiffaPairRef
+import net.lshift.diffa.agent.rest.ResponseUtils._
 
 /**
  * ATM this resource proxies directly through to the underlying configuration, because the current scope of
@@ -29,13 +29,19 @@ import net.lshift.diffa.kernel.frontend.{EscalationDef, Configuration}
  * This is likely to change when #274 lands
  */
 class EscalationsResource(val config:Configuration,
+                          val diffStore:DomainDifferenceStore,
                           val domain:String) {
 
   @GET
   @Path("/{pairId}")
   @Produces(Array("application/json"))
-  @Description("Returns a list of escalations that are configured for a pair.")
-  @MandatoryParams(Array(new MandatoryParam(name="pairId", datatype="string", description="The identifier of the pair")))
   def listEscalations(@PathParam("pairId") pairId: String): Array[EscalationDef] = config.listEscalationForPair(domain, pairId).toArray
+
+  @DELETE
+  @Path("/{pairId}")
+  def unscheduleEscalations(@PathParam("pairId") pairId: String) = {
+    diffStore.unscheduleEscalations(DiffaPairRef(domain = domain, key = pairId))
+    resourceDeleted()
+  }
 
 }

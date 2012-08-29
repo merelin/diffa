@@ -22,6 +22,7 @@ Diffa.Helpers.ViewsHelper = {
 
     model.bind('change:views', updateViews);
     model.views = new (viewCollectionClass || Backbone.Collection)([]);
+    Diffa.Helpers.DirtyTracker.proxyChange(model, [model.views]);
     updateViews();
   },
   packViews: function(model) {
@@ -29,11 +30,13 @@ Diffa.Helpers.ViewsHelper = {
     model.set({views: model.views.toJSON()}, {silent: true});
   }
 };
+
 Diffa.Helpers.DatesHelper = {
   toISOString: function(d) {
   return d.toISOString().replace(/-/g, "").replace(/:/g, "").replace(/\.\d\d\d/g, "");
   }
 };
+
 Diffa.Helpers.CategoriesHelper = {
   extractCategories: function(model, viewCollectionClass) {
     var updateCategories = function() {
@@ -48,6 +51,8 @@ Diffa.Helpers.CategoriesHelper = {
     model.setCategories = new Diffa.Collections.CategoryCollection([], {categoryType: 'set'});
     model.prefixCategories = new Diffa.Collections.CategoryCollection([], {categoryType: 'prefix'});
 
+    Diffa.Helpers.DirtyTracker.proxyChange(model, [model.rangeCategories, model.setCategories, model.prefixCategories]);
+
     updateCategories();
   },
   packCategories: function(model) {
@@ -60,11 +65,36 @@ Diffa.Helpers.CategoriesHelper = {
     model.set({categories: categories}, {silent: true});
   }
 };
+
+Diffa.Helpers.DirtyTracker = {
+  attach: function(model) {
+    model.dirty = false;
+
+    model.clearDirty = function() {
+      model.dirty = false;
+      model.trigger('change:dirty', model, false);
+    };
+
+    model.bind('change', function() {
+      model.dirty = true;
+      model.trigger('change:dirty', model, true);
+    })
+  },
+
+  proxyChange: function(model, childModels) {
+    _.each(childModels, function(childModel) {
+      childModel.bind('change', function() { model.trigger('change'); });
+    });
+  }
+};
+
 Diffa.Models.Endpoint = Backbone.Model.extend({
   idAttribute: 'name',
+  type: 'endpoint',
   initialize: function() {
     Diffa.Helpers.CategoriesHelper.extractCategories(this);
     Diffa.Helpers.ViewsHelper.extractViews(this, Diffa.Collections.EndpointViews);
+    Diffa.Helpers.DirtyTracker.attach(this);
   },
   urlRoot: function() { return "/domains/" + (this.domain || this.collection.domain).id + "/config/endpoints"; },
   prepareForSave: function() {
@@ -79,8 +109,58 @@ Diffa.Models.Endpoint = Backbone.Model.extend({
       data: f,
       processData: false
     }, opts));
+  },
+  scanningStatus: function() {
+    if (this.get('scanUrl')) {
+      return "Scanning configured via " + this.get('scanUrl');
+    } else {
+      return "Scanning not configured";
+    }
+  },
+  inspectionStatus: function() {
+    if (this.get('contentRetrievalUrl')) {
+      return "Content inspection configured via " + this.get('contentRetrievalUrl');
+    } else {
+      return "Inspection not configured";
+    }
+  },
+  advancedInterrogationStatus: function() {
+    if (this.get('versionGenerationUrl') || this.get('inboundUrl')) {
+      return "Advanced interrogation configured"
+    } else {
+      return "Advanced interrogation not configured"
+    }
+  },
+  categoriesStatus: function() {
+    var result = [];
+    var applyCategory = function(name, categories) {
+      var count = categories.length;
+      if (count > 0) {
+        result.push(count + " " + name + " categor" + (count > 1 ? "ies" : "y"));
+      }
+    };
+
+    applyCategory("range", this.rangeCategories);
+    applyCategory("set", this.setCategories);
+    applyCategory("prefix", this.prefixCategories);
+
+    if (result.length > 0) {
+      return result.join(", ");
+    } else {
+      return "No categories configured";
+    }
+  },
+  viewsStatus: function() {
+    if (this.views && this.views.length > 0) {
+      var count = this.views.length;
+
+      return count + " view" + (count > 1 ? "s" : "") + " configured";
+    } else {
+      return "No views configured";
+    }
   }
 });
+
 Diffa.Models.EndpointView = Backbone.Model.extend({
   idAttribute: 'name',
   initialize: function() {
@@ -90,11 +170,22 @@ Diffa.Models.EndpointView = Backbone.Model.extend({
     Diffa.Helpers.CategoriesHelper.packCategories(this);
   }
 });
+
 Diffa.Models.Pair = Backbone.Model.extend({
   idAttribute: "key",
-  urlRoot: function() { return "/domains/" + (this.domain || this.collection.domain).id + "/config/pairs"; },
+  type: 'pair',
+  urlRoot: function() { return "/domains/" + this.domain.id + "/config/pairs"; },
   initialize: function() {
     Diffa.Helpers.ViewsHelper.extractViews(this);
+
+    this.actions = new Diffa.Collections.RepairActions(this.get('repairActions'), {pair: this});
+    this.escalations = new Diffa.Collections.Escalations(this.get('escalations'), {pair: this});
+    this.reports = new Diffa.Collections.Reports(this.get('reports'), {pair: this});
+
+    Diffa.Helpers.DirtyTracker.attach(this);
+    Diffa.Helpers.DirtyTracker.proxyChange(this, [this.actions, this.escalations, this.reports]);
+
+    if (this.collection) this.domain = this.collection.domain;
   },
   prepareForSave: function() {
       // Remove properties artifacts from the databinding library
@@ -103,11 +194,66 @@ Diffa.Models.Pair = Backbone.Model.extend({
     this.unset('downstreamName_text', {silent: true});
 
     Diffa.Helpers.ViewsHelper.packViews(this);
+
+    this.set({
+      repairActions: this.actions.toJSON(),
+      escalations: this.escalations.toJSON(),
+      reports: this.reports.toJSON()
+    });
+  },
+  fetchExtra: function() {
+    this.actions.ensureFetched();
   },
   updateViews: function() {
     this.views.reset(this.get('views'));
+  },
+  scanningStatus: function() {
+    var result = "Manual scanning " + (this.get('allowManualScans') ? "enabled" : "disabled");
+
+    if (this.get('scanCronSpec') && this.get('scanCronEnabled')) {
+      result += ". Periodic scanning enabled"
+    }
+
+    return result;
+  },
+  viewsStatus: function() {
+    if (this.views && this.views.length > 0) {
+      var count = this.views.length;
+
+      return count + " view" + (count > 1 ? "s" : "") + " configured";
+    } else {
+      return "No views configured";
+    }
+  },
+  repairActionsStatus: function() {
+    if (this.actions.length > 0) {
+      var count = this.actions.length;
+
+      return count + " repair action" + (count > 1 ? "s" : "") + " configured";
+    } else {
+      return "No repair actions configured";
+    }
+  },
+  reportsStatus: function() {
+    if (this.reports.length > 0) {
+      var count = this.reports.length;
+
+      return count + " report" + (count > 1 ? "s" : "") + " configured";
+    } else {
+      return "No reports configured";
+    }
+  },
+  escalationsStatus: function() {
+    if (this.escalations.length > 0) {
+      var count = this.escalations.length;
+
+      return count + " escalation" + (count > 1 ? "s" : "") + " configured";
+    } else {
+      return "No escalations configured";
+    }
   }
 });
+
 Diffa.Models.PairState = Backbone.Model.extend({
   logPollInterval: 2000,
   initialize: function() {
@@ -214,6 +360,18 @@ Diffa.Models.PairState = Backbone.Model.extend({
     });
   }
 });
+Diffa.Models.Category = Backbone.Model.extend({
+  idAttribute: "name"
+});
+Diffa.Models.RepairAction = Backbone.Model.extend({
+  idAttribute: "name"
+});
+Diffa.Models.Escalation = Backbone.Model.extend({
+  idAttribute: "name"
+});
+Diffa.Models.Report = Backbone.Model.extend({
+  idAttribute: "name"
+});
 
 Diffa.Collections.Watchable = {
   // Indicates that the given element is watching this collection, and it should periodically update itself.
@@ -231,6 +389,7 @@ Diffa.Collections.Watchable = {
     }
   }
 };
+
 Diffa.Collections.CollectionBase = Backbone.Collection.extend(Diffa.Collections.Watchable).extend({
   initialize: function(models, opts) {
     var self = this;
@@ -268,21 +427,76 @@ Diffa.Collections.CollectionBase = Backbone.Collection.extend(Diffa.Collections.
     }
   }
 });
+
 Diffa.Collections.Endpoints = Diffa.Collections.CollectionBase.extend({
   model: Diffa.Models.Endpoint,
   url: function() { return "/domains/" + this.domain.id + "/config/endpoints"; },
   comparator: function(endpoint) { return endpoint.get('name'); }
 });
+
 Diffa.Collections.EndpointViews = Backbone.Collection.extend({
   model: Diffa.Models.EndpointView
 });
+
 Diffa.Collections.Pairs = Diffa.Collections.CollectionBase.extend({
   model: Diffa.Models.Pair,
   url: function() { return "/domains/" + this.domain.id + "/config/pairs"; },
-  comparator: function(endpoint) { return endpoint.get('name'); }
+  comparator: function(pair) { return pair.id; }
 });
+
+Diffa.Models.HiddenPair = Backbone.Model.extend({
+  initialize: function(model, opts) {
+    this.id = model.id;
+    this.user = opts.collection.user;
+    this.domain = opts.collection.domain.id;
+  },
+  url: function() {
+    return "/users/" + this.user + "/" + this.domain + "/" + this.id + "/filter/SWIM_LANE";
+  }
+});
+
+Diffa.Collections.HiddenPairs = Diffa.Collections.CollectionBase.extend({
+  model: Diffa.Models.HiddenPair,
+  initialize: function(models, opts) {
+    this.user = opts.user;
+    this.domain = opts.domain;
+    this.fetch();
+  },
+  url: function() {
+    return "/users/" + this.user + "/" + this.domain.id + "/filter/SWIM_LANE";
+  },
+  parse: function(response) {
+    return response.map(this.identify);
+  },
+  identify: function(ident) {
+    return {id: ident};
+  },
+  comparator: function(pair) {
+    return pair.get("id");
+  },
+  remove: function(models, options) {
+    var self = this;
+    _.each(models, function(model) {
+      if (model && model.destroy) {
+        model.destroy();
+      }
+    });
+    self.fetch();
+  },
+  hidePair: function(pairKey) {
+    var model = new Diffa.Models.HiddenPair({id: pairKey}, {collection: this});
+    this.create(model);
+  },
+  revealPair: function(pairKey) {
+    var model = this.get({id: pairKey});
+    if (model) {
+      this.remove([model]);
+    }
+  }
+});
+
 Diffa.Collections.CategoryCollection = Backbone.Collection.extend({
-  model: Backbone.Model,
+  model: Diffa.Models.Category,
   initialize: function(models, options) {
     Diffa.Collections.CategoryCollection.__super__.initialize.call(this, models, options);
     this.categoryType = options.categoryType;
@@ -310,6 +524,16 @@ Diffa.Collections.CategoryCollection = Backbone.Collection.extend({
     });
   }
 });
+Diffa.Collections.RepairActions = Diffa.Collections.CollectionBase.extend({
+  model: Diffa.Models.RepairAction
+});
+Diffa.Collections.Escalations = Diffa.Collections.CollectionBase.extend({
+  model: Diffa.Models.Escalation
+});
+Diffa.Collections.Reports = Diffa.Collections.CollectionBase.extend({
+  model: Diffa.Models.Report
+});
+
 Diffa.Collections.PairStates = Diffa.Collections.CollectionBase.extend({
   watchInterval: 5000,        // We poll for pair status updates every 5s
   model: Diffa.Models.PairState,
@@ -324,6 +548,8 @@ Diffa.Collections.PairStates = Diffa.Collections.CollectionBase.extend({
       pair.set({selected: pair.id == this.selectedPair});
     });
   },
+
+  comparator: function(state) { return state.id; },
 
   sync: function() {
     var self = this;
@@ -438,8 +664,15 @@ Diffa.Models.PairAggregates = Backbone.Model.extend(Diffa.Collections.Watchable)
     this.set(result, opts);
     
     this.lastRequests = requestDetails;
-  }
+  },
+
+  getMap: function() {
+    return this.get('map');
+  },
+
+  containsMultiplePairs: false
 });
+
 Diffa.Collections.DomainAggregates = Backbone.Collection.extend(Diffa.Models.Aggregator).extend({
   model: Diffa.Models.PairAggregates,
 
@@ -478,7 +711,18 @@ Diffa.Collections.DomainAggregates = Backbone.Collection.extend(Diffa.Models.Agg
 
   change: function() {
     this.forEach(function(pair) { pair.change(); });
-  }
+  },
+
+  getMap: function(pairKey) {
+    var pairAggregate = this.get(pairKey);
+    if (pairAggregate) {
+      return pairAggregate.getMap();
+    } else {
+      return [];
+    }
+  },
+
+  containsMultiplePairs: true
 });
 
 /**
@@ -487,11 +731,14 @@ Diffa.Collections.DomainAggregates = Backbone.Collection.extend(Diffa.Models.Agg
 Diffa.Models.Domain = Backbone.Model.extend({
   idAttribute: 'name',
   initialize: function() {
+    var self = this;
+    var user = this.get('user');
     this.endpoints = new Diffa.Collections.Endpoints([], {domain: this});
     this.pairs = new Diffa.Collections.Pairs([], {domain: this});
     this.pairStates = new Diffa.Collections.PairStates([], {domain: this});
     this.diffs = new Diffa.Collections.Diffs([], {domain: this});
     this.aggregates = new Diffa.Collections.DomainAggregates([], {domain: this});
+    this.hiddenPairs = new Diffa.Collections.HiddenPairs([], {domain: this, user: user});
   },
 
   loadAll: function(colls, callback) {
@@ -518,15 +765,11 @@ Diffa.Models.Domain = Backbone.Model.extend({
  */
 Diffa.DomainManager = _.extend({}, Backbone.Events, {
   domains: {},
-  get: function(name) {
-    if (!name) {
-      name = "diffa";     // Default the domain name when not specified
-    }
-
+  get: function(name, user) {
     var domain = this.domains[name];
 
     if (!domain) {
-      domain = new Diffa.Models.Domain({name: name});
+      domain = new Diffa.Models.Domain({name: name, user: user});
       this.domains[name] = domain;
     }
 

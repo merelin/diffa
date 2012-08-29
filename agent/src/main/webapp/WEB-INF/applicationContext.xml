@@ -49,7 +49,6 @@
         <bean class="net.lshift.diffa.kernel.differencing.SameVersionPolicy">
             <constructor-arg ref="versionCorrelationStoreFactory" />
             <constructor-arg ref="differencesManager" />
-            <constructor-arg ref="systemConfigStore" />
             <constructor-arg ref="diagnosticsManager" />
           </bean>
       </list>
@@ -65,7 +64,6 @@
         <bean class="net.lshift.diffa.kernel.differencing.CorrelatedVersionPolicy">
           <constructor-arg ref="versionCorrelationStoreFactory" />
           <constructor-arg ref="differencesManager" />
-          <constructor-arg ref="systemConfigStore" />
           <constructor-arg ref="diagnosticsManager" />
         </bean>
       </list>
@@ -79,6 +77,7 @@
   -->
   <bean id="matchingManager" class="net.lshift.diffa.kernel.matching.LocalEventMatchingManager" destroy-method="close">
     <constructor-arg ref="systemConfigStore" />
+    <constructor-arg ref="domainConfigStore" />
   </bean>
 
   <!--
@@ -88,6 +87,7 @@
   -->
   <bean id="scanScheduler" class="net.lshift.diffa.kernel.scheduler.QuartzScanScheduler" destroy-method="close">
     <constructor-arg ref="systemConfigStore" />
+    <constructor-arg ref="domainConfigStore" />
     <constructor-arg ref="pairActorSupervisor" />
     <constructor-arg value="DiffaScanScheduler" />
   </bean>
@@ -104,21 +104,18 @@
     <constructor-arg ref="matchingManager" />
     <constructor-arg ref="participantFactory" />
     <constructor-arg ref="notificationCentre" />
+    <constructor-arg ref="escalationManager" />
   </bean>
-  <bean id="domainDifferenceStoreFactory" class="net.lshift.diffa.kernel.differencing.HibernateDomainDifferenceStoreFactory">
-    <constructor-arg ref="diffaSessionFactory" />
-    <constructor-arg ref="databaseFacade" />
+  <bean id="domainDifferenceStore" class="net.lshift.diffa.kernel.differencing.JooqDomainDifferenceStore" depends-on="diffaSessionFactory">
+    <constructor-arg ref="jooqDatabaseFacade" />
     <constructor-arg ref="hazelcastCacheProvider" />
     <constructor-arg ref="hazelcastSequenceProvider" />
-    <constructor-arg ref="zoomCacheManager"/>
-    <constructor-arg ref="dialect"/>
     <constructor-arg ref="hookManager" />
+    <constructor-arg ref="spacePathCache" />
   </bean>
-  <bean id="domainDifferenceStore"
-        factory-bean="domainDifferenceStoreFactory"
-        factory-method="create"/>
+
   <bean id="sweeper" class="net.lshift.diffa.kernel.util.Sweeper" init-method="start" destroy-method="shutdown">
-    <constructor-arg value="5" />
+    <constructor-arg value="30" />
     <constructor-arg ref="domainDifferenceStore" />
   </bean>
 
@@ -130,11 +127,15 @@
 
   <bean id="escalationManager"
         class="net.lshift.diffa.kernel.escalation.EscalationManager"
+        init-method="start"
         destroy-method="close">
     <constructor-arg ref="domainConfigStore" />
+    <constructor-arg ref="systemConfigStore" />
+    <constructor-arg ref="domainDifferenceStore" />
     <constructor-arg ref="actionsFrontend" />
     <constructor-arg ref="reportManager" />
     <constructor-arg ref="actorSystem" />
+    <constructor-arg ref="breakerHelper" />
   </bean>
 
   <bean id="reportManager" class="net.lshift.diffa.kernel.reporting.ReportManager">
@@ -240,6 +241,7 @@
     <constructor-arg ref="participantFactory"/>
     <constructor-arg ref="versionCorrelationStoreFactory"/>
     <constructor-arg ref="diagnosticsManager" />
+    <constructor-arg ref="scanActivityStore" />
     <constructor-arg>
       <bean class="org.springframework.beans.factory.config.MethodInvokingFactoryBean">
         <property name="targetObject" ref="systemConfigStore"/>
@@ -327,24 +329,34 @@
       Data
     ========
   -->
-  <bean id="dialect" class="org.springframework.jndi.JndiObjectFactoryBean">
+  <bean id="hibernateDialect" class="org.springframework.jndi.JndiObjectFactoryBean">
     <property name="jndiName" value="java:comp/env/diffaHibernateDialect"/>
   </bean>
-  <bean id="hookManager" class="net.lshift.diffa.kernel.hooks.HookManager" />
 
-  <bean id="databaseFacade" class="net.lshift.diffa.kernel.util.db.HibernateDatabaseFacade">
-    <constructor-arg ref="diffaSessionFactory" />
+  <bean id="jooqDialect" class="org.springframework.jndi.JndiObjectFactoryBean">
+    <property name="jndiName" value="java:comp/env/diffaJooqDialect"/>
+  </bean>
+
+  <bean id="hookManager" class="net.lshift.diffa.kernel.hooks.HookManager" >
     <constructor-arg>
       <bean class="org.springframework.jndi.JndiObjectFactoryBean">
-        <property name="jndiName" value="java:comp/env/jdbc/diffaDS"/>
+        <property name="jndiName" value="java:comp/env/diffaJooqDialect"/>
       </bean>
     </constructor-arg>
   </bean>
 
-  <bean id="diffaSessionFactory" class="net.lshift.diffa.agent.util.ListeningLocalSessionFactoryBean">
+  <bean id="jooqDatabaseFacade" class="net.lshift.diffa.schema.jooq.DatabaseFacade">
     <constructor-arg>
-      <bean class="net.lshift.diffa.kernel.activation.BaselineConfiguration"/>
+      <bean class="org.springframework.jndi.JndiObjectFactoryBean">
+            <property name="jndiName" value="java:comp/env/jdbc/diffaDS"/>
+      </bean>
     </constructor-arg>
+    <constructor-arg ref="jooqDialect"/>
+  </bean>
+
+  <!-- Keep the Hibernate session factory around until the migration steps are ported away from Hibernate -->
+
+  <bean id="diffaSessionFactory" class="net.lshift.diffa.agent.util.ListeningLocalSessionFactoryBean" lazy-init="false">
     <property name="dataSource">
       <bean class="org.springframework.jndi.JndiObjectFactoryBean">
             <property name="jndiName" value="java:comp/env/jdbc/diffaDS"/>
@@ -352,26 +364,15 @@
     </property>
     <property name="hibernateProperties">
       <bean class="net.lshift.diffa.agent.util.HibernatePropertiesFactory">
-        <constructor-arg ref="dialect"/>
-        <constructor-arg value="net.sf.ehcache.hibernate.EhCacheRegionFactory"/>
+        <constructor-arg ref="hibernateDialect"/>
       </bean>
     </property>
-    <property name="mappingResources">
-      <list>
-          <value>net/lshift/diffa/kernel/differencing/DifferenceEvents.hbm.xml</value>
-          <value>net/lshift/diffa/kernel/differencing/Differences.hbm.xml</value>
-          <value>net/lshift/diffa/kernel/config/Config.hbm.xml</value>
-          <value>net/lshift/diffa/kernel/config/DomainConfig.hbm.xml</value>
-          <value>net/lshift/diffa/kernel/config/SystemConfig.hbm.xml</value>
-          <value>net/lshift/diffa/kernel/config/ServiceLimits.hbm.xml</value>
-      </list>
-    </property>
+
     <property name="preparationSteps">
       <list>
-        <bean class="net.lshift.diffa.kernel.config.HibernateConfigStorePreparationStep" />
+        <bean class="net.lshift.diffa.schema.migrations.HibernateConfigStorePreparationStep" />
       </list>
     </property>
-    <property name="hookManager" ref="hookManager" />
   </bean>
 
   <!--
@@ -379,18 +380,6 @@
       Caching
     ===========
   -->
-  <bean id="zoomCacheManager" class="net.sf.ehcache.CacheManager">
-    <constructor-arg type="java.net.URL" value="classpath:ehcache-zooming.xml"/>
-  </bean>
-
-  <bean id="domainSequenceCache" class="net.lshift.diffa.agent.rest.DomainSequenceCache">
-    <constructor-arg>
-      <bean class="net.sf.ehcache.CacheManager">
-        <constructor-arg type="java.net.URL" value="classpath:ehcache-domain-sequences.xml"/>
-      </bean>
-    </constructor-arg>
-    <constructor-arg value="lastDomainSequence"/>
-  </bean>
 
   <bean id="hazelcastCacheProvider" class="net.lshift.diffa.kernel.util.cache.HazelcastCacheProvider"></bean>
 
@@ -410,32 +399,36 @@
       Configuration
     ===========
   -->
-  <!-- TODO Once #366 lands, this cache should be unnecessary -->
-  <bean id="pairCache" class="net.lshift.diffa.kernel.config.PairCache">
-    <constructor-arg>
-      <bean class="net.sf.ehcache.CacheManager">
-        <constructor-arg type="java.net.URL" value="classpath:ehcache-pairs.xml"/>
-      </bean>
-    </constructor-arg>
+
+  <bean id="spacePathCache" class="net.lshift.diffa.kernel.config.SpacePathCache">
+    <constructor-arg ref="jooqDatabaseFacade" />
+    <constructor-arg ref="hazelcastCacheProvider" />
   </bean>
 
-  <bean id="domainConfigStore" class="net.lshift.diffa.kernel.config.HibernateDomainConfigStore">
-    <constructor-arg ref="diffaSessionFactory" />
-    <constructor-arg ref="databaseFacade" />
-    <constructor-arg ref="pairCache" />
+  <bean id="underlyingConfigStore" class="net.lshift.diffa.kernel.config.system.JooqSystemConfigStore" depends-on="diffaSessionFactory">
+    <constructor-arg ref="jooqDatabaseFacade" />
+    <constructor-arg ref="hazelcastCacheProvider" />
+    <constructor-arg ref="hazelcastSequenceProvider" />
+    <constructor-arg ref="spacePathCache" />
+  </bean>
+
+  <bean id="domainConfigStore" class="net.lshift.diffa.kernel.config.JooqDomainConfigStore">
+    <constructor-arg ref="jooqDatabaseFacade" />
     <constructor-arg ref="hookManager" />
-    <constructor-arg>
-      <bean class="net.sf.ehcache.CacheManager">
-        <constructor-arg type="java.net.URL" value="classpath:ehcache-config-versions.xml"/>
-      </bean>
-    </constructor-arg>
+    <constructor-arg ref="hazelcastCacheProvider" />
     <constructor-arg ref="systemConfigStore" />
+    <constructor-arg ref="spacePathCache" />
   </bean>
 
-  <bean id="underlyingConfigStore" class="net.lshift.diffa.kernel.config.system.HibernateSystemConfigStore">
-    <constructor-arg ref="diffaSessionFactory" />
-    <constructor-arg ref="databaseFacade" />
-    <constructor-arg ref="pairCache" />
+  <!-- register domain config store as an event listener of the system config store -->
+  <bean class="org.springframework.beans.factory.config.MethodInvokingFactoryBean">
+    <property name="targetObject" ref="underlyingConfigStore" />
+    <property name="targetMethod" value="registerDomainEventListener" />
+    <property name="arguments">
+      <list>
+        <ref bean="domainConfigStore"/>
+      </list>
+    </property>
   </bean>
 
   <bean id="systemConfigStore" class="net.lshift.diffa.kernel.config.system.CachedSystemConfigStore">
@@ -443,14 +436,63 @@
     <constructor-arg ref="hazelcastCacheProvider" />
   </bean>
 
-  <bean id="underlyingServiceLimitsStore" class="net.lshift.diffa.kernel.config.HibernateServiceLimitsStore">
-    <constructor-arg ref="diffaSessionFactory" />
-    <constructor-arg ref="databaseFacade" />
+  <bean id="underlyingServiceLimitsStore" class="net.lshift.diffa.kernel.config.JooqServiceLimitsStore">
+    <constructor-arg ref="jooqDatabaseFacade" />
+    <constructor-arg ref="spacePathCache" />
   </bean>
 
   <bean id="serviceLimitsStore" class="net.lshift.diffa.kernel.config.CachedServiceLimitsStore">
     <constructor-arg ref="underlyingServiceLimitsStore" />
     <constructor-arg ref="hazelcastCacheProvider" />
+  </bean>
+
+  <bean id="breakerHelper" class="net.lshift.diffa.kernel.config.BreakerHelper">
+    <constructor-arg ref="domainConfigStore" />
+  </bean>
+
+  <!--
+    ===========
+      Scan Reporting
+    ===========
+  -->
+
+  <bean id="scanActivityStore" class="net.lshift.diffa.kernel.scanning.JooqScanActivityStore">
+    <constructor-arg ref="jooqDatabaseFacade" />
+    <constructor-arg ref="spacePathCache" />
+  </bean>
+
+  <!--
+    ===========
+      User Preferences
+    ===========
+  -->
+
+  <bean id="userPreferencesStore" class="net.lshift.diffa.kernel.preferences.JooqUserPreferencesStore">
+    <constructor-arg ref="jooqDatabaseFacade" />
+    <constructor-arg ref="hazelcastCacheProvider" />
+    <constructor-arg ref="spacePathCache" />
+  </bean>
+
+  <!-- register user preferences store as an event listener of the domain config store -->
+  <bean class="org.springframework.beans.factory.config.MethodInvokingFactoryBean">
+    <property name="targetObject" ref="domainConfigStore" />
+    <property name="targetMethod" value="registerPairEventListener" />
+    <property name="arguments">
+      <list>
+        <ref bean="userPreferencesStore"/>
+      </list>
+    </property>
+  </bean>
+
+  <!-- register user preferences store as an event listener of the system config store -->
+  <bean class="org.springframework.beans.factory.config.MethodInvokingFactoryBean">
+    <property name="targetObject" ref="underlyingConfigStore" />
+    <property name="targetMethod" value="registerDomainEventListener" />
+    <property name="arguments">
+      <list>
+        <ref bean="userPreferencesStore"/>
+      </list>
+    </property>
   </bean>
 
   <!--
@@ -459,9 +501,9 @@
     ===========
   -->
 
-  <bean id="domainCredentialsStore" class="net.lshift.diffa.kernel.config.HibernateDomainCredentialsStore">
-    <constructor-arg ref="diffaSessionFactory" />
-    <constructor-arg ref="databaseFacade" />
+  <bean id="domainCredentialsStore" class="net.lshift.diffa.kernel.config.JooqDomainCredentialsStore">
+    <constructor-arg ref="jooqDatabaseFacade" />
+    <constructor-arg ref="spacePathCache" />
   </bean>
 
   <!--
@@ -478,6 +520,7 @@
       </bean>
     </constructor-arg>
     <constructor-arg ref="systemConfigStore" />
+    <constructor-arg ref="domainConfigStore" />
     <constructor-arg ref="diagnosticsManager" />
   </bean>
 

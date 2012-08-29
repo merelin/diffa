@@ -17,26 +17,19 @@
 package net.lshift.diffa.agent.util
 
 import org.springframework.orm.hibernate3.LocalSessionFactoryBean
-import org.hibernate.SessionFactoryObserver
+
 import org.hibernate.cfg.Configuration
 import reflect.BeanProperty
-import net.lshift.diffa.kernel.config.HibernatePreparationStep
-import net.lshift.diffa.kernel.hooks.HookManager
+import net.lshift.diffa.schema.migrations.HibernatePreparationStep
 
 /**
  * This wires in a callback that will be invoked when the underlying session factory has been
  * created. This is a subclass of the Spring template because that template doesn't expose
  * the Hibernate Configuration object in a suitable way. 
  */
-class ListeningLocalSessionFactoryBean(observer:SessionFactoryObserver) extends LocalSessionFactoryBean {
-  @BeanProperty var preparationSteps:Array[HibernatePreparationStep] = Array[HibernatePreparationStep]()
-  @BeanProperty var hookManager:HookManager = null
+class ListeningLocalSessionFactoryBean extends LocalSessionFactoryBean {
 
-  override def newConfiguration() = {
-    val config = super.newConfiguration()
-    config.setSessionFactoryObserver(observer)
-    config
-	}
+  @BeanProperty var preparationSteps:Array[HibernatePreparationStep] = Array[HibernatePreparationStep]()
 
   /**
    * Override the final step in the session factory creation to let us prepare the database.
@@ -44,7 +37,6 @@ class ListeningLocalSessionFactoryBean(observer:SessionFactoryObserver) extends 
   override def newSessionFactory(config:Configuration) = {
     val sf = super.newSessionFactory(config)
 
-    hookManager.applyConfiguration(config)
     preparationSteps.foreach(step => step.prepare(sf, config))
 
     sf

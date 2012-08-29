@@ -18,11 +18,10 @@ package net.lshift.diffa.agent.rest
 
 import javax.ws.rs._
 import core.{Response, UriInfo}
-import net.lshift.diffa.docgen.annotations.{MandatoryParams, Description}
-import net.lshift.diffa.docgen.annotations.MandatoryParams.MandatoryParam
 import net.lshift.diffa.kernel.reporting.ReportManager
 import net.lshift.diffa.kernel.config.{DomainConfigStore, DiffaPairRef}
 import net.lshift.diffa.kernel.frontend.PairReportDef
+import scala.collection.JavaConversions._
 
 class ReportsResource(val config:DomainConfigStore,
                       val reports:ReportManager,
@@ -32,20 +31,13 @@ class ReportsResource(val config:DomainConfigStore,
   @GET
   @Path("/{pairId}")
   @Produces(Array("application/json"))
-  @Description("Returns a list of actions that can be invoked on the pair.")
-  @MandatoryParams(Array(new MandatoryParam(name="pairId", datatype="string", description="The identifier of the pair")))
   def listReports(@PathParam("pairId") pairId: String,
                   @QueryParam("scope") scope: String): Array[PairReportDef] =
-      config.listReportsForPair(domain, pairId).toArray
+      config.getPairDef(domain, pairId).reports.toSeq.toArray[PairReportDef]
 
   @POST
   @Path("/{pairId}/{reportId}")
   @Produces(Array("application/json"))
-  @Description("Runs a report on the pair.")
-  @MandatoryParams(Array(
-    new MandatoryParam(name="pairId", datatype="string", description="The indentifier of the pair"),
-    new MandatoryParam(name="reportId", datatype="string", description="The name of the report to be run")
-  ))
   def executeReport(@PathParam("pairId") pairId:String,
                    @PathParam("reportId") reportId:String) = {
     reports.executeReport(DiffaPairRef(key = pairId, domain = domain), reportId)

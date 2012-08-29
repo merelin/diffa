@@ -18,13 +18,14 @@ package net.lshift.diffa.client
 
 import javax.servlet.http.HttpServletRequest
 import org.easymock.EasyMock._
-import org.easymock.{EasyMock, IAnswer}
-import net.lshift.diffa.kernel.config.{PairServiceLimitsView, FixedDomainCredentialsLookup, DiffaPairRef}
+import net.lshift.diffa.kernel.config._
 import net.lshift.diffa.participant.scanning._
 import org.junit.{Test, Before}
-import net.lshift.diffa.kernel.config.limits.{ScanReadTimeout, ScanConnectTimeout, ScanResponseSizeLimit}
+import net.lshift.diffa.schema.servicelimits.{ScanReadTimeout, ScanConnectTimeout, ScanResponseSizeLimit}
 import scala.collection.JavaConversions._
-import net.lshift.diffa.kernel.differencing.{ScanLimitBreachedException, ScanFailedException}
+import net.lshift.diffa.kernel.differencing.ScanLimitBreachedException
+import net.lshift.diffa.kernel.config.DiffaPairRef
+import net.lshift.diffa.kernel.config.Endpoint
 
 
 object ScanLimitsTest {
@@ -54,20 +55,28 @@ class ScanLimitsTest {
   import ScanLimitsTest._
 
   val limits = createMock(classOf[PairServiceLimitsView])
-  lazy val scanningRestClient = new ScanningParticipantRestClient(
-    pair,
-    "http://localhost:" + serverPort + "/scan",
-    limits,
-    domainCredentialsLookup
-  )
+  lazy val endpoint = Endpoint(name = "limitsEndpoint", scanUrl = "http://localhost:" + serverPort + "/scan")
+
+  lazy val scanningRestClient = ScanningParticipantRestClientFactory.create(
+    pair, endpoint, limits, domainCredentialsLookup)
 
   @Before def startServer() = ensureServerStarted
+
+/*
+ I realize that this isn't a fantastic test, but I've ended up layering
+ configuration lookup into the ScanningParticipantRestClientFactory,
+ which probably isn't a hugely optimal choice. I could add more indirection
+ to verify that the timeouts get passed into the http client, but that's
+ maybe not the best choice, and I can't think of a better way to do that
+ right now  --CS
+*/
 
   @Test
   def shouldQueryResponseLimitsForPair {
     val arbitrarilyLargeResponseSize = 10 * 1024 * 1024
     configureLimitsWithResponseSizeOf(arbitrarilyLargeResponseSize)
     scanningRestClient.scan(Seq(), Seq())
+    verify(limits)
   }
 
   @Test(expected=classOf[ScanLimitBreachedException])

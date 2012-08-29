@@ -31,7 +31,8 @@ object FrontendConversions {
     versionGenerationUrl = e.versionGenerationUrl,
     inboundUrl = e.inboundUrl,
     categories = e.categories,
-    views = new java.util.ArrayList[EndpointViewDef](e.views.map(v => toEndpointViewDef(v))))
+    views = new java.util.ArrayList[EndpointViewDef](e.views.map(v => toEndpointViewDef(v))),
+    collation = e.collation)
 
   def fromEndpointDef(domain:Domain, e:EndpointDef) = Endpoint(
     name = e.name,
@@ -40,26 +41,41 @@ object FrontendConversions {
     contentRetrievalUrl = e.contentRetrievalUrl,
     versionGenerationUrl = e.versionGenerationUrl,
     inboundUrl = e.inboundUrl,
-    categories = e.categories)
+    categories = e.categories,
+    collation = e.collation)
 
   def fromEndpointViewDef(endpoint:Endpoint, v:EndpointViewDef) =
     EndpointView(name = v.name, endpoint = endpoint, categories = v.categories)
 
   def toEndpointViewDef(v:EndpointView) = EndpointViewDef(name = v.name, categories = v.categories)
 
-  def toPairDef(p:DiffaPair) = PairDef(
+  @Deprecated def toPairDef(p:DiffaPair) = PairDef(
     key = p.key,
     versionPolicyName = p.versionPolicyName,
     matchingTimeout = p.matchingTimeout,
     upstreamName = p.upstream,
     downstreamName = p.downstream,
     scanCronSpec = p.scanCronSpec,
+    scanCronEnabled = p.scanCronEnabled,
     allowManualScans = p.allowManualScans,
     views = p.views.map(v => toPairViewDef(v)).toList)
 
-  def toPairViewDef(v:PairView) = PairViewDef(name = v.name, scanCronSpec = v.scanCronSpec)
+  def toPairDef(p:DomainPairDef) = PairDef(
+    key = p.key,
+    versionPolicyName = p.versionPolicyName,
+    matchingTimeout = p.matchingTimeout,
+    upstreamName = p.upstreamName,
+    downstreamName = p.downstreamName,
+    scanCronSpec = p.scanCronSpec,
+    scanCronEnabled = p.scanCronEnabled,
+    allowManualScans = p.allowManualScans,
+    views = new java.util.ArrayList[PairViewDef](p.views))
+
+  @Deprecated
+  def toPairViewDef(v:PairView) = PairViewDef(name = v.name, scanCronSpec = v.scanCronSpec, scanCronEnabled = v.scanCronEnabled)
+
   def fromPairViewDef(p:DiffaPair, v:PairViewDef) = {
-    val result = PairView(name = v.name, scanCronSpec = v.scanCronSpec)
+    val result = PairView(name = v.name, scanCronSpec = v.scanCronSpec, scanCronEnabled = v.scanCronEnabled)
     result.pair = p
     result
   }
@@ -67,8 +83,7 @@ object FrontendConversions {
   def toRepairActionDef(a:RepairAction) = RepairActionDef(
     name = a.name,
     url = a.url,
-    scope = a.scope,
-    pair = a.pair.key
+    scope = a.scope
   )
 
   def fromRepairActionDef(pair:DiffaPair, a:RepairActionDef) = RepairAction(
@@ -78,27 +93,8 @@ object FrontendConversions {
     pair = pair
   )
 
-  def toEscalationDef(e:Escalation) = EscalationDef(
-    name = e.name,
-    pair = e.pair.key,
-    action = e.action,
-    actionType = e.actionType,
-    origin = e.origin,
-    event = e.event
-  )
-
-  def fromEscalationDef(pair:DiffaPair,e:EscalationDef) = Escalation(
-    name = e.name,
-    pair = pair,
-    action = e.action,
-    actionType = e.actionType,
-    origin = e.origin,
-    event = e.event
-  )
-
   def toPairReportDef(r:PairReport) = PairReportDef(
     name = r.name,
-    pair = r.pair.key,
     reportType = r.reportType,
     target = r.target
   )
@@ -108,20 +104,6 @@ object FrontendConversions {
     pair = pair,
     reportType = r.reportType,
     target = r.target
-  )
-
-  def toOutboundExternalHttpCredentialsDef(c: ExternalHttpCredentials) = OutboundExternalHttpCredentialsDef(
-    url = c.url,
-    key = c.key,
-    `type` = c.getCredentialType()
-  )
-
-  def fromInboundExternalHttpCredentialsDef(domainName:String, c: InboundExternalHttpCredentialsDef) = ExternalHttpCredentials(
-    domain = domainName,
-    url = c.url,
-    key = c.key,
-    value = c.value,
-    credentialType = c.`type`
   )
 
   def toDomainDef(d: Domain) = DomainDef(name = d.name)

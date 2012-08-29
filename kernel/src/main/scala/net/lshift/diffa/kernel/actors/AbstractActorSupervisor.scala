@@ -48,7 +48,9 @@ abstract class AbstractActorSupervisor
    */
   def createPairActor(pair:DiffaPairRef) : Option[ActorRef]
 
-  def close = pairActors.foreach{ case (pairRef,_) => stopActor(pairRef) }
+    // Note: The .toSeq ensures we don't end up with ConcurrentModificationExceptions since we iterate off
+    // a copy of the list
+  def close = pairActors.toSeq.foreach{ case (pairRef,_) => stopActor(pairRef) }
 
   def startActor(pair: DiffaPairRef) {
 
@@ -92,9 +94,6 @@ abstract class AbstractActorSupervisor
     if (actor != null) {
       actor().map(actorSystem.stop(_))
       logger.info("{} actor stopped", formatAlertCode(pair, ACTOR_STOPPED))
-    } else {
-      logger.warn("{} Could not resolve actor for key: {}",
-        formatAlertCode(pair,  MISSING_ACTOR_FOR_KEY), pair.identifier)
     }
   }
 

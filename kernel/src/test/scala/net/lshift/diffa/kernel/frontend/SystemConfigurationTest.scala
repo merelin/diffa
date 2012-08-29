@@ -7,6 +7,7 @@ import org.hibernate.cfg.{Configuration => HibernateConfig}
 import net.lshift.diffa.kernel.config._
 import net.lshift.diffa.kernel.lifecycle.NotificationCentre
 import net.lshift.diffa.kernel.StoreReferenceContainer
+import net.lshift.diffa.schema.environment.TestDatabaseEnvironments
 import org.junit.{AfterClass, Test}
 
 /**
@@ -56,12 +57,6 @@ class SystemConfigurationTest {
   def shouldRejectUserDefinitionWithoutName() {
     systemConfiguration.createOrUpdateUser(
       UserDef(name = null, email = validUserDef.email, superuser = validUserDef.superuser, password = validUserDef.password))
-  }
-
-  @Test(expected = classOf[ConfigValidationException])
-  def shouldRejectUserDefinitionWithoutEmail() {
-    systemConfiguration.createOrUpdateUser(
-      UserDef(name = validUserDef.name, email = null, superuser = validUserDef.superuser, password = validUserDef.password))
   }
 
   @Test(expected = classOf[ConfigValidationException])

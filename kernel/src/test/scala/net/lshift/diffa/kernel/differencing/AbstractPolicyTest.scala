@@ -36,8 +36,8 @@ import net.lshift.diffa.kernel.config._
 import net.lshift.diffa.kernel.util.NonCancellingFeedbackHandle
 import net.lshift.diffa.participant.scanning._
 import net.lshift.diffa.kernel.diag.DiagnosticsManager
-import net.lshift.diffa.kernel.config.DiffaPair
 import net.lshift.diffa.kernel.config.system.SystemConfigStore
+import net.lshift.diffa.kernel.frontend.DomainPairDef
 
 /**
  * Base class for the various policy tests.
@@ -72,7 +72,8 @@ abstract class AbstractPolicyTest {
   val listener = createStrictMock("listener", classOf[DifferencingListener])
   val diffWriter = createStrictMock("diffWriter", classOf[DifferenceWriter])
 
-  val systemConfigStore = createStrictMock("configStore", classOf[SystemConfigStore])
+  val systemConfigStore = createStrictMock("systemConfigStore", classOf[SystemConfigStore])
+  val domainConfigStore = createStrictMock("domainConfigStore", classOf[DomainConfigStore])
   val domainName = "domain"
   val domain = Domain(name=domainName)
   val pairKey = "A-B"
@@ -85,9 +86,9 @@ abstract class AbstractPolicyTest {
 
   val upstream = new Endpoint(categories=Map("bizDate" -> dateCategoryDescriptor))
   val downstream = new Endpoint(categories=Map("bizDate" -> dateCategoryDescriptor))
-  val pair = new DiffaPair(key=pairKey, domain=domain, upstream=upstream.name, downstream=downstream.name)
+  val pair = new DomainPairDef(key=pairKey, domain=domainName, upstreamName=upstream.name, downstreamName=downstream.name)
 
-  expect(systemConfigStore.getPair(domainName,pairKey)).andReturn(pair).anyTimes
+  expect(domainConfigStore.getPairDef(domainName,pairKey)).andReturn(pair).anyTimes
   replay(systemConfigStore)
 
   protected def replayAll = replay(usMock, dsMock, store, writer, listener, diffWriter)
@@ -223,8 +224,8 @@ abstract class AbstractPolicyTest {
     val (update, observationDate, f) = lastUpdate match {
       case None     => (timestamp, null, () =>
         writer.storeUpstreamVersion(EasyMock.eq(VersionID(pair.asRef, "id1")), EasyMock.eq(attrs),
-                                     between(timestamp, timestamp.plusMillis(200)), EasyMock.eq("vsn1")))
-      case Some(x)  => (x, x, () => writer.storeUpstreamVersion(VersionID(pair.asRef, "id1"), attrs, x, "vsn1"))
+                                     between(timestamp, timestamp.plusMillis(200)), EasyMock.eq("vsn1"), EasyMock.anyObject[Option[Long]]()))
+      case Some(x)  => (x, x, () => writer.storeUpstreamVersion(VersionID(pair.asRef, "id1"), attrs, x, "vsn1", None))
     }
     expect(f()).andReturn(new Correlation(null, pair.asRef, "id1", toStrMap(attrs), null, update, timestamp, "vsn1", null, null, false))
     listener.onMismatch(VersionID(pair.asRef, "id1"), update, "vsn1", null, LiveWindow, Unfiltered); expectLastCall
@@ -243,7 +244,7 @@ abstract class AbstractPolicyTest {
     downstream.categories = downstreamCategories
     val timestamp = new DateTime
 
-    expect(writer.storeDownstreamVersion(VersionID(pair.asRef, "id1"), downstreamAttributes, JUL_8_2010_2, "vsn1", "vsn1")).
+    expect(writer.storeDownstreamVersion(VersionID(pair.asRef, "id1"), downstreamAttributes, JUL_8_2010_2, "vsn1", "vsn1", None)).
       andReturn(new Correlation(null, pair.asRef, "id1", Map[String,String](), Map[String,String](), JUL_8_2010_2, timestamp, null, "vsn1", "vsn1", false))
     listener.onMismatch(VersionID(pair.asRef, "id1"), JUL_8_2010_2, null, "vsn1", LiveWindow, Unfiltered); expectLastCall
     replayAll
@@ -260,7 +261,7 @@ abstract class AbstractPolicyTest {
     upstream.categories = upstreamCategories
     downstream.categories = downstreamCategories
     val timestamp = new DateTime
-    expect(writer.storeDownstreamVersion(VersionID(pair.asRef, "id1"), downstreamAttributes, JUL_8_2010_2, "vsn1", "vsn2")).
+    expect(writer.storeDownstreamVersion(VersionID(pair.asRef, "id1"), downstreamAttributes, JUL_8_2010_2, "vsn1", "vsn2", None)).
       andReturn(new Correlation(null, pair.asRef, "id1", null, toStrMap(downstreamAttributes), JUL_8_2010_2, timestamp, null, "vsn1", "vsn1", false))
     listener.onMismatch(VersionID(pair.asRef, "id1"), JUL_8_2010_2, null, "vsn1", LiveWindow, Unfiltered); expectLastCall
     replayAll
@@ -277,7 +278,7 @@ abstract class AbstractPolicyTest {
     upstream.categories = upstreamCategories
     downstream.categories = downstreamCategories
     val timestamp = new DateTime
-    expect(writer.storeDownstreamVersion(VersionID(pair.asRef, "id1"), downstreamAttributes, JUL_8_2010_2, "vsn1", "vsn2")).
+    expect(writer.storeDownstreamVersion(VersionID(pair.asRef, "id1"), downstreamAttributes, JUL_8_2010_2, "vsn1", "vsn2", None)).
       andReturn(new Correlation(null, pair.asRef, "id1", null, toStrMap(downstreamAttributes), JUL_8_2010_2, timestamp, "vsn1", "vsn1", "vsn2", true))
     listener.onMatch(VersionID(pair.asRef, "id1"), "vsn1", LiveWindow); expectLastCall
     replayAll
@@ -318,7 +319,7 @@ abstract class AbstractPolicyTest {
     expectUpstreamAggregateScan(pair, bucketing, constraints, partResp, storeResp: Seq[UpstreamVersion])
   }
 
-  protected def expectUpstreamAggregateScan(pair:DiffaPair, bucketing:Seq[CategoryFunction], constraints:Seq[ScanConstraint], partResp:Seq[ScanResultEntry], storeResp:Seq[UpstreamVersion]) {
+  protected def expectUpstreamAggregateScan(pair:DomainPairDef, bucketing:Seq[CategoryFunction], constraints:Seq[ScanConstraint], partResp:Seq[ScanResultEntry], storeResp:Seq[UpstreamVersion]) {
     expect(usMock.scan(constraints, bucketing)).andReturn(partResp)
     store.queryUpstreams(EasyMock.eq(constraints), anyUnitF4)
       expectLastCall[Unit].andAnswer(UpstreamVersionAnswer(storeResp))
@@ -329,7 +330,7 @@ abstract class AbstractPolicyTest {
     expectDownstreamAggregateScan(pair, bucketing, constraints, partResp, storeResp)
   }
 
-  protected def expectDownstreamAggregateScan(pair:DiffaPair, bucketing:Seq[CategoryFunction], constraints:Seq[ScanConstraint], partResp:Seq[ScanResultEntry], storeResp:Seq[DownstreamVersion]) {
+  protected def expectDownstreamAggregateScan(pair:DomainPairDef, bucketing:Seq[CategoryFunction], constraints:Seq[ScanConstraint], partResp:Seq[ScanResultEntry], storeResp:Seq[DownstreamVersion]) {
     expect(dsMock.scan(constraints, bucketing)).andReturn(partResp)
     store.queryDownstreams(EasyMock.eq(constraints), anyUnitF5)
       expectLastCall[Unit].andAnswer(DownstreamVersionAnswer(storeResp))

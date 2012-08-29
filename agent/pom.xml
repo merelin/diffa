@@ -5,7 +5,7 @@
   <parent>
     <groupId>net.lshift.diffa</groupId>
     <artifactId>diffa-parent</artifactId>
-    <version>1.4.5-SNAPSHOT</version>
+    <version>1.6.0-SNAPSHOT</version>
   </parent>
 
   <artifactId>diffa-agent</artifactId>
@@ -27,6 +27,11 @@
     <dependency>
       <groupId>net.lshift.diffa</groupId>
       <artifactId>diffa-client-support</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>net.lshift.diffa</groupId>
+      <artifactId>diffa-schema</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
@@ -102,6 +107,10 @@
       <artifactId>jersey-spring</artifactId>
     </dependency>
     <dependency>
+      <groupId>org.tuckey</groupId>
+      <artifactId>urlrewritefilter</artifactId>
+    </dependency>
+    <dependency>
       <groupId>org.antlr</groupId>
       <artifactId>stringtemplate</artifactId>
     </dependency>
@@ -167,11 +176,6 @@
       <scope>provided</scope>
     </dependency>
     <dependency>
-      <groupId>net.lshift.diffa</groupId>
-      <artifactId>diffa-docgen-maven-plugin</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-    <dependency>
       <groupId>com.rabbitmq</groupId>
       <artifactId>amqp-client</artifactId>
       <version>${rabbitmq.version}</version>
@@ -208,6 +212,13 @@
       <artifactId>apacheds-protocol-ldap</artifactId>
       <scope>test</scope>
     </dependency>
+
+    <dependency>
+      <groupId>org.hamcrest</groupId>
+      <artifactId>hamcrest-library</artifactId>
+      <scope>test</scope>
+    </dependency>
+
   </dependencies>
 
   <distributionManagement>
@@ -351,7 +362,7 @@
             </goals>
             <configuration>
               <excludes>
-                <exclude>none</exclude>
+                <exclude>**/itest/**/*AmqpTest.class</exclude>
               </excludes>
               <includes>
                 <include>**/itest/**/*Test.class</include>
@@ -360,37 +371,6 @@
                 <diffa.maildir>${basedir}/target/messages</diffa.maildir>
               </systemPropertyVariables>
             </configuration>
-          </execution>
-        </executions>
-      </plugin>
-      <plugin>
-        <groupId>net.lshift.diffa</groupId>
-        <artifactId>diffa-docgen-maven-plugin</artifactId>
-        <version>${project.version}</version>
-        <configuration>
-          <templateDir>${basedir}/src/main/resources/docgen/md</templateDir>
-          <examplesFactoryClass>net.lshift.diffa.kernel.util.DocExamplesFactory</examplesFactoryClass>
-          <parentResource>net.lshift.diffa.agent.rest.DomainResource</parentResource>
-          <resources>
-            <resource>net.lshift.diffa.agent.rest.ChangesResource</resource>
-            <resource>net.lshift.diffa.agent.rest.ConfigurationResource</resource>
-            <resource>net.lshift.diffa.agent.rest.ScanningResource</resource>
-            <resource>net.lshift.diffa.agent.rest.DiagnosticsResource</resource>
-            <resource>net.lshift.diffa.agent.rest.DifferencesResource</resource>
-            <resource>net.lshift.diffa.agent.rest.ActionsResource</resource>
-            <resource>net.lshift.diffa.agent.rest.UsersResource</resource>
-            <resource>net.lshift.diffa.agent.rest.EscalationsResource</resource>
-            <resource>net.lshift.diffa.agent.rest.SystemConfigResource</resource>
-          </resources>
-          <targetDir>${docs.targetDir}</targetDir>
-          <consoleOutput>false</consoleOutput>
-        </configuration>
-        <executions>
-          <execution>
-            <phase>process-classes</phase>
-            <goals>
-              <goal>generate-docs</goal>
-            </goals>
           </execution>
         </executions>
       </plugin>
@@ -450,7 +430,7 @@
       <extension>
         <groupId>org.springframework.build.aws</groupId>
         <artifactId>org.springframework.build.aws.maven</artifactId>
-        <version>3.0.0.RELEASE</version>
+        <version>${spring.version}</version>
       </extension>
     </extensions>
 

@@ -22,7 +22,7 @@ import scala.collection.JavaConversions._
 import net.lshift.diffa.kernel.diag.DiagnosticsManager
 import net.lshift.diffa.kernel.config.system.SystemConfigStore
 import net.lshift.diffa.kernel.config.DiffaPairRef
-import net.lshift.diffa.participant.scanning.{ScanAggregation, ScanConstraint, ScanResultEntry}
+import net.lshift.diffa.participant.scanning.{Collation, ScanAggregation, ScanConstraint, ScanResultEntry}
 
 /**
  * Version policy where two events are considered the same only when the upstream and downstream provide the
@@ -32,16 +32,18 @@ import net.lshift.diffa.participant.scanning.{ScanAggregation, ScanConstraint, S
  * Compliance with this policy could also be achieved by the downstream simply recording the versions of received
  * upstream events.
  */
-class SameVersionPolicy(stores:VersionCorrelationStoreFactory, listener:DifferencingListener, systemConfigStore:SystemConfigStore, diagnostics:DiagnosticsManager)
-    extends BaseScanningVersionPolicy(stores, listener, systemConfigStore, diagnostics) {
+class SameVersionPolicy(stores:VersionCorrelationStoreFactory, listener:DifferencingListener, diagnostics:DiagnosticsManager)
+    extends BaseScanningVersionPolicy(stores, listener, diagnostics) {
 
-  def downstreamStrategy(us:UpstreamParticipant, ds:DownstreamParticipant) = new DownstreamSameScanStrategy
+  def downstreamStrategy(us:UpstreamParticipant, ds:DownstreamParticipant, collation: Collation) =
+    new DownstreamSameScanStrategy(collation)
 
-  protected class DownstreamSameScanStrategy extends ScanStrategy {
+  protected class DownstreamSameScanStrategy(collation: Collation) extends ScanStrategy {
     val name = "DownstreamSame"
 
     def getAggregates(pair:DiffaPairRef, bucketing:Seq[ScanAggregation], constraints:Seq[ScanConstraint]) = {
-      val aggregator = new Aggregator(bucketing)
+
+      val aggregator = new Aggregator(bucketing, collation)
       stores(pair).queryDownstreams(constraints, aggregator.collectDownstream)
       aggregator.digests
     }
@@ -52,13 +54,13 @@ class SameVersionPolicy(stores:VersionCorrelationStoreFactory, listener:Differen
       })
     }
 
-    def handleMismatch(pair:DiffaPairRef, writer: LimitedVersionCorrelationWriter, vm:VersionMismatch, listener:DifferencingListener) = {
+    def handleMismatch(scanId:Option[Long], pair:DiffaPairRef, writer: LimitedVersionCorrelationWriter, vm:VersionMismatch, listener:DifferencingListener) = {
       vm match {
         case VersionMismatch(id, categories, lastUpdated, partVsn, _) =>
           if (partVsn != null) {
-            handleUpdatedCorrelation(writer.storeDownstreamVersion(VersionID(pair, id), categories, lastUpdated, partVsn, partVsn))
+            handleUpdatedCorrelation(writer.storeDownstreamVersion(VersionID(pair, id), categories, lastUpdated, partVsn, partVsn, scanId))
           } else {
-            handleUpdatedCorrelation(writer.clearDownstreamVersion(VersionID(pair, id)))
+            handleUpdatedCorrelation(writer.clearDownstreamVersion(VersionID(pair, id), scanId))
           }
       }
     }

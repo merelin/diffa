@@ -26,6 +26,7 @@ object AlertCodes {
   def formatAlertCode(pair:DiffaPairRef, code:Int) = "%s [%s/%s]".format(code, pair.domain, pair.key)
   def formatAlertCode(domain:String, pair:String, code:Int) = "%s [%s/%s]".format(code, domain, pair)
   def formatAlertCode(domain:String, code:Int) = "%s [%s]".format(code, domain)
+  def formatAlertCode(space:Long, code:Int) = "%s [%s]".format(code, space)
   def formatAlertCode(code: Int) = "%d".format(code)
 
   // 1xx Informational
@@ -40,6 +41,9 @@ object AlertCodes {
   val SCAN_COMPLETED_BENCHMARK = 131
   val UPSTREAM_SCAN_COMPLETED_BENCHMARK = 132
   val DOWNSTREAM_SCAN_COMPLETED_BENCHMARK = 133
+
+  // 14x Informational non-scan events
+  val BREAKER_TRIPPED = 140
 
   // 2xx Successful
 
@@ -58,8 +62,11 @@ object AlertCodes {
   val ACTOR_STARTED = 250
   val ACTOR_STOPPED = 251
 
-  // 4xx Errors that occur that as result of an invalid inbound request from a client
+  // 4xx Errors that occur that as a result of an invalid inbound request from a client
 
+  // 42x DB errors
+  val DB_ERROR = 420
+  val INTEGRITY_CONSTRAINT_VIOLATED = 421
 
   // 5xx Errors
   
@@ -78,6 +85,7 @@ object AlertCodes {
   val UPSTREAM_SCAN_FAILURE = 510
   val DOWNSTREAM_SCAN_FAILURE = 511
   val SCAN_INITIALIZATION_FAILURE = 512
+  val NEITHER_ENDPOINT_SUPPORT_SCANNING = 513
 
   // 52x Scheduled scan errors
   
@@ -109,6 +117,8 @@ object AlertCodes {
   val SCAN_CONNECTION_CLOSED = 612
   val CONTENT_RETRIEVAL_FAILED = 613
   val VERSION_GENERATION_FAILED = 614
+  val SCAN_SOCKET_TIMEOUT = 615
+  val NON_HTTP_RESPONSE = 616
 
   // 65x Problems with messaging systems
   

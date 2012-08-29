@@ -18,50 +18,35 @@ package net.lshift.diffa.kernel.config
 
 import reflect.BeanProperty
 import scala.collection.JavaConversions._
-import java.util.HashMap
 import net.lshift.diffa.kernel.differencing.AttributesUtil
-import net.lshift.diffa.kernel.participants._
 import scala.Option._
 import net.lshift.diffa.kernel.frontend._
 import net.lshift.diffa.kernel.util.{EndpointSide, UpstreamEndpoint, DownstreamEndpoint, CategoryUtil}
 import net.lshift.diffa.participant.scanning.{AggregationBuilder, ConstraintsBuilder, SetConstraint, ScanConstraint}
+import java.util.HashMap
+import net.lshift.diffa.kernel.participants._
 
 /**
  * Provides general configuration options within the scope of a particular domain.
  */
+
 trait DomainConfigStore {
 
-  def createOrUpdateEndpoint(domain:String, endpoint: EndpointDef) : Endpoint
+  def createOrUpdateEndpoint(domain:String, endpoint: EndpointDef) : DomainEndpointDef
   def deleteEndpoint(domain:String, name: String) : Unit
   def listEndpoints(domain:String) : Seq[EndpointDef]
 
   def createOrUpdatePair(domain:String, pairDef: PairDef) : Unit
-  def deletePair(domain:String, key: String) : Unit
-  def listPairs(domain:String) : Seq[PairDef]
-  def listPairsForEndpoint(domain:String, endpoint:String) : Seq[DiffaPair]
+  def deletePair(domain:String, key: String)
+  def deletePair(ref:DiffaPairRef) : Unit = deletePair(ref.domain, ref.key)
+  def listPairs(domain:String) : Seq[DomainPairDef]
+  def listPairsForEndpoint(domain:String, endpoint:String) : Seq[DomainPairDef]
 
-  def createOrUpdateRepairAction(domain:String, action: RepairActionDef) : Unit
-  def deleteRepairAction(domain:String, name: String, pairKey: String) : Unit
-
-  def listRepairActions(domain:String) : Seq[RepairActionDef]
-  def listRepairActionsForPair(domain:String, key: String) : Seq[RepairActionDef]
-
-  def listEscalations(domain:String) : Seq[EscalationDef]
-  def deleteEscalation(domain:String, s: String, s1: String)
-  def createOrUpdateEscalation(domain:String, escalation : EscalationDef)
-  def listEscalationsForPair(domain:String, key: String) : Seq[EscalationDef]
-
-  def listReports(domain:String) : Seq[PairReportDef]
-  def deleteReport(domain:String, name: String, pairKey: String)
-  def createOrUpdateReport(domain:String, report: PairReportDef)
-  def listReportsForPair(domain:String, key: String) : Seq[PairReportDef]
+  def getPairDef(domain:String, key: String) : DomainPairDef
+  def getPairDef(ref:DiffaPairRef) : DomainPairDef = getPairDef(ref.domain, ref.key)
 
   def getEndpointDef(domain:String, name: String) : EndpointDef
-  def getEndpoint(domain:String, name: String) : Endpoint
-  def getPairDef(domain:String, key: String) : PairDef
-
-  def getRepairActionDef(domain:String, name: String, pairKey: String): RepairActionDef
-  def getPairReportDef(domain:String, name:String, pairKey:String):PairReportDef
+  @Deprecated def getEndpoint(domain:String, name: String) : Endpoint
 
   def getConfigVersion(domain:String) : Int
 
@@ -106,6 +91,30 @@ trait DomainConfigStore {
    * Lists all of the members of the given domain
    */
   def listDomainMembers(domain:String) : Seq[Member]
+
+  /**
+   * Determines whether a breaker has been tripped (ie, the feature disabled) for the given named item.
+   */
+  def isBreakerTripped(domain:String, pair:String, name:String):Boolean
+
+  /**
+   * Disables the feature controlled by the given breaker.
+   */
+  def tripBreaker(domain:String, pair:String, name:String)
+
+  /**
+   * Enables the feature controlled by the given breaker.
+   */
+  def clearBreaker(domain:String, pair:String, name:String)
+}
+
+case class Space (
+  @BeanProperty var id: java.lang.Long = null,
+  @BeanProperty var name: String = null,
+  @BeanProperty var configVersion: java.lang.Integer = null) {
+
+  def this() = this(id = null)
+
 }
 
 case class Endpoint(
@@ -115,7 +124,8 @@ case class Endpoint(
   @BeanProperty var contentRetrievalUrl: String = null,
   @BeanProperty var versionGenerationUrl: String = null,
   @BeanProperty var inboundUrl: String = null,
-  @BeanProperty var categories: java.util.Map[String,CategoryDescriptor] = new HashMap[String, CategoryDescriptor]) {
+  @BeanProperty var categories: java.util.Map[String,CategoryDescriptor] = new HashMap[String, CategoryDescriptor],
+  @BeanProperty var collation: String = AsciiCollationOrdering.name) {
 
   // Don't include this in the header definition, since it is a lazy collection
   @BeanProperty var views: java.util.Set[EndpointView] = new java.util.HashSet[EndpointView]
@@ -163,8 +173,18 @@ case class Endpoint(
   def buildAggregations(builder:AggregationBuilder) {
     CategoryUtil.buildAggregations(builder, categories.toMap)
   }
-}
 
+ def lookupCollation () = collation match {
+    case UnicodeCollationOrdering.name => UnicodeCollationOrdering
+    case AsciiCollationOrdering.name => AsciiCollationOrdering
+  }
+
+  /**
+   * Please use the function on EndpointDef instead
+   */
+  @Deprecated
+  def supportsScanning = scanUrl != null && scanUrl.length() > 0
+}
 case class EndpointView(
   @BeanProperty var name:String = null,
   @BeanProperty var endpoint:Endpoint = null,
@@ -189,6 +209,7 @@ case class DiffaPair(
   @BeanProperty var versionPolicyName: String = null,
   @BeanProperty var matchingTimeout: Int = DiffaPair.NO_MATCHING,
   @BeanProperty var scanCronSpec: String = null,
+  @BeanProperty var scanCronEnabled: Boolean = true,
   @BeanProperty var allowManualScans: java.lang.Boolean = null,
   @BeanProperty var views:java.util.Set[PairView] = new java.util.HashSet[PairView]) {
 
@@ -219,7 +240,8 @@ case class DiffaPair(
 
 case class PairView(
   @BeanProperty var name:String = null,
-  @BeanProperty var scanCronSpec:String = null
+  @BeanProperty var scanCronSpec:String = null,
+  @BeanProperty var scanCronEnabled:Boolean = true
 ) {
   // Not wanted in equals, hashCode or toString
   @BeanProperty var pair:DiffaPair = null
@@ -251,9 +273,17 @@ object PairReportType {
   val DIFFERENCES = "differences"
 }
 
+case class PairRef(@BeanProperty var name: String = null,
+                   @BeanProperty var space: Long = -1L) {
+  def this() = this(name = null)
+
+  def identifier = "%s/%s".format(space,name)
+}
+
 /**
  * This is a light weight pointer to a pair in Diffa.
  */
+@Deprecated
 case class DiffaPairRef(@BeanProperty var key: String = null,
                         @BeanProperty var domain: String = null) {
   def this() = this(key = null)
@@ -325,28 +355,11 @@ object RepairAction {
   val ENTITY_SCOPE = "entity"
   val PAIR_SCOPE = "pair"
 }
-/**
- * Defines a step for escalating a detected difference.
- */
-case class Escalation (
-  @BeanProperty var name: String = null,
-  @BeanProperty var pair: DiffaPair = null,
-  @BeanProperty var action: String = null,
-  @BeanProperty var actionType: String = null,
-  @BeanProperty var event: String = null,
-  @BeanProperty var origin: String = null
-) {
-
-  def this() = this(name = null)
-}
 
 /**
  * Enumeration of valid types that an escalating difference should trigger.
  */
 object EscalationEvent {
-  val UPSTREAM_MISSING = "upstream-missing"
-  val DOWNSTREAM_MISSING = "downstream-missing"
-  val MISMATCH = "mismatch"
   val SCAN_FAILED = "scan-failed"
   val SCAN_COMPLETED = "scan-completed"
 }
@@ -364,6 +377,7 @@ object EscalationOrigin {
 object EscalationActionType {
   val REPAIR = "repair"
   val REPORT = "report"
+  val IGNORE = "ignore"
 }
 
 case class User(@BeanProperty var name: String = null,
@@ -383,16 +397,12 @@ case class User(@BeanProperty var name: String = null,
 }
 
 case class ExternalHttpCredentials(
-  @BeanProperty var domain: String = null,
-  @BeanProperty var url: String = null,
-  @BeanProperty var key: String = null,
-  @BeanProperty var value: String = null,
-  @BeanProperty var credentialType: String = null
+  domain: String,
+  url: String,
+  key: String,
+  value: String,
+  credentialType: String
 ) {
-
-  import ExternalHttpCredentials._
-
-  def this() = this(domain = null)
 
   override def equals(that:Any) = that match {
     case e:ExternalHttpCredentials =>
@@ -411,8 +421,9 @@ object ExternalHttpCredentials {
 /**
  * Defines a user's membership to a domain
  */
-case class Member(@BeanProperty var user: User = null,
-                  @BeanProperty var domain: Domain = null) {
+case class Member(@BeanProperty var user:String = null,
+                  @BeanProperty var space:Long = -1L,
+                  @Deprecated @BeanProperty var domain:String = null) {
 
   def this() = this(user = null)
 

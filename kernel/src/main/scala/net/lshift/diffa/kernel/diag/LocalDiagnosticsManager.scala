@@ -11,7 +11,7 @@ import net.lshift.diffa.kernel.config.system.SystemConfigStore
 import org.joda.time.format.{DateTimeFormat, ISODateTimeFormat}
 import org.joda.time.{DateTimeZone, DateTime}
 import net.lshift.diffa.kernel.config.{PairServiceLimitsView, ConfigOption, DiffaPairRef, DomainConfigStore}
-import net.lshift.diffa.kernel.config.limits._
+import net.lshift.diffa.schema.servicelimits._
 
 /**
  * Local in-memory implementation of the DiagnosticsManager.
@@ -33,20 +33,20 @@ class LocalDiagnosticsManager(systemConfigStore:SystemConfigStore,
   
   def getPairFromRef(ref: DiffaPairRef) = domainConfigStore.getPairDef(ref.domain, ref.key)
 
-  def checkpointExplanations(pair: DiffaPairRef) {
+  def checkpointExplanations(scanId:Option[Long], pair: DiffaPairRef) {
     maybeGetPair(pair).map(p => p.checkpointExplanations())
   }
 
-  def logPairEvent(level: DiagnosticLevel, pair: DiffaPairRef, msg: String) {
+  def logPairEvent(scanId:Option[Long], pair: DiffaPairRef, level: DiagnosticLevel, msg: String) {
     val pairDiag = getOrCreatePair(pair)
     pairDiag.logPairEvent(PairEvent(new DateTime(), level, msg))
   }
 
-  def logPairExplanation(pair: DiffaPairRef, source:String, msg: String) {
+  def logPairExplanation(scanId:Option[Long], pair: DiffaPairRef, source:String, msg: String) {
     getOrCreatePair(pair).logPairExplanation(source, msg)
   }
 
-  def writePairExplanationObject(pair:DiffaPairRef, source:String, objName: String, f:OutputStream => Unit) {
+  def writePairExplanationObject(scanId:Option[Long], pair:DiffaPairRef, source:String, objName: String, f:OutputStream => Unit) {
     getOrCreatePair(pair).writePairExplanationObject(source, objName, f)
   }
 

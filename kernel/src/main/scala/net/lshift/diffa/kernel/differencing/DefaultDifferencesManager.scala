@@ -25,8 +25,10 @@ import net.lshift.diffa.kernel.events.VersionID
 import net.lshift.diffa.kernel.util.MissingObjectException
 import net.lshift.diffa.kernel.lifecycle.{NotificationCentre, AgentLifecycleAware}
 import net.lshift.diffa.kernel.config.system.SystemConfigStore
-import net.lshift.diffa.kernel.config.{DiffaPairRef, Endpoint, DomainConfigStore, DiffaPair}
+import net.lshift.diffa.kernel.config.{DiffaPairRef, Endpoint, DomainConfigStore}
 import org.joda.time.{DateTime, Interval}
+import net.lshift.diffa.kernel.frontend.DomainPairDef
+import net.lshift.diffa.kernel.escalation.EscalationHandler
 
 /**
  * Standard implementation of the DifferencesManager.
@@ -48,7 +50,8 @@ class DefaultDifferencesManager(
         val domainDifferenceStore:DomainDifferenceStore,
         val matching:MatchingManager,
         val participantFactory:ParticipantFactory,
-        val differenceListener:DifferencingListener)
+        val differenceListener:DifferencingListener,
+        val escalationHandler:EscalationHandler)
     extends DifferencesManager
     with DifferencingListener with MatchingStatusListener with AgentLifecycleAware {
 
@@ -123,13 +126,13 @@ class DefaultDifferencesManager(
       case ParticipantType.UPSTREAM => {
         withValidEvent(domain, evtSeqId,
                       {e:DifferenceEvent => e.upstreamVsn != null},
-                      {p:DiffaPair => p.upstream},
+                      {p:DomainPairDef => p.upstreamName},
                       participantFactory.createUpstreamParticipant)
       }
       case ParticipantType.DOWNSTREAM => {
         withValidEvent(domain, evtSeqId,
                       {e:DifferenceEvent => e.downstreamVsn != null},
-                      {p:DiffaPair => p.downstream},
+                      {p:DomainPairDef => p.downstreamName},
                       participantFactory.createDownstreamParticipant)
       }
     }
@@ -139,7 +142,7 @@ class DefaultDifferencesManager(
   // -> the participant factory call is probably low hanging fruit for refactoring
   private def withValidEvent(domain:String, evtSeqId:String,
                      check:Function1[DifferenceEvent,Boolean],
-                     resolve:(DiffaPair) => String,
+                     resolve:(DomainPairDef) => String,
                      p:(Endpoint, DiffaPairRef) => Participant): String = {
     val event = domainDifferenceStore.getEvent(domain, evtSeqId)
 
@@ -147,7 +150,7 @@ class DefaultDifferencesManager(
       case false => "Expanded detail not available"
       case true  => {
        val id = event.objId
-       val pair = systemConfig.getPair(id.pair.domain, id.pair.key)
+       val pair = domainConfig.getPairDef(id.pair)
        val endpointName = resolve(pair)
        val endpoint = domainConfig.getEndpoint(domain, endpointName)
        if (endpoint.contentRetrievalUrl != null) {
@@ -268,8 +271,13 @@ class DefaultDifferencesManager(
 
   def reportUnmatched(id:VersionID, lastUpdate:DateTime, upstreamVsn: String, downstreamVsn: String, origin: MatchOrigin) {
     log.trace("Report unmatched for %s at %s, upstream %s, downstream %s, origin %s".format(id,lastUpdate, upstreamVsn, downstreamVsn, origin))
-    domainDifferenceStore.addReportableUnmatchedEvent(id, lastUpdate, upstreamVsn, downstreamVsn, new DateTime)
+    val (status, event) = domainDifferenceStore.addReportableUnmatchedEvent(id, lastUpdate, upstreamVsn, downstreamVsn, new DateTime)
     differenceListener.onMismatch(id, lastUpdate, upstreamVsn, downstreamVsn, origin, MatcherFiltered)
+
+    status match {
+      case NewUnmatchedEvent | ReturnedUnmatchedEvent => escalationHandler.initiateEscalation(event)
+      case _  => // The event is either unchanged or just updated. Don't start escalation.
+    }
   }
 
   def addMatched(id:VersionID, vsn:String) {

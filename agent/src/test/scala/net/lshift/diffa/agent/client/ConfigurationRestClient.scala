@@ -37,7 +37,7 @@ class ConfigurationRestClient(serverRootUrl:String, domain:String, params: RestC
   }
 
   def declareRepairAction(name: String, id: String, scope: String, pairKey: String) = {
-    val action = new RepairActionDef(name, id, scope, pairKey)
+    val action = new RepairActionDef(name, id, scope)
     create("/pairs/"+pairKey+"/repair-actions", action)
     action
   }
@@ -46,8 +46,8 @@ class ConfigurationRestClient(serverRootUrl:String, domain:String, params: RestC
     delete("/pairs/"+pairKey+"/repair-actions/"+name)
   }
 
-  def declareEscalation(name: String, pairKey: String, action: String, actionType: String, event: String, origin: String) = {
-    val escalation = new EscalationDef(name, pairKey, action, actionType, event, origin)
+  def declareEscalation(name: String, pairKey: String, action: String, actionType: String, rule: String, delay: Int) = {
+    val escalation = new EscalationDef(name, action, actionType, rule, delay)
     create("/pairs/"+pairKey+"/escalations", escalation)
     escalation
   }
@@ -58,7 +58,7 @@ class ConfigurationRestClient(serverRootUrl:String, domain:String, params: RestC
 
   def makeDomainMember(userName: String) = resource.path("members/" + userName).post()
   def removeDomainMembership(userName: String) = delete("/members/" + userName)
-  def listDomainMembers = rpc("members/",classOf[Array[UserDef]])
+  def listDomainMembers = rpc("members/",classOf[Array[String]])
 
   def deletePair(pairKey: String) = {
     val path = resource.path("pairs").path(pairKey)

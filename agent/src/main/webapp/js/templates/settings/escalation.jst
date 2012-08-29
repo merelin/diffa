@@ -1,0 +1,20 @@
+<tr>
+  <td><input data-bind-value="escalation.name" type="text"></td>
+  <td>
+    <select data-bind-value="escalation.actionType">
+      <option value="repair">Repair</option>
+      <option value="report">Report</option>
+      <option value="ignore">Ignore</option>
+    </select>
+  </td>
+  <td>
+    <input data-bind-value="escalation.action" type="text">
+  </td>
+  <td>
+    <input data-bind-value="escalation.rule" type="text">
+  </td>
+  <td>
+    <input data-bind-value="escalation.delay" type="number">
+  </td>
+  <td><a href="javascript:" class="remove-escalation">Remove</a></td>
+</tr>

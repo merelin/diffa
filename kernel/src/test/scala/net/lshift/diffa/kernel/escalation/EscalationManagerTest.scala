@@ -25,7 +25,6 @@ import org.junit.runner.RunWith
 import net.lshift.diffa.kernel.config._
 import org.junit.experimental.theories.{DataPoints, DataPoint, Theories, Theory}
 import net.lshift.diffa.kernel.config.DiffaPair
-import net.lshift.diffa.kernel.frontend.EscalationDef
 import net.lshift.diffa.kernel.reporting.ReportManager
 import net.lshift.diffa.kernel.differencing._
 import org.easymock.classextension.{EasyMock => EasyMock4Classes}
@@ -33,8 +32,15 @@ import org.junit.Assume._
 import org.hamcrest.CoreMatchers._
 import net.lshift.diffa.kernel.lifecycle.NotificationCentre
 import org.easymock.{IAnswer, EasyMock}
-import org.junit.{Ignore, Before, After}
 import akka.actor.ActorSystem
+import scala.collection.JavaConversions._
+import net.lshift.diffa.kernel.frontend.{DomainPairDef, EscalationDef}
+import net.lshift.diffa.kernel.util.EasyMockScalaUtils._
+import java.util.concurrent.atomic.AtomicInteger
+import system.SystemConfigStore
+import java.util.concurrent.{TimeUnit, CountDownLatch}
+import org.junit.{Test, Ignore, Before, After}
+import com.typesafe.config.ConfigFactory
 
 @RunWith(classOf[Theories])
 class EscalationManagerTest {
@@ -42,14 +48,23 @@ class EscalationManagerTest {
   val domain = "domain"
   val pairKey = "some pair key"
   val pair = DiffaPair(key = pairKey, domain = Domain(name=domain))
-  val actorSystem = ActorSystem("EscalationManagerTestAt%#x".format(hashCode()))
+  val customConf = ConfigFactory.parseString("""
+    akka.actor.default-dispatcher {
+      type = "akka.testkit.CallingThreadDispatcherConfigurator"
+    }
+    """)
+  val actorSystem = ActorSystem("EscalationManagerTestAt%#x".format(hashCode()), customConf)
   actorSystem.registerOnTermination(println("Per-test actor system shutdown; %s".format(this)))
 
   val notificationCentre = new NotificationCentre
+  val systemConfig = createMock(classOf[SystemConfigStore])
   val configStore = createMock(classOf[DomainConfigStore])
   val actionsClient = createStrictMock(classOf[ActionsClient])
   val reportManager = EasyMock4Classes.createStrictMock(classOf[ReportManager])
-  val escalationManager = new EscalationManager(configStore, actionsClient, reportManager, actorSystem)
+  val diffs = createStrictMock(classOf[DomainDifferenceStore])
+  checkOrder(diffs, false)
+  val breakers = new BreakerHelper(configStore)
+  val escalationManager = new EscalationManager(configStore, systemConfig, diffs, actionsClient, reportManager, actorSystem, breakers)
 
   escalationManager.onAgentInstantiationCompleted(notificationCentre)
 
@@ -59,67 +74,134 @@ class EscalationManagerTest {
   @After
   def shutdown = escalationManager.close()
 
-  def expectConfigStoreWithRepairs(event:String) {
+  def expectConfigStoreWithRepairs(rule:String) {
 
-    expect(configStore.listEscalationsForPair(domain, pairKey)).andReturn(
-      List(EscalationDef("foo", pairKey, "bar", EscalationActionType.REPAIR, event, EscalationOrigin.SCAN))
+    expect(configStore.getPairDef(DiffaPairRef(pairKey, domain))).andReturn(
+      DomainPairDef(escalations = Set(EscalationDef("foo", "bar", EscalationActionType.REPAIR, rule)))
     ).anyTimes()
-
-    replay(configStore)
   }
 
   def expectConfigStoreWithReports(event:String) {
 
-    expect(configStore.listEscalationsForPair(domain, pairKey)).andReturn(
-      List(EscalationDef("foo", pairKey, "bar", EscalationActionType.REPORT, event))
+    expect(configStore.getPairDef(DiffaPairRef(pairKey, domain))).andReturn(
+      DomainPairDef(escalations = Set(EscalationDef("foo", "bar", EscalationActionType.REPORT, event)))
     ).anyTimes()
-
-    replay(configStore)
   }
 
-  def expectActionsClient(count:Int, monitor: Object) {
+  def expectActionsClient(count:Int, latch: CountDownLatch) {
     if (count > 0) {
       val answer = new IAnswer[InvocationResult] {
         var counter = 0
         def answer = {
           counter += 1
-          if (counter == count) monitor.synchronized {
-            monitor.notifyAll()
-          }
+          if (counter == count) latch.countDown()
           InvocationResult("200", "Success")
         }
       }
       expect(actionsClient.invoke(EasyMock.isA(classOf[ActionableRequest]))).andAnswer(answer).times(count)
     }
-    replay(actionsClient)
+  }
+
+  def expectIgnore(latch: CountDownLatch) {
+    val answer = new IAnswer[DifferenceEvent] {
+      def answer = {
+        latch.countDown()
+        DifferenceEvent()
+      }
+    }
+    expect(diffs.ignoreEvent("d", "123")).andAnswer(answer).once()
   }
 
   def expectReportManager(count:Int) {
     if (count > 0) {
       reportManager.executeReport(pair.asRef, "bar"); expectLastCall.times(count)
     }
-    EasyMock4Classes.replay(reportManager)
+  }
+  
+  /**
+   * Test to escalate a difference through all the various escalations that are available to it.
+   */
+  @Theory
+  def escalationsShouldBeSelectedFromAvailableEscalations(scenario:Scenario) {
+    assumeThat(scenario, is(instanceOf(classOf[EscalationSchedulingScenario])))
+    val s = scenario.asInstanceOf[EscalationSchedulingScenario]
+
+    val now = new DateTime
+    val event = DifferenceEvent(
+      seqId = "123", objId = VersionID(DiffaPairRef(key = "p1", domain ="d"), "id1"),
+      upstreamVsn = s.uvsn, downstreamVsn = s.dvsn, detectedAt = now,
+      nextEscalation = null)
+
+    (s.expectedSelections ++ Seq(Selection(null, None))).foreach(selection => {
+      val expectedTime = selection.delay.map(d => now.plusSeconds(d)).getOrElse(null)
+
+      diffs.scheduleEscalation(event,  selection.name, expectedTime); expectLastCall
+      expect(configStore.getPairDef(event.objId.pair)).andReturn(DomainPairDef(escalations = new java.util.HashSet(s.escalations)))
+      replayAll()
+
+      escalationManager.initiateEscalation(event)
+      verifyAll()
+
+      event.nextEscalation = selection.name
+      resetAll()
+    })
   }
 
+  /**
+   * Test to ensure that escalations are executed.
+   */
   @Theory
-  def entityEscalationsSometimesTriggerActions(scenario:Scenario) = {
-    assumeThat(scenario, is(instanceOf(classOf[EntityScenario])))
-    val entityScenario = scenario.asInstanceOf[EntityScenario]
+  def escalationsShouldBeExecuted(scenario:Scenario) {
+    assumeThat(scenario, is(instanceOf(classOf[EscalationSchedulingScenario])))
+    val s = scenario.asInstanceOf[EscalationSchedulingScenario]
+    assumeTrue(s.expectedSelections.length > 0)
 
-    val callCompletionMonitor = new Object
+    val now = new DateTime
+    val event = DifferenceEvent(
+      seqId = "123", objId = VersionID(DiffaPairRef(key = "p1", domain ="d"), "id1"),
+      upstreamVsn = s.uvsn, downstreamVsn = s.dvsn, detectedAt = now,
+      nextEscalation = s.expectedSelections.head.name)
+    val callCounter = new AtomicInteger(0)
+    val actionCompletionMonitor = new CountDownLatch(1)
+    val schedulingCompletionMonitor = new CountDownLatch(1)
 
-    expectConfigStoreWithRepairs(entityScenario.event)
-    expectActionsClient(entityScenario.invocations, callCompletionMonitor)
-    expectReportManager(0)
+      // Don't let the breakers stop anything
+    expect(configStore.isBreakerTripped(EasyMock.eq("d"), EasyMock.eq("p1"), anyString)).andStubReturn(false)
 
-    callCompletionMonitor.synchronized {
-      notificationCentre.onMismatch(VersionID(pair.asRef, "id"), new DateTime(), entityScenario.uvsn, entityScenario.dvsn, entityScenario.matchOrigin, MatcherFiltered)
+    // Return our pair to have a corresponding actor started
+    expect(systemConfig.listPairs).andReturn(
+      Seq(DomainPairDef(domain = event.objId.pair.domain, key = event.objId.pair.key)))
 
-      if (entityScenario.invocations > 0) {
-        callCompletionMonitor.wait()
+    // Make the diffs store return the difference once
+    expect(diffs.pendingEscalatees(anyTimestamp, anyUnitF1)).andAnswer(new IAnswer[Unit] {
+      def answer() {
+        val callback = EasyMock.getCurrentArguments()(1).asInstanceOf[(DifferenceEvent) => Unit]
+        if (callCounter.getAndSet(1) == 0) {
+          callback(event)
+        }
       }
-    }
+    })
+    expect(configStore.getPairDef(event.objId.pair)).
+      andReturn(DomainPairDef(escalations = new java.util.HashSet(
+        s.escalations.map(e => {
+          if (s.actionType == EscalationActionType.IGNORE)
+            e.copy(actionType = EscalationActionType.IGNORE)
+          else
+            e.copy(actionType = EscalationActionType.REPAIR, action = "some-action")
+        })))).atLeastOnce()
+    if (s.actionType == EscalationActionType.REPAIR) expectActionsClient(1, actionCompletionMonitor)
+    if (s.actionType == EscalationActionType.IGNORE) expectIgnore(actionCompletionMonitor)
+    expect(diffs.scheduleEscalation(EasyMock.eq(event), anyString, anyTimestamp)).andAnswer(new IAnswer[Unit] {
+      def answer() {
+        schedulingCompletionMonitor.countDown()
+      }
+    })
+    replayAll()
 
+    escalationManager.start()
+
+    actionCompletionMonitor.await(5000, TimeUnit.MILLISECONDS)
+    schedulingCompletionMonitor.await(5000, TimeUnit.MILLISECONDS)
     verifyAll()
   }
 
@@ -129,46 +211,138 @@ class EscalationManagerTest {
     val pairScenario = scenario.asInstanceOf[PairScenario]
     
     expectConfigStoreWithReports(pairScenario.event)
-    expectActionsClient(0, new Object)
+    expectActionsClient(0, new CountDownLatch(0))
     expectReportManager(pairScenario.invocations)
+    replayAll()
     
     notificationCentre.pairScanStateChanged(pair.asRef, pairScenario.state)
     
     verifyAll()
   }
 
+  @Test
+  def applyingBreakerShouldPreventEscalationBeingProcessed() {
+    val event = DifferenceEvent(objId = VersionID(DiffaPairRef(pairKey, domain), "id1"), nextEscalation = "esc1",
+      nextEscalationTime = new DateTime)
+    expect(systemConfig.listPairs).andReturn(
+      Seq(DomainPairDef(domain = event.objId.pair.domain, key = event.objId.pair.key)))
+    expect(diffs.pendingEscalatees(anyTimestamp, anyUnitF1)).asStub()
+    expect(configStore.getPairDef(event.objId.pair)).andReturn(DomainPairDef(escalations =
+      Set(EscalationDef(name = "esc1", action = "a1", actionType = "repair"))))
+    expect(diffs.scheduleEscalation(event, null, null)).once()
+
+    expect(configStore.isBreakerTripped(domain, pairKey, "escalation:*")).andReturn(false)
+    expect(configStore.isBreakerTripped(domain, pairKey, "escalation:esc1")).andReturn(true)
+
+    replayAll()
+
+    escalationManager.start()
+    escalationManager.escalateDiff(event)
+    verifyAll()
+  }
+
+  def resetAll() {
+    reset(configStore, systemConfig, actionsClient, diffs)
+    EasyMock4Classes.reset(reportManager)
+  }
+
+  def replayAll() {
+    replay(configStore, systemConfig, actionsClient, diffs)
+    EasyMock4Classes.replay(reportManager)
+  }
+
   def verifyAll() {
-    verify(configStore, actionsClient)
+    verify(configStore, systemConfig, actionsClient, diffs)
     EasyMock4Classes.verify(reportManager)
   }
 }
 
+case class Selection(name:String, delay:Option[Int])
+
 abstract class Scenario
 case class EntityScenario(uvsn:String, dvsn: String, event: String, matchOrigin: MatchOrigin, invocations: Int) extends Scenario
 case class PairScenario(state:PairScanState, event: String, invocations: Int) extends Scenario
+case class EscalationSchedulingScenario(uvsn:String, dvsn:String, actionType:String, escalations:Seq[EscalationDef], expectedSelections:Selection*) extends Scenario
 
 object EscalationManagerTest {
 
-  @DataPoints def mismatchShouldBeEscalated = Array (
-    EntityScenario("uvsn", "dsvn", EscalationEvent.MISMATCH, TriggeredByScan, 1),
-    EntityScenario("uvsn", "", EscalationEvent.MISMATCH, TriggeredByScan, 0),
-    EntityScenario("", "dsvn", EscalationEvent.MISMATCH, TriggeredByScan, 0)
+  @DataPoint def noEscalationsToSelect =
+    EscalationSchedulingScenario("usvn", "dvsn", EscalationActionType.REPAIR, Seq())
+
+  @DataPoints def noMatchingEscalations = Array(
+    EscalationSchedulingScenario("usvn", "dvsn", EscalationActionType.REPAIR, Seq(
+      EscalationDef(name = "e1", rule = "upstreamMissing"),
+      EscalationDef(name = "e2", rule = "downstreamMissing")
+    )),
+    EscalationSchedulingScenario(null, "dvsn", EscalationActionType.REPAIR, Seq(
+      EscalationDef(name = "e1", rule = "mismatch"),
+      EscalationDef(name = "e2", rule = "downstreamMissing")
+    )),
+    EscalationSchedulingScenario("usvn", null, EscalationActionType.REPAIR, Seq(
+      EscalationDef(name = "e1", rule = "upstreamMissing"),
+      EscalationDef(name = "e2", rule = "mismatch")
+    ))
   )
 
-  @DataPoints def missingDownstreamShouldBeEscalated = Array (
-    EntityScenario("uvsn", "", EscalationEvent.DOWNSTREAM_MISSING, TriggeredByScan, 1),
-    EntityScenario("uvsn", "dvsn", EscalationEvent.DOWNSTREAM_MISSING, TriggeredByScan, 0),
-    EntityScenario("", "dvsn", EscalationEvent.DOWNSTREAM_MISSING, TriggeredByScan, 0)
+  @DataPoints def immediateMatchingEscalations = Array(
+    EscalationSchedulingScenario("usvn", "dvsn", EscalationActionType.REPAIR, Seq(
+      EscalationDef(name = "e1", rule = "upstreamMissing"),
+      EscalationDef(name = "e2", rule = "mismatch")
+    ), Selection("e2", Some(0))),
+    EscalationSchedulingScenario(null, "dvsn", EscalationActionType.REPAIR, Seq(
+      EscalationDef(name = "e1", rule = "mismatch"),
+      EscalationDef(name = "e2", rule = "upstreamMissing")
+    ), Selection("e2", Some(0))),
+    EscalationSchedulingScenario("usvn", null, EscalationActionType.REPAIR, Seq(
+      EscalationDef(name = "e1", rule = "upstreamMissing"),
+      EscalationDef(name = "e2", rule = "downstreamMissing")
+    ), Selection("e2", Some(0))),
+    EscalationSchedulingScenario("usvn", null, EscalationActionType.REPAIR, Seq(
+      EscalationDef(name = "e1", rule = null)
+    ), Selection("e1", Some(0)))
   )
 
-  @DataPoints def missingUpstreamShouldBeEscalated = Array (
-    EntityScenario("uvsn", "", EscalationEvent.UPSTREAM_MISSING, TriggeredByScan, 0),
-    EntityScenario("uvsn", "dvsn", EscalationEvent.UPSTREAM_MISSING, TriggeredByScan, 0),
-    EntityScenario("", "dvsn", EscalationEvent.UPSTREAM_MISSING, TriggeredByScan, 1)
+  @DataPoints def ignoreEscalations = Array(
+    EscalationSchedulingScenario("usvn", "dvsn", EscalationActionType.IGNORE, Seq(
+      EscalationDef(name = "e1", rule = "upstreamMissing"),
+      EscalationDef(name = "e2", rule = "mismatch")
+    ), Selection("e2", Some(0))),
+    EscalationSchedulingScenario(null, "dvsn", EscalationActionType.IGNORE, Seq(
+      EscalationDef(name = "e1", rule = "mismatch"),
+      EscalationDef(name = "e2", rule = "upstreamMissing")
+    ), Selection("e2", Some(0))),
+    EscalationSchedulingScenario("usvn", null, EscalationActionType.IGNORE, Seq(
+      EscalationDef(name = "e1", rule = "upstreamMissing"),
+      EscalationDef(name = "e2", rule = "downstreamMissing")
+    ), Selection("e2", Some(0)))
   )
 
-  @DataPoint def liveWindowShouldNotGetEscalated =
-    EntityScenario("uvsn", "dvsn", EscalationEvent.MISMATCH, LiveWindow, 0)
+  @DataPoints def delayedEscalationsProcessedInOrder = Array(
+    EscalationSchedulingScenario("usvn", "dvsn", EscalationActionType.REPAIR, Seq(
+      EscalationDef(name = "e1", rule = "mismatch", delay = 50),
+      EscalationDef(name = "e2", rule = "mismatch", delay = 10)
+    ), Selection("e2", Some(10)), Selection("e1", Some(50))),
+    EscalationSchedulingScenario("usvn", "dvsn", EscalationActionType.REPAIR, Seq(
+      EscalationDef(name = "e1", rule = "mismatch", delay = 50),
+      EscalationDef(name = "e2", rule = "upstreamMissing", delay = 20),
+      EscalationDef(name = "e3", rule = "mismatch", delay = 10)
+    ), Selection("e3", Some(10)), Selection("e1", Some(50)))
+  )
+
+  @DataPoints def noProgressingToInvalidScenarios = Array(
+    EscalationSchedulingScenario("usvn", "dvsn", EscalationActionType.REPAIR, Seq(
+      EscalationDef(name = "e1", rule = "upstreamMissing"),
+      EscalationDef(name = "e2", rule = "mismatch")
+    ), Selection("e2", Some(0))),
+    EscalationSchedulingScenario(null, "dvsn", EscalationActionType.REPAIR, Seq(
+      EscalationDef(name = "e1", rule = "mismatch"),
+      EscalationDef(name = "e2", rule = "upstreamMissing")
+    ), Selection("e2", Some(0))),
+    EscalationSchedulingScenario("usvn", null, EscalationActionType.REPAIR, Seq(
+      EscalationDef(name = "e1", rule = "upstreamMissing"),
+      EscalationDef(name = "e2", rule = "downstreamMissing")
+    ), Selection("e2", Some(0)))
+  )
 
   @DataPoints def scanCompletedShouldBeEscalated = Array(
     PairScenario(PairScanState.UP_TO_DATE, EscalationEvent.SCAN_COMPLETED, 1),

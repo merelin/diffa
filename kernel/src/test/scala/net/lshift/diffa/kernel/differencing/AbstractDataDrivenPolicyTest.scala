@@ -36,10 +36,10 @@ import net.lshift.diffa.kernel.diag.DiagnosticsManager
 import org.junit.Assume._
 import org.junit.Assert._
 import java.util.HashMap
-import net.lshift.diffa.kernel.config.DiffaPair
 import net.lshift.diffa.kernel.config.system.SystemConfigStore
 import net.lshift.diffa.kernel.util.{DownstreamEndpoint, UpstreamEndpoint, NonCancellingFeedbackHandle}
 import org.joda.time.{DateTime, LocalDate}
+import net.lshift.diffa.kernel.frontend.DomainPairDef
 
 /**
  * Framework and scenario definitions for data-driven policy tests.
@@ -78,7 +78,8 @@ abstract class AbstractDataDrivenPolicyTest {
   val diffWriter = createStrictMock("diffWriter", classOf[DifferenceWriter])
   EasyMock.checkOrder(diffWriter, false)  // Not all match write operations are going to be strictly ordered
 
-  val systemConfigStore = createStrictMock("configStore", classOf[SystemConfigStore])
+  val systemConfigStore = createStrictMock("systemConfigStore", classOf[SystemConfigStore])
+  val domainConfigStore = createStrictMock("domainConfigStore", classOf[DomainConfigStore])
 
   protected def replayAll = replay(systemConfigStore, usMock, dsMock, store, writer, listener)
   protected def verifyAll = verify(systemConfigStore, usMock, dsMock, store, writer, listener)
@@ -98,8 +99,8 @@ abstract class AbstractDataDrivenPolicyTest {
 
     replayAll
 
-    policy.scanUpstream(scenario.pair.asRef, scenario.upstreamEp, None, writer, usMock, nullListener, feedbackHandle)
-    policy.scanDownstream(scenario.pair.asRef, scenario.downstreamEp, None, writer, usMock, dsMock, listener, feedbackHandle)
+    policy.scanUpstream(0L, scenario.pair.asRef, scenario.upstreamEp, None, writer, usMock, nullListener, feedbackHandle)
+    policy.scanDownstream(0L, scenario.pair.asRef, scenario.downstreamEp, None, writer, usMock, dsMock, listener, feedbackHandle)
 
     verifyAll
   }
@@ -113,24 +114,26 @@ abstract class AbstractDataDrivenPolicyTest {
     setupStubs(scenario)
     assumeTrue(scenario.tx.forall(_.isInstanceOf[AggregateTx]))     // Only relevant in scenarios where aggregation occurs
 
+    val scanId = System.currentTimeMillis()
+
     scenario.tx.foreach { case tx:AggregateTx =>
       expectUpstreamAggregateScan(scenario.pair.asRef, tx.bucketing, tx.constraints, tx.respBuckets, Seq())
       tx.respBuckets.foreach(b => {
         expectUpstreamEntityScan(scenario.pair.asRef, b.nextTx.constraints, b.allVsns, Seq())
-        expectUpstreamEntityStore(scenario.pair.asRef, b.allVsns, false)
+        expectUpstreamEntityStore(scenario.pair.asRef, b.allVsns, false, Some(scanId))
       })
 
       expectDownstreamAggregateScan(scenario.pair.asRef, tx.bucketing, tx.constraints, tx.respBuckets, Seq())
       tx.respBuckets.foreach(b => {
         expectDownstreamEntityScan(scenario.pair.asRef, b.nextTx.constraints, b.allVsns, Seq())
-        expectDownstreamEntityStore(scenario.pair.asRef, b.allVsns, false)
+        expectDownstreamEntityStore(scenario.pair.asRef, b.allVsns, false, Some(scanId))
       })
     }
 
     replayAll
 
-    policy.scanUpstream(scenario.pair.asRef, scenario.upstreamEp, None, writer, usMock, nullListener, feedbackHandle)
-    policy.scanDownstream(scenario.pair.asRef, scenario.downstreamEp, None, writer, usMock, dsMock, listener, feedbackHandle)
+    policy.scanUpstream(scanId, scenario.pair.asRef, scenario.upstreamEp, None, writer, usMock, nullListener, feedbackHandle)
+    policy.scanDownstream(scanId, scenario.pair.asRef, scenario.downstreamEp, None, writer, usMock, dsMock, listener, feedbackHandle)
 
     verifyAll
   }
@@ -142,6 +145,8 @@ abstract class AbstractDataDrivenPolicyTest {
   def shouldCorrectOutOfDateUpstreamEntity(scenario:Scenario) {
     setupStubs(scenario)
 
+    val scanId = System.currentTimeMillis()
+
     scenario.tx.foreach { tx =>
       // Alter the version of the first entity in the upstream tree, then expect traversal to it
       val updated = tx.alterFirstVsn("newVsn1")
@@ -152,7 +157,7 @@ abstract class AbstractDataDrivenPolicyTest {
         case (tx1:EntityTx, tx2:EntityTx) =>
           expectUpstreamEntityScan(scenario.pair.asRef, tx1.constraints, tx1.entities, tx2.entities)
       }
-      expectUpstreamEntityStore(scenario.pair.asRef, Seq(updated.firstVsn), true)
+      expectUpstreamEntityStore(scenario.pair.asRef, Seq(updated.firstVsn), true, Some(scanId))
 
       // Expect to see an event about the version being matched (since we told the datastore to report it as matched)
       listener.onMatch(VersionID(scenario.pair.asRef, updated.firstVsn.id), updated.firstVsn.vsn, TriggeredByScan)
@@ -169,8 +174,8 @@ abstract class AbstractDataDrivenPolicyTest {
 
     replayAll
 
-    policy.scanUpstream(scenario.pair.asRef, scenario.upstreamEp, None, writer, usMock, nullListener, feedbackHandle)
-    policy.scanDownstream(scenario.pair.asRef, scenario.downstreamEp, None, writer, usMock, dsMock, listener, feedbackHandle)
+    policy.scanUpstream(scanId, scenario.pair.asRef, scenario.upstreamEp, None, writer, usMock, nullListener, feedbackHandle)
+    policy.scanDownstream(scanId, scenario.pair.asRef, scenario.downstreamEp, None, writer, usMock, dsMock, listener, feedbackHandle)
 
     verifyAll
   }
@@ -181,6 +186,8 @@ abstract class AbstractDataDrivenPolicyTest {
   @Theory
   def shouldCorrectOutOfDateDownstreamEntity(scenario:Scenario) {
     setupStubs(scenario)
+
+    val scanId = System.currentTimeMillis()
 
     scenario.tx.foreach { tx =>
       tx match {
@@ -201,7 +208,7 @@ abstract class AbstractDataDrivenPolicyTest {
         case (tx1:EntityTx, tx2:EntityTx) =>
           expectDownstreamEntityScan(scenario.pair.asRef, tx1.constraints, tx1.entities, tx2.entities)
       }
-      expectDownstreamEntityStore(scenario.pair.asRef, Seq(updated.firstVsn), true)
+      expectDownstreamEntityStore(scenario.pair.asRef, Seq(updated.firstVsn), true, Some(scanId))
 
       // Expect to see an event about the version being matched (since we told the datastore to report it as matched)
       listener.onMatch(VersionID(scenario.pair.asRef, updated.firstVsn.id), updated.firstVsn.vsn, TriggeredByScan)
@@ -209,8 +216,8 @@ abstract class AbstractDataDrivenPolicyTest {
 
     replayAll
 
-    policy.scanUpstream(scenario.pair.asRef, scenario.upstreamEp, None, writer, usMock, nullListener, feedbackHandle)
-    policy.scanDownstream(scenario.pair.asRef, scenario.downstreamEp, None, writer, usMock, dsMock, listener, feedbackHandle)
+    policy.scanUpstream(scanId, scenario.pair.asRef, scenario.upstreamEp, None, writer, usMock, nullListener, feedbackHandle)
+    policy.scanDownstream(scanId, scenario.pair.asRef, scenario.downstreamEp, None, writer, usMock, dsMock, listener, feedbackHandle)
 
     verifyAll
   }
@@ -302,6 +309,8 @@ abstract class AbstractDataDrivenPolicyTest {
   def shouldGenerateRequestsToCorrectOutOfDateEntity(scenario:Scenario) {
     setupStubs(scenario)
 
+    val scanId = System.currentTimeMillis()
+
     scenario.tx.foreach { tx =>
       // Alter the version of the first entity in the upstream tree, then expect traversal to it
       val updated = tx.alterFirstVsn("newVsn1")
@@ -315,8 +324,8 @@ abstract class AbstractDataDrivenPolicyTest {
           expectUpstreamStoreQuery(scenario.pair.asRef, tx2.constraints, tx2.entities)
           expectDownstreamStoreQuery(scenario.pair.asRef, tx2.constraints, tx2.entities)
       }
-      expectUpstreamEntityStore(scenario.pair.asRef, Seq(updated.firstVsn), true)
-      expectDownstreamEntityStore(scenario.pair.asRef, Seq(updated.firstVsn), true)
+      expectUpstreamEntityStore(scenario.pair.asRef, Seq(updated.firstVsn), true, None)
+      expectDownstreamEntityStore(scenario.pair.asRef, Seq(updated.firstVsn), true, None)
 
       // Expect to see an event about the version being matched (since we told the datastore to report it as matched)
       // We'll see this twice (once for upstream, once for downstream)
@@ -363,7 +372,7 @@ abstract class AbstractDataDrivenPolicyTest {
   //
 
   protected def setupStubs(scenario:Scenario) {
-    expect(systemConfigStore.getPair(scenario.pair.domain.name, scenario.pair.key)).andReturn(scenario.pair).anyTimes
+    expect(domainConfigStore.getPairDef(scenario.pair.domain, scenario.pair.key)).andReturn(scenario.pair).anyTimes
   }
 
   protected def expectUpstreamAggregateScan(pair:DiffaPairRef, bucketing:Seq[CategoryFunction], constraints:Seq[ScanConstraint],
@@ -410,19 +419,19 @@ abstract class AbstractDataDrivenPolicyTest {
     expect(store.queryDownstreams(asUnorderedList(constraints))).andReturn(correlations)
   }
 
-  protected def expectUpstreamEntityStore(pair:DiffaPairRef, entities:Seq[Vsn], matched:Boolean) {
+  protected def expectUpstreamEntityStore(pair:DiffaPairRef, entities:Seq[Vsn], matched:Boolean, scanId:Option[Long]) {
     entities.foreach(v => {
       val downstreamVsnToUse = if (matched) { v.vsn } else { null }   // If we're matched, make the vsn match
 
-      expect(writer.storeUpstreamVersion(VersionID(pair, v.id), v.typedAttrs, v.lastUpdated, v.vsn)).
+      expect(writer.storeUpstreamVersion(VersionID(pair, v.id), v.typedAttrs, v.lastUpdated, v.vsn, scanId)).
         andReturn(new Correlation(null, pair, v.id, v.strAttrs, null, v.lastUpdated, now, v.vsn, downstreamVsnToUse, downstreamVsnToUse, matched))
     })
   }
-  protected def expectDownstreamEntityStore(pair:DiffaPairRef, entities:Seq[Vsn], matched:Boolean) {
+  protected def expectDownstreamEntityStore(pair:DiffaPairRef, entities:Seq[Vsn], matched:Boolean, scanId:Option[Long]) {
     entities.foreach(v => {
       val upstreamVsnToUse = if (matched) { v.vsn } else { null }   // If we're matched, make the vsn match
 
-      expect(writer.storeDownstreamVersion(VersionID(pair, v.id), v.typedAttrs, v.lastUpdated, v.vsn, v.vsn)).
+      expect(writer.storeDownstreamVersion(VersionID(pair, v.id), v.typedAttrs, v.lastUpdated, v.vsn, v.vsn, scanId)).
         andReturn(new Correlation(null, pair, v.id, null, v.strAttrs, v.lastUpdated, now, upstreamVsnToUse, v.vsn, v.vsn, matched))
     })
   }
@@ -495,7 +504,7 @@ object AbstractDataDrivenPolicyTest {
 
 
   @DataPoint def noCategoriesScenario = Scenario(
-    DiffaPair(key = "ab", domain = domain),
+    DomainPairDef(key = "ab", domain = "domain"),
     Endpoint(categories = new HashMap[String, CategoryDescriptor]),
     Endpoint(categories = new HashMap[String, CategoryDescriptor]),
       EntityTx(Seq(),
@@ -510,7 +519,7 @@ object AbstractDataDrivenPolicyTest {
    * Should any body ask for this, this behavior be may re-instated at some point.
    */
   @DataPoint def setOnlyScenario = Scenario(
-    DiffaPair(key = "ab", domain = domain),
+    DomainPairDef(key = "ab", domain = "domain"),
     Endpoint(categories = Map("someString" -> new SetCategoryDescriptor(Set("A","B","C")))),
     Endpoint(categories = Map("someString" -> new SetCategoryDescriptor(Set("A","B","C")))),
       EntityTx(Seq(new SetConstraint("someString", Set("A"))),
@@ -528,7 +537,7 @@ object AbstractDataDrivenPolicyTest {
     )
 
   @DataPoint def dateTimesOnlyScenario = Scenario(
-    DiffaPair(key = "ab", domain = domain),
+    DomainPairDef(key = "ab", domain = "domain"),
     Endpoint(categories = Map("bizDateTime" -> dateTimeCategoryDescriptor)),
     Endpoint(categories = Map("bizDateTime" -> dateTimeCategoryDescriptor)),
     AggregateTx(Seq(yearly("bizDateTime", TimeDataType)), Seq(),
@@ -569,7 +578,7 @@ object AbstractDataDrivenPolicyTest {
 
 
   @DataPoint def datesOnlyScenario = Scenario(
-    DiffaPair(key = "xy", domain = domain),
+    DomainPairDef(key = "xy", domain = "domain"),
     Endpoint(categories = Map("bizDate" -> dateCategoryDescriptor)),
     Endpoint(categories = Map("bizDate" -> dateCategoryDescriptor)),
     AggregateTx(Seq(yearly("bizDate", DateDataType)), Seq(),
@@ -612,7 +621,7 @@ object AbstractDataDrivenPolicyTest {
    *  values but uses a full DateTime data type during its descent.
    */
   @DataPoint def yy_MM_dddd_dateTimesOnlyScenario = Scenario(
-    DiffaPair(key = "tf", domain = domain),
+    DomainPairDef(key = "tf", domain = "domain"),
     Endpoint(categories = Map("bizDateTime" -> localDatePrimedDescriptor)),
     Endpoint(categories = Map("bizDateTime" -> localDatePrimedDescriptor)),
     AggregateTx(Seq(yearly("bizDateTime", TimeDataType)), Seq(dateTimeRange("bizDateTime", START_2023_FULL, END_2023_FULL)),
@@ -629,7 +638,7 @@ object AbstractDataDrivenPolicyTest {
     ))
 
   @DataPoint def integersOnlyScenario = Scenario(
-    DiffaPair(key = "bc", domain = domain),
+    DomainPairDef(key = "bc", domain = "domain"),
     Endpoint(categories = Map("someInt" -> intCategoryDescriptor)),
     Endpoint(categories = Map("someInt" -> intCategoryDescriptor)),
     AggregateTx(Seq(thousands("someInt")), Seq(),
@@ -667,7 +676,7 @@ object AbstractDataDrivenPolicyTest {
     ))
 
   @DataPoint def stringsOnlyScenario = Scenario(
-    DiffaPair(key = "bc", domain = domain),
+    DomainPairDef(key = "bc", domain = "domain"),
     Endpoint(categories = Map("someString" -> stringCategoryDescriptor)),
     Endpoint(categories = Map("someString" -> stringCategoryDescriptor)),
     AggregateTx(Seq(oneCharString("someString")), Seq(),
@@ -705,7 +714,7 @@ object AbstractDataDrivenPolicyTest {
     ))
 
   @DataPoint def integersAndDateTimesScenario = Scenario(
-    DiffaPair(key = "ab", domain = domain),
+    DomainPairDef(key = "ab", domain = "domain"),
     Endpoint(categories = Map("bizDateTime" -> dateTimeCategoryDescriptor, "someInt" -> intCategoryDescriptor)),
     Endpoint(categories = Map("bizDateTime" -> dateTimeCategoryDescriptor, "someInt" -> intCategoryDescriptor)),
     AggregateTx(Seq(yearly("bizDateTime", TimeDataType), thousands("someInt")), Seq(),
@@ -750,7 +759,7 @@ object AbstractDataDrivenPolicyTest {
    */
 
   @DataPoint def setAndDateTimesScenario = Scenario(
-    DiffaPair(key = "gh", domain = domain),
+    DomainPairDef(key = "gh", domain = "domain"),
     Endpoint(categories = Map("bizDateTime" -> dateTimeCategoryDescriptor, "someString" -> new SetCategoryDescriptor(Set("A","B")))),
     Endpoint(categories = Map("bizDateTime" -> dateTimeCategoryDescriptor, "someString" -> new SetCategoryDescriptor(Set("A","B")))),
     AggregateTx(Seq(yearly("bizDateTime", TimeDataType)), Seq(new SetConstraint("someString",Set("A"))),
@@ -811,7 +820,7 @@ object AbstractDataDrivenPolicyTest {
   // Type Definitions
   //
 
-  case class Scenario(pair:DiffaPair, upstreamEp:Endpoint, downstreamEp:Endpoint, tx:Tx*)
+  case class Scenario(pair:DomainPairDef, upstreamEp:Endpoint, downstreamEp:Endpoint, tx:Tx*)
 
   abstract class Tx {
     def constraints:Seq[ScanConstraint]

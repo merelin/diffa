@@ -4,7 +4,7 @@
 
   <groupId>net.lshift.diffa</groupId>
   <artifactId>diffa-parent</artifactId>
-  <version>1.4.5-SNAPSHOT</version>
+  <version>1.6.0-SNAPSHOT</version>
 
   <name>LShift Diffa Parent POM</name>
 
@@ -17,9 +17,10 @@
     <module>participants</module>
     <module>participant-support</module>
     <module>participants-web</module>
-    <module>docgen-maven-plugin</module>
     <module>dist</module>
     <module>hibernate-migrations</module>
+    <module>schema</module>
+    <module>schema-bindings</module>
     <module>jst-packaging</module>
   </modules>
 
@@ -30,10 +31,7 @@
     <scala.version>2.9.2</scala.version>
     <scala.plugin.version>2.14.1</scala.plugin.version>
     <spring.version>3.1.0.RELEASE</spring.version>
-
-    <!-- Patched from: https://github.com/0x6e6562/hibernate-core/commit/615aa049e7a557d4a8506a09eb1d2be38714b78f -->
-    <hibernate.version>3.6.7-2L</hibernate.version>
-
+    <hibernate.version>3.6.10.Final</hibernate.version>
     <hsqldb.version>2.2.8</hsqldb.version>
     <postgresql.version>9.1-901.jdbc4</postgresql.version>
     <bonecp.version>0.7.1.RELEASE</bonecp.version>
@@ -41,19 +39,20 @@
     <rabbitmq.version>2.7.0</rabbitmq.version>
     <accent.version>0.9</accent.version>
     <commons.io.version>2.0.1</commons.io.version>
-    <jersey.version>1.10</jersey.version>
+    <jersey.version>1.13</jersey.version>
+    <urlrewritefilter.version>4.0.3</urlrewritefilter.version>
     <jackson.version>1.9.2</jackson.version>
     <lucene.version>3.6.0</lucene.version>
     <jodatime.version>2.0</jodatime.version>
     <jadira.version>1.9</jadira.version>
     <javamail.file.transport.version>1.0</javamail.file.transport.version>
+    <jooq.version>2.4.0</jooq.version>
     <slf4j.version>1.6.4</slf4j.version>
     <logback.version>1.0.0</logback.version>
     <akka.version>2.0.1</akka.version>
     <quartz.version>2.1.3</quartz.version>
-    <ehcache.version>2.4.7</ehcache.version>
     <wroj.version>1.4.4</wroj.version>
-    <hazelcast.version>2.1</hazelcast.version>
+    <hazelcast.version>2.2</hazelcast.version>
   </properties>
 
   <scm>
@@ -200,11 +199,6 @@
            of logback that we're using. Force an upgrade.
       -->
     <dependency>
-      <groupId>net.sf.ehcache</groupId>
-      <artifactId>ehcache-core</artifactId>
-      <version>${ehcache.version}</version>
-    </dependency>
-    <dependency>
       <groupId>com.sun.jersey</groupId>
       <artifactId>jersey-server</artifactId>
       <version>${jersey.version}</version>
@@ -244,6 +238,11 @@
           <artifactId>commons-logging</artifactId>
         </exclusion>
       </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>org.tuckey</groupId>
+      <artifactId>urlrewritefilter</artifactId>
+      <version>${urlrewritefilter.version}</version>
     </dependency>
     <dependency>
       <groupId>org.antlr</groupId>
@@ -369,6 +368,11 @@
       </exclusions>
     </dependency>
     <dependency>
+      <groupId>com.typesafe.akka</groupId>
+      <artifactId>akka-testkit</artifactId>
+      <version>${akka.version}</version>
+    </dependency>
+    <dependency>
       <groupId>net.jcip</groupId>
       <artifactId>jcip-annotations</artifactId>
       <version>1.0</version>
@@ -387,6 +391,11 @@
       <groupId>commons-io</groupId>
       <artifactId>commons-io</artifactId>
       <version>${commons.io.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.ibm.icu</groupId>
+      <artifactId>icu4j</artifactId>
+      <version>49.1</version>
     </dependency>
     <dependency>
       <groupId>commons-lang</groupId>
@@ -434,7 +443,7 @@
     <dependency>
       <groupId>net.lshift</groupId>
       <artifactId>hibernate-migrations</artifactId>
-      <version>1.4.5-SNAPSHOT</version>
+      <version>1.6.0-SNAPSHOT</version>
     </dependency>
 
     <dependency>
@@ -492,6 +501,21 @@
       <artifactId>postgresql</artifactId>
       <version>${postgresql.version}</version>
     </dependency>
+    <dependency>
+      <groupId>org.jooq</groupId>
+      <artifactId>jooq</artifactId>
+      <version>${jooq.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.gentlyweb</groupId>
+      <artifactId>gentlyweb-utils</artifactId>
+      <version>1.1</version>
+    </dependency>
+    <dependency>
+      <groupId>org.josql</groupId>
+      <artifactId>josql</artifactId>
+      <version>2.2</version>
+    </dependency>
   </dependencies>
   </dependencyManagement>
   <distributionManagement>
@@ -509,7 +533,6 @@
           <artifactId>jetty-maven-plugin</artifactId>
           <version>${jetty.version}</version>
         </plugin>
-
         <plugin>
           <groupId>org.codehaus.mojo</groupId>
           <artifactId>exec-maven-plugin</artifactId>
@@ -539,6 +562,18 @@
           <configuration>
             <scalaVersion>${scala.version}</scalaVersion>
           </configuration>
+        </plugin>
+        <plugin>
+          <groupId>org.jooq</groupId>
+          <artifactId>jooq-codegen-maven</artifactId>
+          <version>${jooq.version}</version>
+          <executions>
+            <execution>
+              <goals>
+                <goal>generate</goal>
+              </goals>
+            </execution>
+          </executions>
         </plugin>
         <plugin>
           <groupId>org.codehaus.mojo</groupId>

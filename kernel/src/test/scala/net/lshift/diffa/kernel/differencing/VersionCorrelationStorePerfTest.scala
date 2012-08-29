@@ -27,7 +27,7 @@ import org.slf4j.LoggerFactory
 import net.lshift.diffa.kernel.indexing.LuceneVersionCorrelationStore
 import ch.qos.logback.classic.Level
 import net.lshift.diffa.participant.scanning.TimeRangeConstraint
-import net.lshift.diffa.kernel.config.{DiffaPairRef, Domain, DiffaPair}
+import net.lshift.diffa.kernel.config.DiffaPairRef
 
 /**
  * Performance test for the version correlation store.
@@ -60,7 +60,7 @@ class VersionCorrelationStorePerfTest {
     withTiming("load upstream versions") {
       val writer = stores(pair).openWriter()
       for (i <- 0 until vsnCount) {
-        writer.storeUpstreamVersion(VersionID(pair, "id" + i), attributes(i), JUL_1_2010_1, "version" + i)
+        writer.storeUpstreamVersion(VersionID(pair, "id" + i), attributes(i), JUL_1_2010_1, "version" + i, None)
       }
       writer.flush()
     }
@@ -74,7 +74,7 @@ class VersionCorrelationStorePerfTest {
     withTiming("load downstream versions") {
       val writer = stores(pair).openWriter()
       for (i <- 0 until vsnCount) {
-        writer.storeDownstreamVersion(VersionID(pair, "id" + i), attributes(i), JUL_1_2010_1, "version" + i, "dvsn" + i)
+        writer.storeDownstreamVersion(VersionID(pair, "id" + i), attributes(i), JUL_1_2010_1, "version" + i, "dvsn" + i, None)
       }
       writer.flush()
     }
