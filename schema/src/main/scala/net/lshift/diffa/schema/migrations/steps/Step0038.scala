@@ -94,7 +94,8 @@ object Step0038 extends VerifiedMigrationStep {
     migration.copyTableContents("category_descriptor", "unique_category_view_names",
       Seq("domain", "name", "endpoint")).
       join("endpoint_views_categories", "category_descriptor_id", "category_id", Seq("domain", "category_name", "endpoint")).
-      whereSource(Map("constraint_type" -> "prefix"))
+      whereSource(Map("constraint_type" -> "prefix")).
+      notNull(Seq("domain", "category_name", "endpoint"))
 
     // Migrate all prefix categories on endpoints proper
 
