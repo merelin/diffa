@@ -136,19 +136,24 @@ class JooqDomainConfigStore(jooq:JooqDatabaseFacade,
   def onDomainRemoved(domain: String) = invalidateAllCaches(domain)
 
   def createOrUpdateEndpoint(domain:String, endpointDef: EndpointDef) : DomainEndpointDef = {
+    val ordering = if (endpointDef.validateEntityOrder) {
+      endpointDef.collation
+    } else {
+      "unordered"
+    }
 
     jooq.execute(t => {
 
       t.insertInto(ENDPOINT).
           set(ENDPOINT.DOMAIN, domain).
           set(ENDPOINT.NAME, endpointDef.name).
-          set(ENDPOINT.COLLATION_TYPE, endpointDef.collation).
+          set(ENDPOINT.COLLATION_TYPE, ordering).
           set(ENDPOINT.CONTENT_RETRIEVAL_URL, endpointDef.contentRetrievalUrl).
           set(ENDPOINT.SCAN_URL, endpointDef.scanUrl).
           set(ENDPOINT.VERSION_GENERATION_URL, endpointDef.versionGenerationUrl).
           set(ENDPOINT.INBOUND_URL, endpointDef.inboundUrl).
         onDuplicateKeyUpdate().
-          set(ENDPOINT.COLLATION_TYPE, endpointDef.collation).
+          set(ENDPOINT.COLLATION_TYPE, ordering).
           set(ENDPOINT.CONTENT_RETRIEVAL_URL, endpointDef.contentRetrievalUrl).
           set(ENDPOINT.SCAN_URL, endpointDef.scanUrl).
           set(ENDPOINT.VERSION_GENERATION_URL, endpointDef.versionGenerationUrl).
@@ -204,6 +209,7 @@ class JooqDomainConfigStore(jooq:JooqDatabaseFacade,
     DomainEndpointDef(
       domain = domain,
       name = endpointDef.name,
+      validateEntityOrder = endpointDef.validateEntityOrder,
       collation = endpointDef.collation,
       contentRetrievalUrl = endpointDef.contentRetrievalUrl,
       scanUrl = endpointDef.scanUrl,
@@ -266,7 +272,23 @@ class JooqDomainConfigStore(jooq:JooqDatabaseFacade,
       if (endpoints.isEmpty) {
         throw new MissingObjectException("endpoint")
       } else {
-        endpoints.head
+        val ep = endpoints.head
+        val (validateEntityOrder, collationOrder) = if (ep.collation.equals("unordered")) {
+          (false, "ascii")
+        } else {
+          (true, ep.collation)
+        }
+        DomainEndpointDef(domain = ep.domain,
+          name = ep.name,
+          scanUrl = ep.scanUrl,
+          contentRetrievalUrl = ep.contentRetrievalUrl,
+          versionGenerationUrl = ep.versionGenerationUrl,
+          inboundUrl = ep.inboundUrl,
+          categories = ep.categories,
+          views = ep.views,
+          validateEntityOrder = validateEntityOrder,
+          collation = collationOrder
+        )
       }
 
     })
@@ -397,6 +419,7 @@ class JooqDomainConfigStore(jooq:JooqDatabaseFacade,
       scanUrl = endpointDef.scanUrl,
       versionGenerationUrl = endpointDef.versionGenerationUrl,
       contentRetrievalUrl = endpointDef.contentRetrievalUrl,
+      validateEntityOrder = endpointDef.validateEntityOrder,
       collation = endpointDef.collation,
       categories = endpointDef.categories
     )
