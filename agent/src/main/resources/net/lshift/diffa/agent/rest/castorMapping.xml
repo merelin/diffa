@@ -86,7 +86,7 @@
     <field name="inboundUrl" type="string">
       <bind-xml name="inbound-url" node="attribute" />
     </field>
-    <field name="validateEntityOrder" type="boolean">
+    <field name="validateEntityOrder" type="string">
       <bind-xml name="validate-entity-order" node="attribute" />
     </field>
     <field name="collation" type="string">

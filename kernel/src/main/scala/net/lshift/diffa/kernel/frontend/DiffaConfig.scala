@@ -24,6 +24,7 @@ import scala.collection.JavaConversions._
 import net.lshift.diffa.kernel.util.{DownstreamEndpoint, UpstreamEndpoint, EndpointSide}
 import net.lshift.diffa.participant.scanning.Collation
 import net.lshift.diffa.kernel.escalation.EscalationManager
+import java.lang
 
 /**
  * Describes a complete Diffa configuration in the context of a domain - this means that all of the objects
@@ -62,10 +63,15 @@ case class EndpointDef (
   @BeanProperty var inboundUrl: String = null,
   @BeanProperty var categories: java.util.Map[String,CategoryDescriptor] = new HashMap[String, CategoryDescriptor],
   @BeanProperty var views: java.util.List[EndpointViewDef] = new java.util.ArrayList[EndpointViewDef],
-  @BeanProperty var validateEntityOrder: Boolean = true,
+  @BeanProperty var validateEntityOrder: String = EntityOrdering.ENFORCED,
   @BeanProperty var collation: String = AsciiCollationOrdering.name) {
 
   def this() = this(name = null)
+
+  if (collation.equals(UnorderedCollationOrdering.name)) {
+    validateEntityOrder = EntityOrdering.UNENFORCED
+    collation = AsciiCollationOrdering.name
+  }
 
   val DEFAULT_URL_LENGTH_LIMIT = 1024
 
@@ -92,7 +98,7 @@ case class EndpointDef (
 
     collation = ValidationUtil.maybeDefault(collation, AsciiCollationOrdering.name)
     ValidationUtil.ensureMembership(endPointPath, "collation", collation,
-      Set(AsciiCollationOrdering.name, UnicodeCollationOrdering.name))
+      Set(UnorderedCollationOrdering.name, AsciiCollationOrdering.name, UnicodeCollationOrdering.name))
 
     Array(scanUrl,
           contentRetrievalUrl,
@@ -129,9 +135,17 @@ case class DomainEndpointDef(
   @BeanProperty var inboundUrl: String = null,
   @BeanProperty var categories: java.util.Map[String,CategoryDescriptor] = new java.util.TreeMap[String, CategoryDescriptor],
   @BeanProperty var views: java.util.List[EndpointViewDef] = new java.util.ArrayList[EndpointViewDef],
-  @BeanProperty var validateEntityOrder: Boolean = true,
+  @BeanProperty var validateEntityOrder: String = EntityOrdering.ENFORCED,
   @BeanProperty var collation: String = AsciiCollationOrdering.name) {
   def this() = this(domain = null)
+
+  // This is part of an interim workaround for allowing adapters to report out-of-order entities.
+  // This workaround avoids any database schema change at the cost of overloading the meaning of the 'collation'
+  // field of the endpoints table.
+  if (collation.equals(UnorderedCollationOrdering.name)) {
+    collation = AsciiCollationOrdering.name
+    validateEntityOrder = EntityOrdering.UNENFORCED
+  }
 
   @Deprecated def withoutDomain() = EndpointDef(
     name = name,

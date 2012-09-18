@@ -136,7 +136,7 @@ class CastorSerializableEndpoint extends Categorized {
   @BeanProperty var versionGenerationUrl: String = null
   @BeanProperty var inboundUrl: String = null
   @BeanProperty var views: java.util.List[CastorSerializableEndpointView] = new java.util.ArrayList[CastorSerializableEndpointView]
-  @BeanProperty var validateEntityOrder: Boolean = true
+  @BeanProperty var validateEntityOrder: String = EntityOrdering.ENFORCED
   @BeanProperty var collation: String = null
 
   def fromDiffaEndpoint(e:EndpointDef) = {
