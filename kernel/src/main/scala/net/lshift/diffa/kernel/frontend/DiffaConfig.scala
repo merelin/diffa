@@ -68,7 +68,7 @@ case class EndpointDef (
 
   def this() = this(name = null)
 
-  if (collation.equals(UnorderedCollationOrdering.name)) {
+  if (collation != null && collation.equals(UnorderedCollationOrdering.name)) {
     validateEntityOrder = EntityOrdering.UNENFORCED
     collation = AsciiCollationOrdering.name
   }
