@@ -465,7 +465,7 @@ case class PairActor(pair:DomainPairDef,
     logger.info(formatAlertCode(pairRef, SCAN_STARTED_BENCHMARK))
 
     // allocate a writer proxy
-    val writerProxy = createWriterProxy(createdScan.id)
+    //val writerProxy = createWriterProxy(createdScan.id)
 
     pairScanListener.pairScanStateChanged(pair.asRef, PairScanState.SCANNING)
 
@@ -487,7 +487,7 @@ case class PairActor(pair:DomainPairDef,
       if (us.supportsScanning) {
         Future {
           try {
-            policy.scanUpstream(createdScan.id, pairRef, us, scanView, writerProxy, usp, bufferingListener, currentFeedbackHandle)
+            policy.scanUpstream(createdScan.id, pairRef, us, scanView, writer, usp, bufferingListener, currentFeedbackHandle)
             self ! ChildActorCompletionMessage(createdScan.id, Up, Success)
             logger.info(formatAlertCode(pairRef, UPSTREAM_SCAN_COMPLETED_BENCHMARK))
           }
@@ -506,7 +506,7 @@ case class PairActor(pair:DomainPairDef,
       if (ds.supportsScanning) {
         Future {
           try {
-            policy.scanDownstream(createdScan.id, pairRef, ds, scanView, writerProxy, usp, dsp, bufferingListener, currentFeedbackHandle)
+            policy.scanDownstream(createdScan.id, pairRef, ds, scanView, writer, usp, dsp, bufferingListener, currentFeedbackHandle)
             self ! ChildActorCompletionMessage(createdScan.id, Down, Success)
             logger.info(formatAlertCode(pairRef, DOWNSTREAM_SCAN_COMPLETED_BENCHMARK))
           }
