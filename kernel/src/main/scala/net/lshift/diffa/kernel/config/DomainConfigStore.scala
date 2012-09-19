@@ -125,7 +125,6 @@ case class Endpoint(
   def this() = this(name = null)
 
   if (collation.equals(UnorderedCollationOrdering.name)) {
-    collation = AsciiCollationOrdering.name
     validateEntityOrder = EntityOrdering.UNENFORCED
   }
 
@@ -171,10 +170,7 @@ case class Endpoint(
     CategoryUtil.buildAggregations(builder, categories.toMap)
   }
 
- def lookupCollation () = collation match {
-    case UnicodeCollationOrdering.name => UnicodeCollationOrdering
-    case AsciiCollationOrdering.name => AsciiCollationOrdering
-  }
+ def lookupCollation() = CollationOrdering.named(collation)
 
   /**
    * Please use the function on EndpointDef instead
