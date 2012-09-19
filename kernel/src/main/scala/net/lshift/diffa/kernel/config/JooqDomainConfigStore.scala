@@ -136,19 +136,24 @@ class JooqDomainConfigStore(jooq:JooqDatabaseFacade,
   def onDomainRemoved(domain: String) = invalidateAllCaches(domain)
 
   def createOrUpdateEndpoint(domain:String, endpointDef: EndpointDef) : DomainEndpointDef = {
+    val ordering = if (endpointDef.validateEntityOrder.equals(EntityOrdering.ENFORCED)) {
+      endpointDef.collation
+    } else {
+      EntityOrdering.UNENFORCED
+    }
 
     jooq.execute(t => {
 
       t.insertInto(ENDPOINT).
           set(ENDPOINT.DOMAIN, domain).
           set(ENDPOINT.NAME, endpointDef.name).
-          set(ENDPOINT.COLLATION_TYPE, endpointDef.collation).
+          set(ENDPOINT.COLLATION_TYPE, ordering).
           set(ENDPOINT.CONTENT_RETRIEVAL_URL, endpointDef.contentRetrievalUrl).
           set(ENDPOINT.SCAN_URL, endpointDef.scanUrl).
           set(ENDPOINT.VERSION_GENERATION_URL, endpointDef.versionGenerationUrl).
           set(ENDPOINT.INBOUND_URL, endpointDef.inboundUrl).
         onDuplicateKeyUpdate().
-          set(ENDPOINT.COLLATION_TYPE, endpointDef.collation).
+          set(ENDPOINT.COLLATION_TYPE, ordering).
           set(ENDPOINT.CONTENT_RETRIEVAL_URL, endpointDef.contentRetrievalUrl).
           set(ENDPOINT.SCAN_URL, endpointDef.scanUrl).
           set(ENDPOINT.VERSION_GENERATION_URL, endpointDef.versionGenerationUrl).
@@ -204,6 +209,7 @@ class JooqDomainConfigStore(jooq:JooqDatabaseFacade,
     DomainEndpointDef(
       domain = domain,
       name = endpointDef.name,
+      validateEntityOrder = endpointDef.validateEntityOrder,
       collation = endpointDef.collation,
       contentRetrievalUrl = endpointDef.contentRetrievalUrl,
       scanUrl = endpointDef.scanUrl,
@@ -268,10 +274,8 @@ class JooqDomainConfigStore(jooq:JooqDatabaseFacade,
       } else {
         endpoints.head
       }
-
     })
   }.withoutDomain()
-
 
   def listEndpoints(domain:String): Seq[EndpointDef] = {
     cachedEndpoints.readThrough(domain, () => JooqConfigStoreCompanion.listEndpoints(jooq, Some(domain)))
@@ -397,6 +401,7 @@ class JooqDomainConfigStore(jooq:JooqDatabaseFacade,
       scanUrl = endpointDef.scanUrl,
       versionGenerationUrl = endpointDef.versionGenerationUrl,
       contentRetrievalUrl = endpointDef.contentRetrievalUrl,
+      validateEntityOrder = endpointDef.validateEntityOrder,
       collation = endpointDef.collation,
       categories = endpointDef.categories
     )

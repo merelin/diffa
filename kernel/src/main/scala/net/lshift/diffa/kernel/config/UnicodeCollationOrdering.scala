@@ -27,6 +27,11 @@ object AsciiCollationOrdering extends AsciiCollation with CollationOrdering {
   val name = "ascii"
 }
 
+object UnorderedCollationOrdering extends CollationOrdering {
+  val name = "unordered"
+  override def sortsBefore(left: String, right: String) = true
+}
+
 trait CollationOrdering extends Collation {
   val name : String
 }
@@ -39,6 +44,7 @@ object CollationOrdering {
   }
 
   private lazy val namedCollations = Seq(
+    UnorderedCollationOrdering,
     UnicodeCollationOrdering,
     AsciiCollationOrdering
   )

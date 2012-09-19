@@ -116,12 +116,18 @@ case class Endpoint(
   @BeanProperty var versionGenerationUrl: String = null,
   @BeanProperty var inboundUrl: String = null,
   @BeanProperty var categories: java.util.Map[String,CategoryDescriptor] = new HashMap[String, CategoryDescriptor],
+  @BeanProperty var validateEntityOrder: String = EntityOrdering.ENFORCED,
   @BeanProperty var collation: String = AsciiCollationOrdering.name) {
 
   // Don't include this in the header definition, since it is a lazy collection
   @BeanProperty var views: java.util.Set[EndpointView] = new java.util.HashSet[EndpointView]
 
   def this() = this(name = null)
+
+  if (collation.equals(UnorderedCollationOrdering.name)) {
+    collation = AsciiCollationOrdering.name
+    validateEntityOrder = EntityOrdering.UNENFORCED
+  }
 
   def defaultView = views.find(v => v.name == "default").get
 

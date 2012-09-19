@@ -21,6 +21,7 @@ import net.lshift.hibernate.migrations.MigrationBuilder
 import java.sql.Types
 import scala.collection.JavaConversions._
 import org.hibernate.mapping.Column
+import org.apache.commons.codec.digest.DigestUtils
 
 object Step0043 extends VerifiedMigrationStep {
 
@@ -50,6 +51,28 @@ object Step0043 extends VerifiedMigrationStep {
     val pair = randomString()
     val repair = randomString()
     val escalation = randomString()
+
+    def createDiff(migration: MigrationBuilder, domain: String, pair: String, escalation: String) {
+      if (migration.canUseListPartitioning) {
+        val partitionName = "p_" + DigestUtils.md5Hex(domain + "_" + pair).substring(0, 28)
+        migration.sql("alter table diffs add partition %s values ('%s_%s')".format(
+          partitionName, domain, pair))
+      }
+
+      migration.insert("diffs").values(Map(
+        "domain"                -> domain,
+        "pair"                  -> pair,
+        "entity_id"             -> randomString(),
+        "seq_id"                -> randomInt(),
+        "is_match"              -> "0",
+        "detected_at"           -> randomTimestamp(),
+        "last_seen"             -> randomTimestamp(),
+        "upstream_vsn"          -> randomString(),
+        "ignored"               -> "0",
+        "next_escalation"       -> escalation,
+        "next_escalation_time"  -> randomTimestamp()
+      ))
+    }
 
     migration.insert("domains").values(Map(
       "name"  -> domain
@@ -88,19 +111,7 @@ object Step0043 extends VerifiedMigrationStep {
       "delay"       -> randomInt()
     ))
 
-    migration.insert("diffs").values(Map(
-      "domain"                -> domain,
-      "pair"                  -> pair,
-      "entity_id"             -> randomString(),
-      "seq_id"                -> randomInt(),
-      "is_match"              -> "0",
-      "detected_at"           -> randomTimestamp(),
-      "last_seen"             -> randomTimestamp(),
-      "upstream_vsn"          -> randomString(),
-      "ignored"               -> "0",
-      "next_escalation"       -> escalation,
-      "next_escalation_time"  -> randomTimestamp()
-    ))
+    createDiff(migration, domain, pair, escalation)
 
     migration
   }
