@@ -37,7 +37,7 @@ trait CollationOrdering extends Collation {
 }
 
 object CollationOrdering {
-  def named(name: String): Collation = {
+  def named(name: String): CollationOrdering = {
     namedCollations.find(_.name == name).getOrElse {
       throw new InvalidCollationOrderingSpecified(name)
     }
