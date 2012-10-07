@@ -1,0 +1,21 @@
+CREATE KEYSPACE version_store
+with placement_strategy = 'org.apache.cassandra.locator.SimpleStrategy'
+and strategy_options = {replication_factor:1};
+
+USE version_store;
+
+CREATE COLUMN FAMILY entity_versions
+WITH comparator = AsciiType
+AND key_validation_class=AsciiType
+AND column_metadata = [
+{column_name: version, validation_class: AsciiType}
+{column_name: lastUpdate, validation_class: DateType}
+];
+
+CREATE COLUMN FAMILY entity_attributes
+WITH comparator = AsciiType
+AND key_validation_class=AsciiType;
+
+CREATE COLUMN FAMILY user_defined_buckets
+WITH comparator = AsciiType
+AND key_validation_class=AsciiType;
