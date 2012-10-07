@@ -21,7 +21,7 @@
     <module>schema</module>
     <module>schema-bindings</module>
     <module>jst-packaging</module>
-    <module>partitioning</module>
+    <!--module>partitioning</module-->
     <module>versioning</module>
   </modules>
 
