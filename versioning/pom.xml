@@ -65,12 +65,15 @@
         <artifactId>cassandra-maven-plugin</artifactId>
         <version>1.1.0-1</version>
         <dependencies>
-          <!-- Snappy 1.0.4.1 appears to miss a native library on OSX, 1.0.5+ doesn't seem to have this issue -->        
+          <!--
+            Snappy 1.0.4.1 appears to miss a native library on OSX, 1.0.5+ doesn't seem to have this issue
+          -->        
           <dependency>
             <groupId>org.xerial.snappy</groupId>
             <artifactId>snappy-java</artifactId>
             <version>1.0.5-M3</version>
           </dependency>
+          <!-- Make sure the tests run against the correct version of Cassandra -->
           <dependency>
             <groupId>org.apache.cassandra</groupId>
             <artifactId>cassandra-all</artifactId>

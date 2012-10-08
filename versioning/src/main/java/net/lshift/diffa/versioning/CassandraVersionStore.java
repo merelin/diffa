@@ -6,6 +6,7 @@ import com.google.common.collect.TreeMultiset;
 import me.prettyprint.cassandra.serializers.DateSerializer;
 import me.prettyprint.cassandra.serializers.StringSerializer;
 import me.prettyprint.cassandra.service.template.ColumnFamilyTemplate;
+import me.prettyprint.cassandra.service.template.ColumnFamilyResult;
 import me.prettyprint.cassandra.service.template.ThriftColumnFamilyTemplate;
 import me.prettyprint.hector.api.Cluster;
 import me.prettyprint.hector.api.Keyspace;
@@ -28,15 +29,15 @@ public class CassandraVersionStore implements VersionStore {
   static final String ENTITY_ATTRIBUTES_CF = "entity_attributes";
   static final String USER_DEFINED_BUCKETS_CF = "user_defined_buckets";
 
-  Cluster cluster = HFactory.getOrCreateCluster("test-cluster", "localhost:9160");
-  Keyspace keyspace = HFactory.createKeyspace(KEY_SPACE, cluster);
+  private Cluster cluster = HFactory.getOrCreateCluster("test-cluster", "localhost:9160");
+  private Keyspace keyspace = HFactory.createKeyspace(KEY_SPACE, cluster);
 
-  ColumnFamilyTemplate<String, String> itemsTemplate =
+  private ColumnFamilyTemplate<String, String> entityVersionsTemplate =
       new ThriftColumnFamilyTemplate<String, String>(keyspace, ENTITY_VERSIONS_CF,
           StringSerializer.get(),
           StringSerializer.get());
 
-  public void store(Long space, String endpoint, ChangeEvent event, Iterable<ScanAggregation> aggregations) {
+  public void addEvent(Long space, String endpoint, ChangeEvent event, Iterable<ScanAggregation> aggregations) {
 
     event.ensureContainsMandatoryFields();
 
@@ -60,13 +61,36 @@ public class CassandraVersionStore implements VersionStore {
       }
 
       String bucket = getBucketName(space, endpoint, event, aggregations);
+      
       mutator.addInsertion(bucket, USER_DEFINED_BUCKETS_CF, HFactory.createStringColumn(event.getId(), event.getVersion()));
+      mutator.addInsertion(id, ENTITY_VERSIONS_CF, HFactory.createStringColumn("bucket", bucket));
 
     }
 
     mutator.execute();
 
   }
+
+  public void deleteEvent(Long space, String endpoint, String id) {
+    String key = buildIdentifier(space, endpoint, id);
+
+    // Read the attributes back to work what USER_DEFINED_BUCKETS_CF row to update
+    ColumnFamilyResult<String,String> result = entityVersionsTemplate.queryColumns(key); 
+    String bucket = result.getString(key);
+
+    // Delete all data associated with this id from all column families
+    Mutator<String> mutator = HFactory.createMutator(keyspace, StringSerializer.get());
+    mutator.addDeletion(key, ENTITY_VERSIONS_CF);
+    mutator.addDeletion(key, ENTITY_ATTRIBUTES_CF);
+
+    if (bucket != null) {
+      mutator.addDeletion(bucket, USER_DEFINED_BUCKETS_CF, id, StringSerializer.get());
+    }
+
+    mutator.execute();
+  }
+
+
 
 
   private String getBucketName(Long space, String endpoint, ChangeEvent event, Iterable<ScanAggregation> aggregations) {

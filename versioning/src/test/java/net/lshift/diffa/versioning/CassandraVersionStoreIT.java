@@ -21,23 +21,8 @@ public class CassandraVersionStoreIT {
   CassandraVersionStore store = new CassandraVersionStore();
 
   @Test
-  public void shouldBeAbleToAddChangeEvent() {
-    createRandomEvent();
-  }
+  public void shouldBeAbleToRoundTripChangeEvent() {
 
-  private void loadTest() {
-    long start = System.currentTimeMillis();
-    for (int i = 0; i < 1000 * 1000; i++) {
-      createRandomEvent();
-      if (i % 1000 == 0) {
-        long stop = System.currentTimeMillis();
-        System.err.println("Rate = " + (stop - start));
-        start = System.currentTimeMillis();
-      }
-    }
-  }
-
-  private void createRandomEvent() {
     ChangeEvent ce = new ChangeEvent();
     ce.setId(RandomStringUtils.randomAlphanumeric(10));
     ce.setVersion(RandomStringUtils.randomAlphanumeric(6));
@@ -50,9 +35,12 @@ public class CassandraVersionStoreIT {
 
     List<ScanAggregation> aggregations = new ArrayList<ScanAggregation>();
     aggregations.add(new DateAggregation("foo", DateGranularityEnum.Daily)) ;
-    aggregations.add(new StringPrefixAggregation("foo", 2));
+    aggregations.add(new StringPrefixAggregation("bar", 2));
 
-    store.store(0L, "ep", ce, aggregations);
-  }
+    store.addEvent(0L, "ep", ce, aggregations);
+
+    store.deleteEvent(0L, "ep", ce.getId());
+
+  }  
 
 }
