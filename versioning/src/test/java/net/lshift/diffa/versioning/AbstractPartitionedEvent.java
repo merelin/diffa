@@ -5,7 +5,7 @@ import org.joda.time.DateTime;
 import java.util.HashMap;
 import java.util.Map;
 
-public abstract class AbstractPartitionedEvent implements PartitionedEvent {
+public abstract class AbstractPartitionedEvent implements TestablePartitionedEvent {
 
   protected String id;
   protected String version;
@@ -25,6 +25,10 @@ public abstract class AbstractPartitionedEvent implements PartitionedEvent {
   @Override
   public String getVersion() {
     return version;
+  }
+
+  public void setVersion(String version) {
+    this.version = version;
   }
 
   @Override

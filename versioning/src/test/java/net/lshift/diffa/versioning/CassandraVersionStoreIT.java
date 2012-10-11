@@ -23,8 +23,8 @@ public class CassandraVersionStoreIT {
 
     Random random = new Random();
 
-    List<PartitionedEvent> upstreamEvents = new LinkedList<PartitionedEvent>();
-    List<PartitionedEvent> downstreamEvents = new LinkedList<PartitionedEvent>();
+    List<TestablePartitionedEvent> upstreamEvents = new LinkedList<TestablePartitionedEvent>();
+    List<TestablePartitionedEvent> downstreamEvents = new LinkedList<TestablePartitionedEvent>();
 
     int itemsInSync = 100;
 
@@ -33,8 +33,8 @@ public class CassandraVersionStoreIT {
       String id = RandomStringUtils.randomAlphanumeric(10);
       String version = RandomStringUtils.randomAlphanumeric(10);
 
-      PartitionedEvent upstreamEvent = new DatePartitionedEvent(id, version, random, "transactionDate" );
-      PartitionedEvent downstreamEvent = new StringPartitionedEvent(id, version, "userId");
+      TestablePartitionedEvent upstreamEvent = new DatePartitionedEvent(id, version, random, "transactionDate" );
+      TestablePartitionedEvent downstreamEvent = new StringPartitionedEvent(id, version, "userId");
 
       insertAtRandomPoint(random, upstreamEvents, upstreamEvent);
       insertAtRandomPoint(random, downstreamEvents, downstreamEvent);
@@ -66,16 +66,12 @@ public class CassandraVersionStoreIT {
 
     log.info("Uncached tree comparison rate {}/ms", rate);
 
-    assertNotNull(upstreamDigests);
-    assertNotNull(downstreamDigests);
+    sanityCheckDigests(qualifiedUpstream, qualifiedDownstream, upstreamDigests, downstreamDigests);
 
-    assertTrue(upstreamDigests.containsKey(qualifiedUpstream));
-    assertTrue(downstreamDigests.containsKey(qualifiedDownstream));
+    String oldTopLevelUpstreamDigest = upstreamDigests.get(qualifiedUpstream);
+    String oldTopLevelDownstreamDigest = downstreamDigests.get(qualifiedDownstream);
 
-    String topLevelUpstreamDigest = upstreamDigests.get(qualifiedUpstream);
-    String topLevelDownstreamDigest = downstreamDigests.get(qualifiedDownstream);
-
-    assertEquals(topLevelUpstreamDigest, topLevelDownstreamDigest);
+    assertEquals(oldTopLevelUpstreamDigest, oldTopLevelDownstreamDigest);
 
     start = System.currentTimeMillis();
 
@@ -88,9 +84,41 @@ public class CassandraVersionStoreIT {
 
     log.info("Cached tree comparison rate {}/ms", rate);
 
+    TestablePartitionedEvent randomEvent = upstreamEvents.get(random.nextInt(itemsInSync));
+    randomEvent.setVersion(RandomStringUtils.randomAlphanumeric(10));
+
+    store.addEvent(space, upstream, randomEvent);
+
+    start = System.currentTimeMillis();
+
+    SortedMap<String,String> newUpstreamDigests = store.getEntityIdDigests(space, upstream);
+    SortedMap<String,String> newDownstreamDigests = store.getEntityIdDigests(space, downstream);
+
+    stop = System.currentTimeMillis();
+    time = stop - start;
+    rate = itemsInSync / time;
+
+    log.info("Cached tree comparison rate after mutation {}/ms", rate);
+
+    sanityCheckDigests(qualifiedUpstream, qualifiedDownstream, newUpstreamDigests, newDownstreamDigests);
+
+    String newTopLevelUpstreamDigest = newUpstreamDigests.get(qualifiedUpstream);
+    String newTopLevelDownstreamDigest = newDownstreamDigests.get(qualifiedDownstream);
+
+    assertEquals(oldTopLevelDownstreamDigest, newTopLevelDownstreamDigest);
+    assertNotSame(oldTopLevelUpstreamDigest, newTopLevelUpstreamDigest);
+
   }
 
-  private void insertAtRandomPoint(Random random, List<PartitionedEvent> eventList, PartitionedEvent event) {
+  private void sanityCheckDigests(String qualifiedUpstream, String qualifiedDownstream, SortedMap<String, String> upstreamDigests, SortedMap<String, String> downstreamDigests) {
+    assertNotNull(upstreamDigests);
+    assertNotNull(downstreamDigests);
+
+    assertTrue(upstreamDigests.containsKey(qualifiedUpstream));
+    assertTrue(downstreamDigests.containsKey(qualifiedDownstream));
+  }
+
+  private <T extends PartitionedEvent> void insertAtRandomPoint(Random random, List<T> eventList, T event) {
 
     if (eventList.isEmpty()) {
       eventList.add(event);
@@ -148,12 +176,12 @@ public class CassandraVersionStoreIT {
 
   private class EventStream implements Runnable {
 
-    List<PartitionedEvent> events;
+    List<? extends PartitionedEvent> events;
     Long space;
     String endpoint;
 
 
-    EventStream(Long space, String endpoint, List<PartitionedEvent> events) {
+    EventStream(Long space, String endpoint, List<? extends PartitionedEvent> events) {
       this.events = events;
       this.space = space;
       this.endpoint = endpoint;

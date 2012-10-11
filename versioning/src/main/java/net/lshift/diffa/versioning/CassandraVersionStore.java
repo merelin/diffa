@@ -47,7 +47,6 @@ public class CassandraVersionStore implements VersionStore {
   static final String USER_DEFINED_BUCKETS_CF = "user_defined_buckets";
   static final String USER_DEFINED_DIGESTS_CF = "user_defined_digests";
   static final String USER_DEFINED_HIERARCHY_CF = "user_defined_hierarchy";
-  //static final String USER_DEFINED_HIERARCHY_DIGESTS_CF = "user_defined_hierarchy_digests";
 
   /**
    * Storage for Merkle trees for each endpoint using the (mandatory) entity id field as a partitioning attribute
@@ -55,7 +54,6 @@ public class CassandraVersionStore implements VersionStore {
   static final String ENTITY_ID_BUCKETS_CF = "entity_id_buckets";
   static final String ENTITY_ID_DIGESTS_CF = "entity_id_digests";
   static final String ENTITY_ID_HIERARCHY_CF = "entity_id_hierarchy";
-  //static final String ENTITY_ID_HIERARCHY_DIGESTS_CF = "entity_id_hierarchy_digests";
 
   static final String BUCKET_KEY = "bucket";
   static final String DIGEST_KEY = "digest";
