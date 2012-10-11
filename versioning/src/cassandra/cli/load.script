@@ -16,6 +16,36 @@ CREATE COLUMN FAMILY entity_attributes
 WITH comparator = AsciiType
 AND key_validation_class=AsciiType;
 
+-- User Defined Attribute Storage
+
 CREATE COLUMN FAMILY user_defined_buckets
 WITH comparator = AsciiType
 AND key_validation_class=AsciiType;
+
+CREATE COLUMN FAMILY user_defined_hierarchy
+WITH comparator = AsciiType
+AND key_validation_class=AsciiType;
+
+CREATE COLUMN FAMILY user_defined_digests
+WITH comparator = AsciiType
+AND key_validation_class=AsciiType
+AND column_metadata = [
+{column_name: digest, validation_class: AsciiType}
+];
+
+-- Entity Id Storage
+
+CREATE COLUMN FAMILY entity_id_buckets
+WITH comparator = AsciiType
+AND key_validation_class=AsciiType;
+
+CREATE COLUMN FAMILY entity_id_hierarchy
+WITH comparator = AsciiType
+AND key_validation_class=AsciiType;
+
+CREATE COLUMN FAMILY entity_id_digests
+WITH comparator = AsciiType
+AND key_validation_class=AsciiType
+AND column_metadata = [
+{column_name: digest, validation_class: AsciiType}
+];

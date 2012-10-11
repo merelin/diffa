@@ -1,46 +1,170 @@
-package net.lshift.diffa.versioning.itest;
+package net.lshift.diffa.versioning;
 
-import net.lshift.diffa.adapter.changes.ChangeEvent;
-import net.lshift.diffa.adapter.scanning.DateAggregation;
-import net.lshift.diffa.adapter.scanning.DateGranularityEnum;
-import net.lshift.diffa.adapter.scanning.ScanAggregation;
-import net.lshift.diffa.adapter.scanning.StringPrefixAggregation;
-import net.lshift.diffa.versioning.CassandraVersionStore;
 import org.apache.commons.lang.RandomStringUtils;
-import org.apache.commons.lang.math.RandomUtils;
 import org.joda.time.DateTime;
+import org.joda.time.format.DateTimeFormat;
+import org.joda.time.format.DateTimeFormatter;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import static org.junit.Assert.*;
+
+import java.util.*;
 
 public class CassandraVersionStoreIT {
+
+  static Logger log = LoggerFactory.getLogger(CassandraVersionStoreIT.class);
 
   CassandraVersionStore store = new CassandraVersionStore();
 
   @Test
-  public void shouldBeAbleToRoundTripChangeEvent() {
+  public void shouldBeAbleToRoundTripChangeEvent() throws Exception {
 
-    ChangeEvent ce = new ChangeEvent();
-    ce.setId(RandomStringUtils.randomAlphanumeric(10));
-    ce.setVersion(RandomStringUtils.randomAlphanumeric(6));
+    Random random = new Random();
 
-    Map<String,String> attributes = new HashMap<String,String>();
+    List<PartitionedEvent> upstreamEvents = new LinkedList<PartitionedEvent>();
+    List<PartitionedEvent> downstreamEvents = new LinkedList<PartitionedEvent>();
 
-    attributes.put("foo" , new DateTime().minusDays(RandomUtils.nextInt(50)).toString());
-    attributes.put("bar" , RandomStringUtils.randomAlphanumeric(12));
-    ce.setAttributes(attributes);
+    int itemsInSync = 100;
 
-    List<ScanAggregation> aggregations = new ArrayList<ScanAggregation>();
-    aggregations.add(new DateAggregation("foo", DateGranularityEnum.Daily)) ;
-    aggregations.add(new StringPrefixAggregation("bar", 2));
+    for (int i = 0; i < itemsInSync; i++) {
 
-    store.addEvent(0L, "ep", ce, aggregations);
+      String id = RandomStringUtils.randomAlphanumeric(10);
+      String version = RandomStringUtils.randomAlphanumeric(10);
 
-    store.deleteEvent(0L, "ep", ce.getId());
+      PartitionedEvent upstreamEvent = new DatePartitionedEvent(id, version, random, "transactionDate" );
+      PartitionedEvent downstreamEvent = new StringPartitionedEvent(id, version, "userId");
 
-  }  
+      insertAtRandomPoint(random, upstreamEvents, upstreamEvent);
+      insertAtRandomPoint(random, downstreamEvents, downstreamEvent);
+    }
+
+    long space = System.currentTimeMillis();
+    String upstream = RandomStringUtils.randomAlphabetic(10);
+    String downstream = RandomStringUtils.randomAlphabetic(10);
+    String qualifiedUpstream = space + "." + upstream;
+    String qualifiedDownstream = space + "." + downstream;
+
+    Thread upstreamEventStream = new Thread(new EventStream(space, upstream, upstreamEvents));
+    Thread downstreamEventStream = new Thread(new EventStream(space, downstream, downstreamEvents));
+
+    upstreamEventStream.start();
+    downstreamEventStream.start();
+
+    upstreamEventStream.join();
+    downstreamEventStream.join();
+
+    long start = System.currentTimeMillis();
+
+    SortedMap<String,String> upstreamDigests = store.getEntityIdDigests(space, upstream);
+    SortedMap<String,String> downstreamDigests = store.getEntityIdDigests(space, downstream);
+
+    long stop = System.currentTimeMillis();
+    double time = stop - start;
+    double rate = itemsInSync / time;
+
+    log.info("Uncached tree comparison rate {}/ms", rate);
+
+    assertNotNull(upstreamDigests);
+    assertNotNull(downstreamDigests);
+
+    assertTrue(upstreamDigests.containsKey(qualifiedUpstream));
+    assertTrue(downstreamDigests.containsKey(qualifiedDownstream));
+
+    String topLevelUpstreamDigest = upstreamDigests.get(qualifiedUpstream);
+    String topLevelDownstreamDigest = downstreamDigests.get(qualifiedDownstream);
+
+    assertEquals(topLevelUpstreamDigest, topLevelDownstreamDigest);
+
+    start = System.currentTimeMillis();
+
+    store.getEntityIdDigests(space, upstream);
+    store.getEntityIdDigests(space, downstream);
+
+    stop = System.currentTimeMillis();
+    time = stop - start;
+    rate = itemsInSync / time;
+
+    log.info("Cached tree comparison rate {}/ms", rate);
+
+  }
+
+  private void insertAtRandomPoint(Random random, List<PartitionedEvent> eventList, PartitionedEvent event) {
+
+    if (eventList.isEmpty()) {
+      eventList.add(event);
+    }
+    else {
+      int currentSize = eventList.size();
+      int nextInsertion = random.nextInt(currentSize);
+      eventList.add(nextInsertion, event);
+    }
+  }
+
+  private class DatePartitionedEvent extends AbstractPartitionedEvent {
+
+    private final DateTimeFormatter YEARLY_FORMAT = DateTimeFormat.forPattern("yyyy");
+    private final DateTimeFormatter MONTHLY_FORMAT = DateTimeFormat.forPattern("MM");
+    private final DateTimeFormatter DAILY_FORMAT = DateTimeFormat.forPattern("dd");
+
+    private DateTime date;
+
+    private DatePartitionedEvent(String id, String version, Random random, String attributeName) {
+      super(version, id);
+
+      int range = 10;
+
+      int randomDay = random.nextInt(range);
+      DateTime start = new DateTime().minusDays(range);
+      DateTime date = start.plusDays(randomDay);
+      attributes.put(attributeName, date.toString());
+      this.date = date;
+    }
+
+    @Override
+    public MerkleNode getAttributeHierarchy() {
+      MerkleNode leaf = new MerkleNode(DAILY_FORMAT.print(this.date), id, version);
+      MerkleNode monthlyBucket = new MerkleNode(MONTHLY_FORMAT.print(this.date), leaf);
+      return new MerkleNode(YEARLY_FORMAT.print(this.date), monthlyBucket);
+    }
+  }
+
+  private class StringPartitionedEvent extends AbstractPartitionedEvent {
+
+    String attribute;
+
+    private StringPartitionedEvent(String id, String version, String attributeName) {
+      super(version, id);
+      this.attribute = RandomStringUtils.randomAlphanumeric(10);
+      attributes.put(attributeName, this.attribute);
+    }
+
+    @Override
+    public MerkleNode getAttributeHierarchy() {
+      return new MerkleNode(this.attribute.substring(0,2), id, version);
+    }
+  }
+
+  private class EventStream implements Runnable {
+
+    List<PartitionedEvent> events;
+    Long space;
+    String endpoint;
+
+
+    EventStream(Long space, String endpoint, List<PartitionedEvent> events) {
+      this.events = events;
+      this.space = space;
+      this.endpoint = endpoint;
+    }
+
+    @Override
+    public void run() {
+      for (PartitionedEvent event : events) {
+        store.addEvent(space, endpoint, event);
+      }
+    }
+  }
 
 }
