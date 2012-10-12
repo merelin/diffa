@@ -12,9 +12,11 @@ import me.prettyprint.cassandra.service.template.ColumnFamilyResult;
 import me.prettyprint.cassandra.service.template.ThriftColumnFamilyTemplate;
 import me.prettyprint.hector.api.Cluster;
 import me.prettyprint.hector.api.Keyspace;
+import me.prettyprint.hector.api.beans.ColumnSlice;
 import me.prettyprint.hector.api.beans.HColumn;
 import me.prettyprint.hector.api.factory.HFactory;
 import me.prettyprint.hector.api.mutation.Mutator;
+import me.prettyprint.hector.api.query.QueryResult;
 import me.prettyprint.hector.api.query.SliceQuery;
 import net.lshift.diffa.adapter.changes.ChangeEvent;
 import net.lshift.diffa.adapter.scanning.MissingAttributeException;
@@ -55,7 +57,7 @@ public class CassandraVersionStore implements VersionStore {
   static final String ENTITY_ID_DIGESTS_CF = "entity_id_digests";
   static final String ENTITY_ID_HIERARCHY_CF = "entity_id_hierarchy";
 
-  static final String BUCKET_KEY = "bucket";
+  //static final String BUCKET_KEY = "bucket";
   static final String DIGEST_KEY = "digest";
   static final String VERSION_KEY = "version";
   static final String LAST_UPDATE_KEY = "lastUpdate";
@@ -75,6 +77,21 @@ public class CassandraVersionStore implements VersionStore {
 
   private ColumnFamilyTemplate<String, String> userDefinedHierarchyDigestsTemplate =
       new ThriftColumnFamilyTemplate<String, String>(keyspace, USER_DEFINED_DIGESTS_CF,
+          StringSerializer.get(),
+          StringSerializer.get());
+
+  private ColumnFamilyTemplate<String, String> entityIdBucketsTemplate =
+      new ThriftColumnFamilyTemplate<String, String>(keyspace, ENTITY_ID_BUCKETS_CF,
+          StringSerializer.get(),
+          StringSerializer.get());
+
+  private ColumnFamilyTemplate<String, String> entityIdHierarchyTemplate =
+      new ThriftColumnFamilyTemplate<String, String>(keyspace, ENTITY_ID_HIERARCHY_CF,
+          StringSerializer.get(),
+          StringSerializer.get());
+
+  private ColumnFamilyTemplate<String, String> userDefinedBucketsTemplate =
+      new ThriftColumnFamilyTemplate<String, String>(keyspace, USER_DEFINED_BUCKETS_CF,
           StringSerializer.get(),
           StringSerializer.get());
 
@@ -113,6 +130,131 @@ public class CassandraVersionStore implements VersionStore {
 
   }
 
+  private String deleteDescendencyPath(String parentPath, MerkleNode node, Mutator<String> mutator, String digestCF) {
+    String key = qualifyNodeName(parentPath, node);
+
+    mutator.addInsertion(key, digestCF, HFactory.createStringColumn(DIGEST_KEY, ""));
+
+    if (node.isLeaf()) {
+      return key;
+    }
+    else {
+      return deleteDescendencyPath(key, node.getChild(), mutator, digestCF);
+    }
+  }
+
+  public void deleteEvent(Long space, String endpoint, String id) {
+    String key = buildEndpointKey(space, endpoint);
+
+    // TODO We should write this information into the entity_versions CF went events are added instead of computing this on delete
+
+    MerkleNode n = resolveStoredTree(key, id, null, ENTITY_ID_HIERARCHY_CF);
+
+    // TODO Can't handle user defined attributes yet ... need to add type annotations to the entity_attributes CF
+
+    //MerkleNode p = resolveStoredTree(key, id, null, USER_DEFINED_HIERARCHY_CF);
+
+
+
+  }
+
+  public MerkleNode resolveStoredTree(String key, String id, MerkleNode parent, String hierarchyCF) {
+
+
+    MerkleNode currentNode = null;
+
+    String rangeStart;
+
+    if (parent != null) {
+      key = key + "." + parent.getName();
+
+      // "abc123Sdef123Sxyz".replaceAll("^.*?123S","") returns "xyz"
+      String regex = "^.*" + parent.getName();
+
+      String trimmed = id.replaceFirst(regex, "");
+      rangeStart = trimmed.substring(0,1);
+    }
+    else {
+      rangeStart = id.substring(0,1);
+    }
+
+    SliceQuery<String,String,Boolean> hierarchyQuery =  HFactory.createSliceQuery(keyspace, StringSerializer.get(), StringSerializer.get(), BooleanSerializer.get());
+
+    hierarchyQuery.setColumnFamily(hierarchyCF);
+    hierarchyQuery.setKey(key);
+    hierarchyQuery.setRange(rangeStart, "", false, 1);
+
+    QueryResult<ColumnSlice<String,Boolean>> result = hierarchyQuery.execute();
+
+    List<HColumn<String,Boolean>> columns = result.get().getColumns();
+
+    if (columns == null || columns.isEmpty()) {
+
+      throw new EntityNotFoundException(key);
+
+    } else {
+
+      HColumn<String,Boolean> column = columns.get(0);
+      String childPartition = column.getName();
+      boolean isLeaf = column.getValue();
+
+      if (isLeaf) {
+
+        return new MerkleNode(childPartition, id, null);
+
+      } else {
+
+        currentNode = new MerkleNode(childPartition);
+
+        MerkleNode child = resolveStoredTree(key, id, currentNode, hierarchyCF);
+        currentNode.setChild(child);
+
+      }
+    }
+
+    return currentNode;
+  }
+
+
+
+  public void deleteEvent(Long space, String endpoint, String id, MerkleNode node) {
+
+    // Assume that the hierarchy definitions are going to get compacted on the the next read
+    // so that this function does as little work as possible
+
+    Mutator<String> mutator = HFactory.createMutator(keyspace, StringSerializer.get());
+
+    // Invalidate the entity_id digest hierarchy to the bucket that was just deleted
+
+    String parentPath = buildEndpointKey(space, endpoint);
+    MerkleNode entityIdParentNode = new MerkleNode("", node);
+    String entityIdBucketKey = deleteDescendencyPath(parentPath, entityIdParentNode, mutator, ENTITY_ID_DIGESTS_CF);
+
+    // Delete the item level digest from the buckets partitioned by entity id
+
+    mutator.addDeletion(entityIdBucketKey, ENTITY_ID_BUCKETS_CF, id, StringSerializer.get());
+
+    // Invalidate the entity_id digest hierarchy to the bucket that was just deleted
+
+    //MerkleNode userDefinedParentNode = new MerkleNode("", event.getAttributeHierarchy());
+    //String userDefinedBucketKey = deleteDescendencyPath(parentPath, userDefinedParentNode, mutator, USER_DEFINED_DIGESTS_CF);
+
+    // Delete the item level digest from the buckets partitioned by the user supplied attributes
+
+    //mutator.addDeletion(userDefinedBucketKey, USER_DEFINED_BUCKETS_CF, event.getVersion(), StringSerializer.get());
+
+    // Delete the raw data pertaining to this event
+
+    String key = buildIdentifier(space, endpoint, id);
+
+    mutator.addDeletion(key, ENTITY_VERSIONS_CF);
+    mutator.addDeletion(key, ENTITY_ATTRIBUTES_CF);
+
+    mutator.execute();
+
+  }
+
+
   public SortedMap<String,String> getEntityIdDigests(Long space, String endpoint) {
     return getEntityIdDigests(space, endpoint, null);
   }
@@ -131,14 +273,7 @@ public class CassandraVersionStore implements VersionStore {
 
   private void recordLineage(String parentName, MerkleNode node, Mutator mutator, ColumnFamilyTemplate<String,String> hierarchyDigests, String bucketCF, String hierarchyCF, String hierarchyDigestCF) {
 
-
-    String qualifiedBucketName;
-
-    if (node.getName().isEmpty()) {
-      qualifiedBucketName = parentName;
-    } else {
-      qualifiedBucketName = parentName + "." + node.getName();
-    }
+    String qualifiedBucketName = qualifyNodeName(parentName, node);
 
     if (node.isLeaf()) {
       // This a leaf node so record the bucket value and it's parent
@@ -173,6 +308,17 @@ public class CassandraVersionStore implements VersionStore {
       recordLineage(qualifiedBucketName, node.getChild(), mutator, hierarchyDigests, bucketCF, hierarchyCF, hierarchyDigestCF);
     }
 
+  }
+
+  private String qualifyNodeName(String parentName, MerkleNode node) {
+    String qualifiedBucketName;
+
+    if (node.getName().isEmpty()) {
+      qualifiedBucketName = parentName;
+    } else {
+      qualifiedBucketName = parentName + "." + node.getName();
+    }
+    return qualifiedBucketName;
   }
 
   private SortedMap<String,String> getGenericDigests(Long space, String endpoint, String bucketName, ColumnFamilyTemplate<String, String> hierarchyDigests, String hierarchyCF, String hierarchyDigestCF) {
@@ -285,28 +431,7 @@ public class CassandraVersionStore implements VersionStore {
   }
 
 
-  public void deleteEvent(Long space, String endpoint, String id) {
-    String key = buildIdentifier(space, endpoint, id);
 
-    // Read the attributes back to work what USER_DEFINED_BUCKETS_CF row to update
-    ColumnFamilyResult<String,String> result = entityVersionsTemplate.queryColumns(key);
-    String bucket = result.getString(BUCKET_KEY);
-
-    // Delete all data associated with this id from all column families
-    Mutator<String> mutator = HFactory.createMutator(keyspace, StringSerializer.get());
-
-    if (bucket == null) {
-      log.warn("Could not resolve a bucket for id: " + key);
-    }
-    else {
-      mutator.addDeletion(bucket, USER_DEFINED_BUCKETS_CF, id, StringSerializer.get());
-    }
-
-    mutator.addDeletion(key, ENTITY_VERSIONS_CF);
-    mutator.addDeletion(key, ENTITY_ATTRIBUTES_CF);
-
-    mutator.execute();
-  }
 
 
 

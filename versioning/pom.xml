@@ -82,6 +82,7 @@
         </dependencies>
         <configuration>
           <loadAfterFirstStart>false</loadAfterFirstStart>
+          <rpcAddress>0.0.0.0</rpcAddress>
         </configuration>
         <executions>
           <execution>

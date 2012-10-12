@@ -24,6 +24,16 @@ public class MerkleNode {
     isLeaf = true;
   }
 
+  // TODO quick and dirty path construction .....
+  public String getDescendencyPath() {
+    if (isLeaf()) {
+      return getName();
+    }
+    else {
+      return getName() + "." + getChild().getDescendencyPath();
+    }
+  }
+
   public MerkleNode getChild() {
     return child;
   }

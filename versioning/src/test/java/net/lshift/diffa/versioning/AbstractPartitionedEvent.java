@@ -18,6 +18,23 @@ public abstract class AbstractPartitionedEvent implements TestablePartitionedEve
   }
 
   @Override
+  public boolean equals(Object o) {
+    if (this == o) return true;
+    if (!(o instanceof AbstractPartitionedEvent)) return false;
+
+    AbstractPartitionedEvent that = (AbstractPartitionedEvent) o;
+
+    if (id != null ? !id.equals(that.id) : that.id != null) return false;
+
+    return true;
+  }
+
+  @Override
+  public int hashCode() {
+    return id != null ? id.hashCode() : 0;
+  }
+
+  @Override
   public String getId() {
     return id;
   }
@@ -38,9 +55,7 @@ public abstract class AbstractPartitionedEvent implements TestablePartitionedEve
 
   @Override
   public MerkleNode getIdHierarchy() {
-    MerkleNode leaf = new MerkleNode(this.id.substring(4,6), id, version);
-    MerkleNode mid = new MerkleNode(this.id.substring(2,4), leaf);
-    return new MerkleNode(this.id.substring(0,2), mid);
+    return MerkleUtils.buildEntityIdNode(getId(), getVersion());
   }
 
   @Override

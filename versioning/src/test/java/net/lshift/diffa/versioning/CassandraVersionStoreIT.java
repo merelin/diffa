@@ -26,7 +26,7 @@ public class CassandraVersionStoreIT {
     List<TestablePartitionedEvent> upstreamEvents = new LinkedList<TestablePartitionedEvent>();
     List<TestablePartitionedEvent> downstreamEvents = new LinkedList<TestablePartitionedEvent>();
 
-    int itemsInSync = 100;
+    int itemsInSync = 1;
 
     for (int i = 0; i < itemsInSync; i++) {
 
@@ -68,10 +68,10 @@ public class CassandraVersionStoreIT {
 
     sanityCheckDigests(qualifiedUpstream, qualifiedDownstream, upstreamDigests, downstreamDigests);
 
-    String oldTopLevelUpstreamDigest = upstreamDigests.get(qualifiedUpstream);
-    String oldTopLevelDownstreamDigest = downstreamDigests.get(qualifiedDownstream);
+    String firstTopLevelUpstreamDigest = upstreamDigests.get(qualifiedUpstream);
+    String firstTopLevelDownstreamDigest = downstreamDigests.get(qualifiedDownstream);
 
-    assertEquals(oldTopLevelUpstreamDigest, oldTopLevelDownstreamDigest);
+    assertEquals(firstTopLevelUpstreamDigest, firstTopLevelDownstreamDigest);
 
     start = System.currentTimeMillis();
 
@@ -84,15 +84,15 @@ public class CassandraVersionStoreIT {
 
     log.info("Cached tree comparison rate {}/ms", rate);
 
-    TestablePartitionedEvent randomEvent = upstreamEvents.get(random.nextInt(itemsInSync));
-    randomEvent.setVersion(RandomStringUtils.randomAlphanumeric(10));
+    TestablePartitionedEvent randomUpstreamEvent = upstreamEvents.get(random.nextInt(itemsInSync));
+    randomUpstreamEvent.setVersion(RandomStringUtils.randomAlphanumeric(10));
 
-    store.addEvent(space, upstream, randomEvent);
+    store.addEvent(space, upstream, randomUpstreamEvent);
 
     start = System.currentTimeMillis();
 
-    SortedMap<String,String> newUpstreamDigests = store.getEntityIdDigests(space, upstream);
-    SortedMap<String,String> newDownstreamDigests = store.getEntityIdDigests(space, downstream);
+    SortedMap<String,String> secondUpstreamDigests = store.getEntityIdDigests(space, upstream);
+    SortedMap<String,String> secondDownstreamDigests = store.getEntityIdDigests(space, downstream);
 
     stop = System.currentTimeMillis();
     time = stop - start;
@@ -100,13 +100,40 @@ public class CassandraVersionStoreIT {
 
     log.info("Cached tree comparison rate after mutation {}/ms", rate);
 
-    sanityCheckDigests(qualifiedUpstream, qualifiedDownstream, newUpstreamDigests, newDownstreamDigests);
+    sanityCheckDigests(qualifiedUpstream, qualifiedDownstream, secondUpstreamDigests, secondDownstreamDigests);
 
-    String newTopLevelUpstreamDigest = newUpstreamDigests.get(qualifiedUpstream);
-    String newTopLevelDownstreamDigest = newDownstreamDigests.get(qualifiedDownstream);
+    String secondTopLevelUpstreamDigest = secondUpstreamDigests.get(qualifiedUpstream);
+    String secondTopLevelDownstreamDigest = secondDownstreamDigests.get(qualifiedDownstream);
 
-    assertEquals(oldTopLevelDownstreamDigest, newTopLevelDownstreamDigest);
-    assertNotSame(oldTopLevelUpstreamDigest, newTopLevelUpstreamDigest);
+    assertEquals(firstTopLevelDownstreamDigest, secondTopLevelDownstreamDigest);
+    assertNotSame(firstTopLevelUpstreamDigest, secondTopLevelUpstreamDigest);
+
+    //int index = downstreamEvents.indexOf(randomUpstreamEvent);
+    //TestablePartitionedEvent correspondingDownstreamEvent = downstreamEvents.get(index);
+
+    String idToDelete = randomUpstreamEvent.getId();
+
+    store.deleteEvent(space, upstream, idToDelete);
+    store.deleteEvent(space, downstream, idToDelete);
+
+    start = System.currentTimeMillis();
+
+    SortedMap<String,String> thirdUpstreamDigests = store.getEntityIdDigests(space, upstream);
+    SortedMap<String,String> thirdDownstreamDigests = store.getEntityIdDigests(space, downstream);
+
+    stop = System.currentTimeMillis();
+    time = stop - start;
+    rate = itemsInSync / time;
+
+    log.info("Cached tree comparison rate after mutation {}/ms", rate);
+
+    sanityCheckDigests(qualifiedUpstream, qualifiedDownstream, thirdUpstreamDigests, thirdDownstreamDigests);
+
+    String thirdTopLevelUpstreamDigest = thirdUpstreamDigests.get(qualifiedUpstream);
+    String thirdTopLevelDownstreamDigest = thirdDownstreamDigests.get(qualifiedDownstream);
+
+    //assertEquals(thirdTopLevelUpstreamDigest, thirdTopLevelDownstreamDigest);
+
 
   }
 
