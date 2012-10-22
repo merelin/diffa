@@ -10,11 +10,15 @@ AND key_validation_class=AsciiType
 AND column_metadata = [
 {column_name: version, validation_class: AsciiType}
 {column_name: lastUpdate, validation_class: DateType}
+{column_name: partition, validation_class: AsciiType}
 ];
 
-CREATE COLUMN FAMILY entity_attributes
+CREATE COLUMN FAMILY user_defined_attributes
 WITH comparator = AsciiType
-AND key_validation_class=AsciiType;
+AND key_validation_class=AsciiType
+AND column_metadata = [
+{column_name: partition, validation_class: AsciiType}
+];
 
 -- User Defined Attribute Storage
 

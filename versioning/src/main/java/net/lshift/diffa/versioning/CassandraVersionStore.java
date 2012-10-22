@@ -2,7 +2,6 @@ package net.lshift.diffa.versioning;
 
 
 import com.google.common.base.Joiner;
-import com.google.common.collect.TreeMultiset;
 import me.prettyprint.cassandra.serializers.BooleanSerializer;
 import me.prettyprint.cassandra.serializers.DateSerializer;
 import me.prettyprint.cassandra.serializers.StringSerializer;
@@ -18,14 +17,9 @@ import me.prettyprint.hector.api.factory.HFactory;
 import me.prettyprint.hector.api.mutation.Mutator;
 import me.prettyprint.hector.api.query.QueryResult;
 import me.prettyprint.hector.api.query.SliceQuery;
-import net.lshift.diffa.adapter.changes.ChangeEvent;
-import net.lshift.diffa.adapter.scanning.MissingAttributeException;
-import net.lshift.diffa.adapter.scanning.ScanAggregation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.*;
 
 public class CassandraVersionStore implements VersionStore {
@@ -33,7 +27,6 @@ public class CassandraVersionStore implements VersionStore {
   static Logger log = LoggerFactory.getLogger(CassandraVersionStore.class);
 
   static final Joiner KEY_JOINER = Joiner.on(".").skipNulls();
-  static final Joiner ATTRIBUTES_JOINER = Joiner.on("_").skipNulls();
 
   static final String KEY_SPACE = "version_store";
 
@@ -41,7 +34,7 @@ public class CassandraVersionStore implements VersionStore {
    * Storage for the raw entity version and their raw partitioning attributes (should they have been supplied)
    */
   static final String ENTITY_VERSIONS_CF = "entity_versions";
-  static final String ENTITY_ATTRIBUTES_CF = "entity_attributes";
+  static final String USER_DEFINED_ATTRIBUTES_CF = "user_defined_attributes";
 
   /**
    * Storage for Merkle trees for each endpoint using the (optional) user defined partitioning attribute(s)
@@ -57,10 +50,10 @@ public class CassandraVersionStore implements VersionStore {
   static final String ENTITY_ID_DIGESTS_CF = "entity_id_digests";
   static final String ENTITY_ID_HIERARCHY_CF = "entity_id_hierarchy";
 
-  //static final String BUCKET_KEY = "bucket";
   static final String DIGEST_KEY = "digest";
   static final String VERSION_KEY = "version";
   static final String LAST_UPDATE_KEY = "lastUpdate";
+  static final String PARTITION_KEY = "partition";
 
   private Cluster cluster = HFactory.getOrCreateCluster("test-cluster", "localhost:9160");
   private Keyspace keyspace = HFactory.createKeyspace(KEY_SPACE, cluster);
@@ -80,21 +73,10 @@ public class CassandraVersionStore implements VersionStore {
           StringSerializer.get(),
           StringSerializer.get());
 
-  private ColumnFamilyTemplate<String, String> entityIdBucketsTemplate =
-      new ThriftColumnFamilyTemplate<String, String>(keyspace, ENTITY_ID_BUCKETS_CF,
+  private ColumnFamilyTemplate<String, String> userDefinedAttributesTemplate =
+      new ThriftColumnFamilyTemplate<String, String>(keyspace, USER_DEFINED_ATTRIBUTES_CF,
           StringSerializer.get(),
           StringSerializer.get());
-
-  private ColumnFamilyTemplate<String, String> entityIdHierarchyTemplate =
-      new ThriftColumnFamilyTemplate<String, String>(keyspace, ENTITY_ID_HIERARCHY_CF,
-          StringSerializer.get(),
-          StringSerializer.get());
-
-  private ColumnFamilyTemplate<String, String> userDefinedBucketsTemplate =
-      new ThriftColumnFamilyTemplate<String, String>(keyspace, USER_DEFINED_BUCKETS_CF,
-          StringSerializer.get(),
-          StringSerializer.get());
-
 
   public void addEvent(Long space, String endpoint, PartitionedEvent event) {
 
@@ -111,6 +93,9 @@ public class CassandraVersionStore implements VersionStore {
       mutator.addInsertion(id, ENTITY_VERSIONS_CF,  HFactory.createColumn(LAST_UPDATE_KEY, date, StringSerializer.get(), DateSerializer.get()));
     }
 
+    String entityIdPartition = event.getIdHierarchy().getDescendencyPath();
+    mutator.addInsertion(id, ENTITY_VERSIONS_CF,  HFactory.createStringColumn(PARTITION_KEY, entityIdPartition));
+
     MerkleNode entityIdRootNode = new MerkleNode("", event.getIdHierarchy());
 
     recordLineage(endpointKey, entityIdRootNode, mutator, entityIdHierarchyDigestsTemplate, ENTITY_ID_BUCKETS_CF, ENTITY_ID_HIERARCHY_CF, ENTITY_ID_DIGESTS_CF);
@@ -119,8 +104,11 @@ public class CassandraVersionStore implements VersionStore {
     if (attributes != null && !attributes.isEmpty()) {
 
       for(Map.Entry<String,String> entry : attributes.entrySet()) {
-        mutator.addInsertion(id, ENTITY_ATTRIBUTES_CF, HFactory.createStringColumn(entry.getKey(), entry.getValue()));
+        mutator.addInsertion(id, USER_DEFINED_ATTRIBUTES_CF, HFactory.createStringColumn(entry.getKey(), entry.getValue()));
       }
+
+      String userDefinedPartition = event.getAttributeHierarchy().getDescendencyPath();
+      mutator.addInsertion(id, USER_DEFINED_ATTRIBUTES_CF, HFactory.createStringColumn(PARTITION_KEY, userDefinedPartition));
 
       MerkleNode userDefinedRootNode = new MerkleNode("", event.getAttributeHierarchy());
       recordLineage(endpointKey, userDefinedRootNode, mutator, userDefinedHierarchyDigestsTemplate, USER_DEFINED_BUCKETS_CF, USER_DEFINED_HIERARCHY_CF, USER_DEFINED_DIGESTS_CF);
@@ -141,21 +129,6 @@ public class CassandraVersionStore implements VersionStore {
     else {
       return deleteDescendencyPath(key, node.getChild(), mutator, digestCF);
     }
-  }
-
-  public void deleteEvent(Long space, String endpoint, String id) {
-    String key = buildEndpointKey(space, endpoint);
-
-    // TODO We should write this information into the entity_versions CF went events are added instead of computing this on delete
-
-    MerkleNode n = resolveStoredTree(key, id, null, ENTITY_ID_HIERARCHY_CF);
-
-    // TODO Can't handle user defined attributes yet ... need to add type annotations to the entity_attributes CF
-
-    //MerkleNode p = resolveStoredTree(key, id, null, USER_DEFINED_HIERARCHY_CF);
-
-
-
   }
 
   public MerkleNode resolveStoredTree(String key, String id, MerkleNode parent, String hierarchyCF) {
@@ -217,41 +190,47 @@ public class CassandraVersionStore implements VersionStore {
 
 
 
-  public void deleteEvent(Long space, String endpoint, String id, MerkleNode node) {
+  public void deleteEvent(Long space, String endpoint, String id) {
 
     // Assume that the hierarchy definitions are going to get compacted on the the next read
     // so that this function does as little work as possible
 
     Mutator<String> mutator = HFactory.createMutator(keyspace, StringSerializer.get());
 
-    // Invalidate the entity_id digest hierarchy to the bucket that was just deleted
-
+    String key = buildIdentifier(space, endpoint, id);
     String parentPath = buildEndpointKey(space, endpoint);
-    MerkleNode entityIdParentNode = new MerkleNode("", node);
-    String entityIdBucketKey = deleteDescendencyPath(parentPath, entityIdParentNode, mutator, ENTITY_ID_DIGESTS_CF);
 
-    // Delete the item level digest from the buckets partitioned by entity id
+    // Remove the hierarchies related to this event
 
-    mutator.addDeletion(entityIdBucketKey, ENTITY_ID_BUCKETS_CF, id, StringSerializer.get());
-
-    // Invalidate the entity_id digest hierarchy to the bucket that was just deleted
-
-    //MerkleNode userDefinedParentNode = new MerkleNode("", event.getAttributeHierarchy());
-    //String userDefinedBucketKey = deleteDescendencyPath(parentPath, userDefinedParentNode, mutator, USER_DEFINED_DIGESTS_CF);
-
-    // Delete the item level digest from the buckets partitioned by the user supplied attributes
-
-    //mutator.addDeletion(userDefinedBucketKey, USER_DEFINED_BUCKETS_CF, event.getVersion(), StringSerializer.get());
+    invalidateHierarchy(id, mutator, key, parentPath, entityVersionsTemplate, ENTITY_ID_DIGESTS_CF, ENTITY_ID_BUCKETS_CF);
+    invalidateHierarchy(id, mutator, key, parentPath, userDefinedAttributesTemplate, USER_DEFINED_DIGESTS_CF, USER_DEFINED_BUCKETS_CF);
 
     // Delete the raw data pertaining to this event
 
-    String key = buildIdentifier(space, endpoint, id);
-
     mutator.addDeletion(key, ENTITY_VERSIONS_CF);
-    mutator.addDeletion(key, ENTITY_ATTRIBUTES_CF);
+    mutator.addDeletion(key, USER_DEFINED_ATTRIBUTES_CF);
 
     mutator.execute();
 
+  }
+
+  private void invalidateHierarchy(String id, Mutator<String> mutator, String key, String parentPath, ColumnFamilyTemplate<String, String> template, String digestsCF, String bucketsCF) {
+
+    ColumnFamilyResult<String,String> result = template.queryColumns(key);
+
+    if (result.hasResults()) {
+      String entityIdPartition = result.getString(PARTITION_KEY);
+
+      // Invalidate the digest hierarchy to the bucket that was just deleted
+
+      MerkleNode entityIdParentNode = MerkleNode.buildHierarchy(entityIdPartition);
+      String entityIdBucketKey = deleteDescendencyPath(parentPath, entityIdParentNode, mutator, digestsCF);
+
+      // Delete the item level digest from the buckets CF
+
+      mutator.addDeletion(entityIdBucketKey, bucketsCF, id, StringSerializer.get());
+
+    }
   }
 
 
@@ -303,7 +282,7 @@ public class CassandraVersionStore implements VersionStore {
       // In any event, since we are updating a bucket in this lineage, we need to invalidate the digest of each
       // parent node
 
-      mutator.addInsertion(qualifiedBucketName, hierarchyDigestCF, HFactory.createStringColumn("digest",""));
+      mutator.addInsertion(qualifiedBucketName, hierarchyDigestCF, HFactory.createStringColumn(DIGEST_KEY,""));
 
       recordLineage(qualifiedBucketName, node.getChild(), mutator, hierarchyDigests, bucketCF, hierarchyCF, hierarchyDigestCF);
     }
@@ -430,27 +409,6 @@ public class CassandraVersionStore implements VersionStore {
     return digester.getDigest();
   }
 
-
-
-
-
-
-
-  private String getBucketName(Long space, String endpoint, ChangeEvent event, Iterable<ScanAggregation> aggregations) {
-    TreeMultiset<String> buckets = TreeMultiset.create();
-
-    for (ScanAggregation aggregation : aggregations) {
-      String attrVal = event.getAttributes().get(aggregation.getAttributeName());
-      if (attrVal == null) {
-        throw new MissingAttributeException(event.getId(), aggregation.getAttributeName());
-      }
-
-      buckets.add(aggregation.bucket(attrVal));
-    }
-
-    String bucket = ATTRIBUTES_JOINER.join(buckets);
-    return buildIdentifier(space, endpoint, bucket);
-  }
 
   private String buildIdentifier(Long space, String endpoint, String id) {
     return KEY_JOINER.join(space, endpoint, id);
