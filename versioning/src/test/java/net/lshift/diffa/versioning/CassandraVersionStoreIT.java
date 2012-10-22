@@ -26,7 +26,7 @@ public class CassandraVersionStoreIT {
     List<TestablePartitionedEvent> upstreamEvents = new LinkedList<TestablePartitionedEvent>();
     List<TestablePartitionedEvent> downstreamEvents = new LinkedList<TestablePartitionedEvent>();
 
-    int itemsInSync = 1;
+    int itemsInSync = 2;
 
     for (int i = 0; i < itemsInSync; i++) {
 
@@ -106,7 +106,8 @@ public class CassandraVersionStoreIT {
     String secondTopLevelDownstreamDigest = secondDownstreamDigests.get(qualifiedDownstream);
 
     assertEquals(firstTopLevelDownstreamDigest, secondTopLevelDownstreamDigest);
-    assertNotSame(firstTopLevelUpstreamDigest, secondTopLevelUpstreamDigest);
+    assertFalse(firstTopLevelDownstreamDigest.equals(secondTopLevelUpstreamDigest));
+
 
     //int index = downstreamEvents.indexOf(randomUpstreamEvent);
     //TestablePartitionedEvent correspondingDownstreamEvent = downstreamEvents.get(index);
@@ -132,7 +133,7 @@ public class CassandraVersionStoreIT {
     String thirdTopLevelUpstreamDigest = thirdUpstreamDigests.get(qualifiedUpstream);
     String thirdTopLevelDownstreamDigest = thirdDownstreamDigests.get(qualifiedDownstream);
 
-    //assertEquals(thirdTopLevelUpstreamDigest, thirdTopLevelDownstreamDigest);
+    assertEquals(thirdTopLevelUpstreamDigest, thirdTopLevelDownstreamDigest);
 
 
   }

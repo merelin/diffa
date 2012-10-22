@@ -118,6 +118,50 @@ public class CassandraVersionStore implements VersionStore {
 
   }
 
+  public void deleteEvent(Long space, String endpoint, String id) {
+
+    // Assume that the hierarchy definitions are going to get compacted on the the next read
+    // so that this function does as little work as possible
+
+    Mutator<String> mutator = HFactory.createMutator(keyspace, StringSerializer.get());
+
+    String key = buildIdentifier(space, endpoint, id);
+    String parentPath = buildEndpointKey(space, endpoint);
+
+    // Remove the hierarchies related to this event
+
+    invalidateHierarchy(id, mutator, key, parentPath, entityVersionsTemplate, ENTITY_ID_DIGESTS_CF, ENTITY_ID_BUCKETS_CF);
+    invalidateHierarchy(id, mutator, key, parentPath, userDefinedAttributesTemplate, USER_DEFINED_DIGESTS_CF, USER_DEFINED_BUCKETS_CF);
+
+    // Delete the raw data pertaining to this event
+
+    mutator.addDeletion(key, ENTITY_VERSIONS_CF);
+    mutator.addDeletion(key, USER_DEFINED_ATTRIBUTES_CF);
+
+    mutator.execute();
+
+  }
+
+  public SortedMap<String,String> getEntityIdDigests(Long space, String endpoint) {
+    return getEntityIdDigests(space, endpoint, null);
+  }
+
+  public SortedMap<String,String> getEntityIdDigests(Long space, String endpoint, String bucketName) {
+    return getGenericDigests(space, endpoint, bucketName, entityIdHierarchyDigestsTemplate, ENTITY_ID_HIERARCHY_CF, ENTITY_ID_DIGESTS_CF);
+  }
+
+  public SortedMap<String,String> getUserDefinedDigests(Long space, String endpoint) {
+    return  getUserDefinedDigests(space, endpoint, null);
+  }
+
+  public SortedMap<String,String> getUserDefinedDigests(Long space, String endpoint, String bucketName) {
+    return getGenericDigests(space, endpoint, bucketName, userDefinedHierarchyDigestsTemplate, USER_DEFINED_HIERARCHY_CF, USER_DEFINED_DIGESTS_CF);
+  }
+
+  //////////////////////////////////////////////////////
+  // Internal plumbing
+  //////////////////////////////////////////////////////
+
   private String deleteDescendencyPath(String parentPath, MerkleNode node, Mutator<String> mutator, String digestCF) {
     String key = qualifyNodeName(parentPath, node);
 
@@ -188,32 +232,6 @@ public class CassandraVersionStore implements VersionStore {
     return currentNode;
   }
 
-
-
-  public void deleteEvent(Long space, String endpoint, String id) {
-
-    // Assume that the hierarchy definitions are going to get compacted on the the next read
-    // so that this function does as little work as possible
-
-    Mutator<String> mutator = HFactory.createMutator(keyspace, StringSerializer.get());
-
-    String key = buildIdentifier(space, endpoint, id);
-    String parentPath = buildEndpointKey(space, endpoint);
-
-    // Remove the hierarchies related to this event
-
-    invalidateHierarchy(id, mutator, key, parentPath, entityVersionsTemplate, ENTITY_ID_DIGESTS_CF, ENTITY_ID_BUCKETS_CF);
-    invalidateHierarchy(id, mutator, key, parentPath, userDefinedAttributesTemplate, USER_DEFINED_DIGESTS_CF, USER_DEFINED_BUCKETS_CF);
-
-    // Delete the raw data pertaining to this event
-
-    mutator.addDeletion(key, ENTITY_VERSIONS_CF);
-    mutator.addDeletion(key, USER_DEFINED_ATTRIBUTES_CF);
-
-    mutator.execute();
-
-  }
-
   private void invalidateHierarchy(String id, Mutator<String> mutator, String key, String parentPath, ColumnFamilyTemplate<String, String> template, String digestsCF, String bucketsCF) {
 
     ColumnFamilyResult<String,String> result = template.queryColumns(key);
@@ -233,26 +251,14 @@ public class CassandraVersionStore implements VersionStore {
     }
   }
 
-
-  public SortedMap<String,String> getEntityIdDigests(Long space, String endpoint) {
-    return getEntityIdDigests(space, endpoint, null);
-  }
-
-  public SortedMap<String,String> getEntityIdDigests(Long space, String endpoint, String bucketName) {
-    return getGenericDigests(space, endpoint, bucketName, entityIdHierarchyDigestsTemplate, ENTITY_ID_HIERARCHY_CF, ENTITY_ID_DIGESTS_CF);
-  }
-
-  public SortedMap<String,String> getUserDefinedDigests(Long space, String endpoint) {
-    return  getUserDefinedDigests(space, endpoint, null);
-  }
-
-  public SortedMap<String,String> getUserDefinedDigests(Long space, String endpoint, String bucketName) {
-    return getGenericDigests(space, endpoint, bucketName, userDefinedHierarchyDigestsTemplate, USER_DEFINED_HIERARCHY_CF, USER_DEFINED_DIGESTS_CF);
-  }
-
   private void recordLineage(String parentName, MerkleNode node, Mutator mutator, ColumnFamilyTemplate<String,String> hierarchyDigests, String bucketCF, String hierarchyCF, String hierarchyDigestCF) {
 
     String qualifiedBucketName = qualifyNodeName(parentName, node);
+
+    // In any event, since we are updating a bucket in this lineage, we need to invalidate the digest of each
+    // parent node
+
+    mutator.addInsertion(qualifiedBucketName, hierarchyDigestCF, HFactory.createStringColumn(DIGEST_KEY,""));
 
     if (node.isLeaf()) {
       // This a leaf node so record the bucket value and it's parent
@@ -279,10 +285,7 @@ public class CassandraVersionStore implements VersionStore {
         mutator.addInsertion(qualifiedBucketName, hierarchyCF, childColumn);
       }
 
-      // In any event, since we are updating a bucket in this lineage, we need to invalidate the digest of each
-      // parent node
 
-      mutator.addInsertion(qualifiedBucketName, hierarchyDigestCF, HFactory.createStringColumn(DIGEST_KEY,""));
 
       recordLineage(qualifiedBucketName, node.getChild(), mutator, hierarchyDigests, bucketCF, hierarchyCF, hierarchyDigestCF);
     }
