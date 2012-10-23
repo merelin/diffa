@@ -78,10 +78,10 @@ public class CassandraVersionStore implements VersionStore {
           StringSerializer.get(),
           StringSerializer.get());
 
-  public void addEvent(Long space, String endpoint, PartitionedEvent event) {
+  public void addEvent(Long endpoint, PartitionedEvent event) {
 
-    String id = buildIdentifier(space, endpoint, event.getId());
-    String endpointKey = buildEndpointKey(space, endpoint);
+    final String id = buildIdentifier(endpoint, event.getId());
+    final String parentPath = endpoint.toString();
 
     Mutator<String> mutator = HFactory.createMutator(keyspace, StringSerializer.get());
 
@@ -98,7 +98,7 @@ public class CassandraVersionStore implements VersionStore {
 
     MerkleNode entityIdRootNode = new MerkleNode("", event.getIdHierarchy());
 
-    recordLineage(endpointKey, entityIdRootNode, mutator, entityIdHierarchyDigestsTemplate, ENTITY_ID_BUCKETS_CF, ENTITY_ID_HIERARCHY_CF, ENTITY_ID_DIGESTS_CF);
+    recordLineage(parentPath, entityIdRootNode, mutator, entityIdHierarchyDigestsTemplate, ENTITY_ID_BUCKETS_CF, ENTITY_ID_HIERARCHY_CF, ENTITY_ID_DIGESTS_CF);
 
     Map<String, String> attributes = event.getAttributes();
     if (attributes != null && !attributes.isEmpty()) {
@@ -111,22 +111,22 @@ public class CassandraVersionStore implements VersionStore {
       mutator.addInsertion(id, USER_DEFINED_ATTRIBUTES_CF, HFactory.createStringColumn(PARTITION_KEY, userDefinedPartition));
 
       MerkleNode userDefinedRootNode = new MerkleNode("", event.getAttributeHierarchy());
-      recordLineage(endpointKey, userDefinedRootNode, mutator, userDefinedHierarchyDigestsTemplate, USER_DEFINED_BUCKETS_CF, USER_DEFINED_HIERARCHY_CF, USER_DEFINED_DIGESTS_CF);
+      recordLineage(parentPath, userDefinedRootNode, mutator, userDefinedHierarchyDigestsTemplate, USER_DEFINED_BUCKETS_CF, USER_DEFINED_HIERARCHY_CF, USER_DEFINED_DIGESTS_CF);
     }
 
     mutator.execute();
 
   }
 
-  public void deleteEvent(Long space, String endpoint, String id) {
+  public void deleteEvent(Long endpoint, String id) {
 
     // Assume that the hierarchy definitions are going to get compacted on the the next read
     // so that this function does as little work as possible
 
     Mutator<String> mutator = HFactory.createMutator(keyspace, StringSerializer.get());
 
-    String key = buildIdentifier(space, endpoint, id);
-    String parentPath = buildEndpointKey(space, endpoint);
+    final String key = buildIdentifier(endpoint, id);
+    final String parentPath = endpoint.toString();
 
     // Remove the hierarchies related to this event
 
@@ -142,20 +142,20 @@ public class CassandraVersionStore implements VersionStore {
 
   }
 
-  public SortedMap<String,String> getEntityIdDigests(Long space, String endpoint) {
-    return getEntityIdDigests(space, endpoint, null);
+  public SortedMap<String,String> getEntityIdDigests(Long endpoint) {
+    return getEntityIdDigests(endpoint, null);
   }
 
-  public SortedMap<String,String> getEntityIdDigests(Long space, String endpoint, String bucketName) {
-    return getGenericDigests(space, endpoint, bucketName, entityIdHierarchyDigestsTemplate, ENTITY_ID_HIERARCHY_CF, ENTITY_ID_DIGESTS_CF);
+  public SortedMap<String,String> getEntityIdDigests(Long endpoint, String bucketName) {
+    return getGenericDigests(endpoint, bucketName, entityIdHierarchyDigestsTemplate, ENTITY_ID_HIERARCHY_CF, ENTITY_ID_DIGESTS_CF);
   }
 
-  public SortedMap<String,String> getUserDefinedDigests(Long space, String endpoint) {
-    return  getUserDefinedDigests(space, endpoint, null);
+  public SortedMap<String, String> getUserDefinedDigests(Long endpoint) {
+    return getUserDefinedDigests(endpoint, null);
   }
 
-  public SortedMap<String,String> getUserDefinedDigests(Long space, String endpoint, String bucketName) {
-    return getGenericDigests(space, endpoint, bucketName, userDefinedHierarchyDigestsTemplate, USER_DEFINED_HIERARCHY_CF, USER_DEFINED_DIGESTS_CF);
+  public SortedMap<String,String> getUserDefinedDigests(Long endpoint, String bucketName) {
+    return getGenericDigests(endpoint, bucketName, userDefinedHierarchyDigestsTemplate, USER_DEFINED_HIERARCHY_CF, USER_DEFINED_DIGESTS_CF);
   }
 
   //////////////////////////////////////////////////////
@@ -303,16 +303,16 @@ public class CassandraVersionStore implements VersionStore {
     return qualifiedBucketName;
   }
 
-  private SortedMap<String,String> getGenericDigests(Long space, String endpoint, String bucketName, ColumnFamilyTemplate<String, String> hierarchyDigests, String hierarchyCF, String hierarchyDigestCF) {
+  private SortedMap<String,String> getGenericDigests(Long endpoint, String bucketName, ColumnFamilyTemplate<String, String> hierarchyDigests, String hierarchyCF, String hierarchyDigestCF) {
     Mutator<String> mutator = HFactory.createMutator(keyspace, StringSerializer.get());
 
-    String key;
+    final String key;
 
     if (bucketName == null || bucketName.isEmpty()) {
-      key = buildEndpointKey(space,endpoint);
+      key = endpoint.toString();
     }
     else {
-      key = buildIdentifier(space, endpoint, bucketName);
+      key = buildIdentifier(endpoint, bucketName);
     }
 
     SortedMap<String,String> digest = getDigests(key, false, mutator, hierarchyDigests, hierarchyCF, hierarchyDigestCF);
@@ -413,13 +413,8 @@ public class CassandraVersionStore implements VersionStore {
   }
 
 
-  private String buildIdentifier(Long space, String endpoint, String id) {
-    return KEY_JOINER.join(space, endpoint, id);
+  private String buildIdentifier(Long endpoint, String id) {
+    return KEY_JOINER.join(endpoint, id);
   }
-
-  private String buildEndpointKey(Long space, String endpoint) {
-    return KEY_JOINER.join(space, endpoint);
-  }
-
 
 }

@@ -1,5 +1,6 @@
 package net.lshift.diffa.versioning;
 
+import com.ecyrd.speed4j.StopWatch;
 import org.apache.commons.lang.RandomStringUtils;
 import org.joda.time.DateTime;
 import org.joda.time.format.DateTimeFormat;
@@ -40,14 +41,11 @@ public class CassandraVersionStoreIT {
       insertAtRandomPoint(random, downstreamEvents, downstreamEvent);
     }
 
-    long space = System.currentTimeMillis();
-    String upstream = RandomStringUtils.randomAlphabetic(10);
-    String downstream = RandomStringUtils.randomAlphabetic(10);
-    String qualifiedUpstream = space + "." + upstream;
-    String qualifiedDownstream = space + "." + downstream;
+    final Long upstream = System.currentTimeMillis();
+    final Long downstream = upstream + 1;
 
-    Thread upstreamEventStream = new Thread(new EventStream(space, upstream, upstreamEvents));
-    Thread downstreamEventStream = new Thread(new EventStream(space, downstream, downstreamEvents));
+    Thread upstreamEventStream = new Thread(new EventStream(upstream, upstreamEvents));
+    Thread downstreamEventStream = new Thread(new EventStream(downstream, downstreamEvents));
 
     upstreamEventStream.start();
     downstreamEventStream.start();
@@ -57,8 +55,8 @@ public class CassandraVersionStoreIT {
 
     long start = System.currentTimeMillis();
 
-    SortedMap<String,String> upstreamDigests = store.getEntityIdDigests(space, upstream);
-    SortedMap<String,String> downstreamDigests = store.getEntityIdDigests(space, downstream);
+    SortedMap<String,String> upstreamDigests = store.getEntityIdDigests(upstream);
+    SortedMap<String,String> downstreamDigests = store.getEntityIdDigests(downstream);
 
     long stop = System.currentTimeMillis();
     double time = stop - start;
@@ -66,17 +64,17 @@ public class CassandraVersionStoreIT {
 
     log.info("Uncached tree comparison rate {}/ms", rate);
 
-    sanityCheckDigests(qualifiedUpstream, qualifiedDownstream, upstreamDigests, downstreamDigests);
+    sanityCheckDigests(upstream, downstream, upstreamDigests, downstreamDigests);
 
-    String firstTopLevelUpstreamDigest = upstreamDigests.get(qualifiedUpstream);
-    String firstTopLevelDownstreamDigest = downstreamDigests.get(qualifiedDownstream);
+    final String firstTopLevelUpstreamDigest = upstreamDigests.get(upstream.toString());
+    final String firstTopLevelDownstreamDigest = downstreamDigests.get(downstream.toString());
 
     assertEquals(firstTopLevelUpstreamDigest, firstTopLevelDownstreamDigest);
 
     start = System.currentTimeMillis();
 
-    store.getEntityIdDigests(space, upstream);
-    store.getEntityIdDigests(space, downstream);
+    store.getEntityIdDigests(upstream);
+    store.getEntityIdDigests(downstream);
 
     stop = System.currentTimeMillis();
     time = stop - start;
@@ -87,12 +85,12 @@ public class CassandraVersionStoreIT {
     TestablePartitionedEvent randomUpstreamEvent = upstreamEvents.get(random.nextInt(itemsInSync));
     randomUpstreamEvent.setVersion(RandomStringUtils.randomAlphanumeric(10));
 
-    store.addEvent(space, upstream, randomUpstreamEvent);
+    store.addEvent(upstream, randomUpstreamEvent);
 
     start = System.currentTimeMillis();
 
-    SortedMap<String,String> secondUpstreamDigests = store.getEntityIdDigests(space, upstream);
-    SortedMap<String,String> secondDownstreamDigests = store.getEntityIdDigests(space, downstream);
+    SortedMap<String,String> secondUpstreamDigests = store.getEntityIdDigests(upstream);
+    SortedMap<String,String> secondDownstreamDigests = store.getEntityIdDigests(downstream);
 
     stop = System.currentTimeMillis();
     time = stop - start;
@@ -100,27 +98,26 @@ public class CassandraVersionStoreIT {
 
     log.info("Cached tree comparison rate after mutation {}/ms", rate);
 
-    sanityCheckDigests(qualifiedUpstream, qualifiedDownstream, secondUpstreamDigests, secondDownstreamDigests);
+    sanityCheckDigests(upstream, downstream, secondUpstreamDigests, secondDownstreamDigests);
 
-    String secondTopLevelUpstreamDigest = secondUpstreamDigests.get(qualifiedUpstream);
-    String secondTopLevelDownstreamDigest = secondDownstreamDigests.get(qualifiedDownstream);
+    final String secondTopLevelUpstreamDigest = secondUpstreamDigests.get(upstream.toString());
+    final String secondTopLevelDownstreamDigest = secondDownstreamDigests.get(downstream.toString());
 
     assertEquals(firstTopLevelDownstreamDigest, secondTopLevelDownstreamDigest);
-    assertFalse(firstTopLevelDownstreamDigest.equals(secondTopLevelUpstreamDigest));
-
-
-    //int index = downstreamEvents.indexOf(randomUpstreamEvent);
-    //TestablePartitionedEvent correspondingDownstreamEvent = downstreamEvents.get(index);
+    assertFalse(
+      "1st and 2nd upstream digests should be different but were both " + firstTopLevelUpstreamDigest,
+      firstTopLevelUpstreamDigest.equals(secondTopLevelUpstreamDigest)
+    );
 
     String idToDelete = randomUpstreamEvent.getId();
 
-    store.deleteEvent(space, upstream, idToDelete);
-    store.deleteEvent(space, downstream, idToDelete);
+    store.deleteEvent(upstream, idToDelete);
+    store.deleteEvent(downstream, idToDelete);
 
     start = System.currentTimeMillis();
 
-    SortedMap<String,String> thirdUpstreamDigests = store.getEntityIdDigests(space, upstream);
-    SortedMap<String,String> thirdDownstreamDigests = store.getEntityIdDigests(space, downstream);
+    SortedMap<String,String> thirdUpstreamDigests = store.getEntityIdDigests(upstream);
+    SortedMap<String,String> thirdDownstreamDigests = store.getEntityIdDigests(downstream);
 
     stop = System.currentTimeMillis();
     time = stop - start;
@@ -128,22 +125,22 @@ public class CassandraVersionStoreIT {
 
     log.info("Cached tree comparison rate after mutation {}/ms", rate);
 
-    sanityCheckDigests(qualifiedUpstream, qualifiedDownstream, thirdUpstreamDigests, thirdDownstreamDigests);
+    sanityCheckDigests(upstream, downstream, thirdUpstreamDigests, thirdDownstreamDigests);
 
-    String thirdTopLevelUpstreamDigest = thirdUpstreamDigests.get(qualifiedUpstream);
-    String thirdTopLevelDownstreamDigest = thirdDownstreamDigests.get(qualifiedDownstream);
+    final String thirdTopLevelUpstreamDigest = thirdUpstreamDigests.get(upstream.toString());
+    final String thirdTopLevelDownstreamDigest = thirdDownstreamDigests.get(downstream.toString());
 
     assertEquals(thirdTopLevelUpstreamDigest, thirdTopLevelDownstreamDigest);
 
 
   }
 
-  private void sanityCheckDigests(String qualifiedUpstream, String qualifiedDownstream, SortedMap<String, String> upstreamDigests, SortedMap<String, String> downstreamDigests) {
+  private void sanityCheckDigests(Long upstream, Long downstream, SortedMap<String, String> upstreamDigests, SortedMap<String, String> downstreamDigests) {
     assertNotNull(upstreamDigests);
     assertNotNull(downstreamDigests);
 
-    assertTrue(upstreamDigests.containsKey(qualifiedUpstream));
-    assertTrue(downstreamDigests.containsKey(qualifiedDownstream));
+    assertTrue(upstreamDigests.containsKey(upstream.toString()));
+    assertTrue(downstreamDigests.containsKey(downstream.toString()));
   }
 
   private <T extends PartitionedEvent> void insertAtRandomPoint(Random random, List<T> eventList, T event) {
@@ -205,20 +202,18 @@ public class CassandraVersionStoreIT {
   private class EventStream implements Runnable {
 
     List<? extends PartitionedEvent> events;
-    Long space;
-    String endpoint;
+    Long endpoint;
 
 
-    EventStream(Long space, String endpoint, List<? extends PartitionedEvent> events) {
+    EventStream(Long endpoint, List<? extends PartitionedEvent> events) {
       this.events = events;
-      this.space = space;
       this.endpoint = endpoint;
     }
 
     @Override
     public void run() {
       for (PartitionedEvent event : events) {
-        store.addEvent(space, endpoint, event);
+        store.addEvent(endpoint, event);
       }
     }
   }
