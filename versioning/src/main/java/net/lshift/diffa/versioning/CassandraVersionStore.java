@@ -5,7 +5,6 @@ import com.ecyrd.speed4j.StopWatch;
 import com.ecyrd.speed4j.StopWatchFactory;
 import com.google.common.base.Joiner;
 import me.prettyprint.cassandra.serializers.BooleanSerializer;
-import me.prettyprint.cassandra.serializers.DateSerializer;
 import me.prettyprint.cassandra.serializers.StringSerializer;
 import me.prettyprint.cassandra.service.ColumnSliceIterator;
 import me.prettyprint.cassandra.service.template.ColumnFamilyTemplate;
@@ -25,8 +24,6 @@ import org.slf4j.LoggerFactory;
 import java.util.*;
 
 public class CassandraVersionStore implements VersionStore {
-
-  static Logger log = LoggerFactory.getLogger(CassandraVersionStore.class);
 
   StopWatchFactory stopWatchFactory = StopWatchFactory.getInstance("loggingFactory");
 
@@ -87,18 +84,23 @@ public class CassandraVersionStore implements VersionStore {
     final String id = buildIdentifier(endpoint, event.getId());
     final String parentPath = endpoint.toString();
 
-    Mutator<String> mutator = HFactory.createMutator(keyspace, StringSerializer.get());
+    //Mutator<String> mutator = HFactory.createMutator(keyspace, StringSerializer.get());
 
-    mutator.addInsertion(id, ENTITY_VERSIONS_CF,  HFactory.createStringColumn(VERSION_KEY, event.getVersion()));
+    BatchMutator mutator = new LoggingBatchMutator(keyspace);
+
+    //mutator.addInsertion(id, ENTITY_VERSIONS_CF,  HFactory.createStringColumn(VERSION_KEY, event.getVersion()));
+    mutator.insertColumn(id, ENTITY_VERSIONS_CF, VERSION_KEY, event.getVersion() );
 
     if (event.getLastUpdated() != null) {
       // TODO use a joda serializer instead of converting to java.util.Date
-      Date date = event.getLastUpdated().toDate();
-      mutator.addInsertion(id, ENTITY_VERSIONS_CF,  HFactory.createColumn(LAST_UPDATE_KEY, date, StringSerializer.get(), DateSerializer.get()));
+      //Date date = event.getLastUpdated().toDate();
+      //mutator.addInsertion(id, ENTITY_VERSIONS_CF,  HFactory.createColumn(LAST_UPDATE_KEY, date, StringSerializer.get(), DateSerializer.get()));
+      mutator.insertDateColumn(id, ENTITY_VERSIONS_CF, LAST_UPDATE_KEY, event.getLastUpdated());
     }
 
     String entityIdPartition = event.getIdHierarchy().getDescendencyPath();
-    mutator.addInsertion(id, ENTITY_VERSIONS_CF,  HFactory.createStringColumn(PARTITION_KEY, entityIdPartition));
+    //mutator.addInsertion(id, ENTITY_VERSIONS_CF,  HFactory.createStringColumn(PARTITION_KEY, entityIdPartition));
+    mutator.insertColumn(id, ENTITY_VERSIONS_CF,  PARTITION_KEY, entityIdPartition);
 
     MerkleNode entityIdRootNode = new MerkleNode("", event.getIdHierarchy());
 
@@ -108,11 +110,13 @@ public class CassandraVersionStore implements VersionStore {
     if (attributes != null && !attributes.isEmpty()) {
 
       for(Map.Entry<String,String> entry : attributes.entrySet()) {
-        mutator.addInsertion(id, USER_DEFINED_ATTRIBUTES_CF, HFactory.createStringColumn(entry.getKey(), entry.getValue()));
+        //mutator.addInsertion(id, USER_DEFINED_ATTRIBUTES_CF, HFactory.createStringColumn(entry.getKey(), entry.getValue()));
+        mutator.insertColumn(id, USER_DEFINED_ATTRIBUTES_CF, entry.getKey(), entry.getValue());
       }
 
       String userDefinedPartition = event.getAttributeHierarchy().getDescendencyPath();
-      mutator.addInsertion(id, USER_DEFINED_ATTRIBUTES_CF, HFactory.createStringColumn(PARTITION_KEY, userDefinedPartition));
+      //mutator.addInsertion(id, USER_DEFINED_ATTRIBUTES_CF, HFactory.createStringColumn(PARTITION_KEY, userDefinedPartition));
+      mutator.insertColumn(id, USER_DEFINED_ATTRIBUTES_CF, PARTITION_KEY, userDefinedPartition);
 
       MerkleNode userDefinedRootNode = new MerkleNode("", event.getAttributeHierarchy());
       recordLineage(parentPath, userDefinedRootNode, mutator, userDefinedHierarchyDigestsTemplate, USER_DEFINED_BUCKETS_CF, USER_DEFINED_HIERARCHY_CF, USER_DEFINED_DIGESTS_CF);
@@ -255,20 +259,21 @@ public class CassandraVersionStore implements VersionStore {
     }
   }
 
-  private void recordLineage(String parentName, MerkleNode node, Mutator mutator, ColumnFamilyTemplate<String,String> hierarchyDigests, String bucketCF, String hierarchyCF, String hierarchyDigestCF) {
+  private void recordLineage(String parentName, MerkleNode node, BatchMutator mutator, ColumnFamilyTemplate<String,String> hierarchyDigests, String bucketCF, String hierarchyCF, String hierarchyDigestCF) {
 
     String qualifiedBucketName = qualifyNodeName(parentName, node);
 
     // In any event, since we are updating a bucket in this lineage, we need to invalidate the digest of each
     // parent node
 
-    mutator.addInsertion(qualifiedBucketName, hierarchyDigestCF, HFactory.createStringColumn(DIGEST_KEY,""));
+    //mutator.addInsertion(qualifiedBucketName, hierarchyDigestCF, HFactory.createStringColumn(DIGEST_KEY,""));
+    mutator.invalidateColumn(qualifiedBucketName, hierarchyDigestCF, DIGEST_KEY);
 
     if (node.isLeaf()) {
       // This a leaf node so record the bucket value and it's parent
 
-      mutator.addInsertion(qualifiedBucketName, bucketCF, HFactory.createStringColumn(node.getId(), node.getVersion()));
-
+      //mutator.addInsertion(qualifiedBucketName, bucketCF, HFactory.createStringColumn(node.getId(), node.getVersion()));
+      mutator.insertColumn(qualifiedBucketName, bucketCF, node.getId(), node.getVersion());
     }
     else {
 
@@ -281,12 +286,15 @@ public class CassandraVersionStore implements VersionStore {
         String digestLabel = result.getString(child.getName());
         if (digestLabel == null || digestLabel.isEmpty()) {
           // TODO Consider populating the child value with the digest of the child instead of leaving it empty
-          mutator.addInsertion(qualifiedBucketName, hierarchyCF, childColumn);
+          //mutator.addInsertion(qualifiedBucketName, hierarchyCF, childColumn);
+          mutator.insertColumn(qualifiedBucketName, hierarchyCF, childColumn);
         }
       }
       else {
         // TODO See todo 4 lines back
-        mutator.addInsertion(qualifiedBucketName, hierarchyCF, childColumn);
+        //mutator.addInsertion(qualifiedBucketName, hierarchyCF, childColumn);
+        mutator.insertColumn(qualifiedBucketName, hierarchyCF, childColumn);
+
       }
 
 

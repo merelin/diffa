@@ -1,6 +1,5 @@
 package net.lshift.diffa.versioning;
 
-import com.ecyrd.speed4j.StopWatch;
 import org.apache.commons.lang.RandomStringUtils;
 import org.joda.time.DateTime;
 import org.joda.time.format.DateTimeFormat;
