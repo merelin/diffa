@@ -1,6 +1,8 @@
 package net.lshift.diffa.versioning;
 
 
+import com.ecyrd.speed4j.StopWatch;
+import com.ecyrd.speed4j.StopWatchFactory;
 import com.google.common.base.Joiner;
 import me.prettyprint.cassandra.serializers.BooleanSerializer;
 import me.prettyprint.cassandra.serializers.DateSerializer;
@@ -25,6 +27,8 @@ import java.util.*;
 public class CassandraVersionStore implements VersionStore {
 
   static Logger log = LoggerFactory.getLogger(CassandraVersionStore.class);
+
+  StopWatchFactory stopWatchFactory = StopWatchFactory.getInstance("loggingFactory");
 
   static final Joiner KEY_JOINER = Joiner.on(".").skipNulls();
 
@@ -304,6 +308,9 @@ public class CassandraVersionStore implements VersionStore {
   }
 
   private SortedMap<String,String> getGenericDigests(Long endpoint, String bucketName, ColumnFamilyTemplate<String, String> hierarchyDigests, String hierarchyCF, String hierarchyDigestCF) {
+
+    StopWatch stopWatch = stopWatchFactory.getStopWatch();
+
     Mutator<String> mutator = HFactory.createMutator(keyspace, StringSerializer.get());
 
     final String key;
@@ -318,6 +325,8 @@ public class CassandraVersionStore implements VersionStore {
     SortedMap<String,String> digest = getDigests(key, false, mutator, hierarchyDigests, hierarchyCF, hierarchyDigestCF);
 
     mutator.execute();
+
+    stopWatch.stop(String.format("getEntityIdDigests: endpoint = %s / bucket = %s", endpoint, bucketName));
 
     return digest;
   }

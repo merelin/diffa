@@ -53,16 +53,10 @@ public class CassandraVersionStoreIT {
     upstreamEventStream.join();
     downstreamEventStream.join();
 
-    long start = System.currentTimeMillis();
+    log.info("Initial (uncached) tree query");
 
     SortedMap<String,String> upstreamDigests = store.getEntityIdDigests(upstream);
     SortedMap<String,String> downstreamDigests = store.getEntityIdDigests(downstream);
-
-    long stop = System.currentTimeMillis();
-    double time = stop - start;
-    double rate = itemsInSync / time;
-
-    log.info("Uncached tree comparison rate {}/ms", rate);
 
     sanityCheckDigests(upstream, downstream, upstreamDigests, downstreamDigests);
 
@@ -71,32 +65,20 @@ public class CassandraVersionStoreIT {
 
     assertEquals(firstTopLevelUpstreamDigest, firstTopLevelDownstreamDigest);
 
-    start = System.currentTimeMillis();
+    log.info("Subsequent (cached) tree query");
 
     store.getEntityIdDigests(upstream);
     store.getEntityIdDigests(downstream);
-
-    stop = System.currentTimeMillis();
-    time = stop - start;
-    rate = itemsInSync / time;
-
-    log.info("Cached tree comparison rate {}/ms", rate);
 
     TestablePartitionedEvent randomUpstreamEvent = upstreamEvents.get(random.nextInt(itemsInSync));
     randomUpstreamEvent.setVersion(RandomStringUtils.randomAlphanumeric(10));
 
     store.addEvent(upstream, randomUpstreamEvent);
 
-    start = System.currentTimeMillis();
+    log.info("Tree query after upstream mutation only (dirty cache)");
 
     SortedMap<String,String> secondUpstreamDigests = store.getEntityIdDigests(upstream);
     SortedMap<String,String> secondDownstreamDigests = store.getEntityIdDigests(downstream);
-
-    stop = System.currentTimeMillis();
-    time = stop - start;
-    rate = itemsInSync / time;
-
-    log.info("Cached tree comparison rate after mutation {}/ms", rate);
 
     sanityCheckDigests(upstream, downstream, secondUpstreamDigests, secondDownstreamDigests);
 
@@ -114,16 +96,10 @@ public class CassandraVersionStoreIT {
     store.deleteEvent(upstream, idToDelete);
     store.deleteEvent(downstream, idToDelete);
 
-    start = System.currentTimeMillis();
+    log.info("Tree query after upstream and downstream deletions (dirty cache)");
 
     SortedMap<String,String> thirdUpstreamDigests = store.getEntityIdDigests(upstream);
     SortedMap<String,String> thirdDownstreamDigests = store.getEntityIdDigests(downstream);
-
-    stop = System.currentTimeMillis();
-    time = stop - start;
-    rate = itemsInSync / time;
-
-    log.info("Cached tree comparison rate after mutation {}/ms", rate);
 
     sanityCheckDigests(upstream, downstream, thirdUpstreamDigests, thirdDownstreamDigests);
 
