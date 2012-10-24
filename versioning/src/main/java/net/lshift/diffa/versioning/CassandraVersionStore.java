@@ -18,8 +18,6 @@ import me.prettyprint.hector.api.factory.HFactory;
 import me.prettyprint.hector.api.mutation.Mutator;
 import me.prettyprint.hector.api.query.QueryResult;
 import me.prettyprint.hector.api.query.SliceQuery;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.*;
 
@@ -64,12 +62,12 @@ public class CassandraVersionStore implements VersionStore {
           StringSerializer.get(),
           StringSerializer.get());
 
-  private ColumnFamilyTemplate<String, String> entityIdHierarchyDigestsTemplate =
+  private ColumnFamilyTemplate<String, String> entityIdDigestsTemplate =
       new ThriftColumnFamilyTemplate<String, String>(keyspace, ENTITY_ID_DIGESTS_CF,
           StringSerializer.get(),
           StringSerializer.get());
 
-  private ColumnFamilyTemplate<String, String> userDefinedHierarchyDigestsTemplate =
+  private ColumnFamilyTemplate<String, String> userDefinedDigestsTemplate =
       new ThriftColumnFamilyTemplate<String, String>(keyspace, USER_DEFINED_DIGESTS_CF,
           StringSerializer.get(),
           StringSerializer.get());
@@ -104,7 +102,7 @@ public class CassandraVersionStore implements VersionStore {
 
     MerkleNode entityIdRootNode = new MerkleNode("", event.getIdHierarchy());
 
-    recordLineage(parentPath, entityIdRootNode, mutator, entityIdHierarchyDigestsTemplate, ENTITY_ID_BUCKETS_CF, ENTITY_ID_HIERARCHY_CF, ENTITY_ID_DIGESTS_CF);
+    recordLineage(parentPath, entityIdRootNode, mutator, entityIdDigestsTemplate, ENTITY_ID_BUCKETS_CF, ENTITY_ID_HIERARCHY_CF, ENTITY_ID_DIGESTS_CF);
 
     Map<String, String> attributes = event.getAttributes();
     if (attributes != null && !attributes.isEmpty()) {
@@ -119,7 +117,7 @@ public class CassandraVersionStore implements VersionStore {
       mutator.insertColumn(id, USER_DEFINED_ATTRIBUTES_CF, PARTITION_KEY, userDefinedPartition);
 
       MerkleNode userDefinedRootNode = new MerkleNode("", event.getAttributeHierarchy());
-      recordLineage(parentPath, userDefinedRootNode, mutator, userDefinedHierarchyDigestsTemplate, USER_DEFINED_BUCKETS_CF, USER_DEFINED_HIERARCHY_CF, USER_DEFINED_DIGESTS_CF);
+      recordLineage(parentPath, userDefinedRootNode, mutator, userDefinedDigestsTemplate, USER_DEFINED_BUCKETS_CF, USER_DEFINED_HIERARCHY_CF, USER_DEFINED_DIGESTS_CF);
     }
 
     mutator.execute();
@@ -155,7 +153,7 @@ public class CassandraVersionStore implements VersionStore {
   }
 
   public SortedMap<String,String> getEntityIdDigests(Long endpoint, String bucketName) {
-    return getGenericDigests(endpoint, bucketName, entityIdHierarchyDigestsTemplate, ENTITY_ID_HIERARCHY_CF, ENTITY_ID_DIGESTS_CF);
+    return getGenericDigests(endpoint, bucketName, entityIdDigestsTemplate, ENTITY_ID_HIERARCHY_CF, ENTITY_ID_DIGESTS_CF);
   }
 
   public SortedMap<String, String> getUserDefinedDigests(Long endpoint) {
@@ -163,7 +161,7 @@ public class CassandraVersionStore implements VersionStore {
   }
 
   public SortedMap<String,String> getUserDefinedDigests(Long endpoint, String bucketName) {
-    return getGenericDigests(endpoint, bucketName, userDefinedHierarchyDigestsTemplate, USER_DEFINED_HIERARCHY_CF, USER_DEFINED_DIGESTS_CF);
+    return getGenericDigests(endpoint, bucketName, userDefinedDigestsTemplate, USER_DEFINED_HIERARCHY_CF, USER_DEFINED_DIGESTS_CF);
   }
 
   //////////////////////////////////////////////////////
