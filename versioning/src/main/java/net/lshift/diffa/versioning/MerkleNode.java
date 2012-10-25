@@ -94,6 +94,10 @@ public class MerkleNode {
     return isLeaf;
   }
 
+  public void setLeaf(boolean leaf) {
+    isLeaf = leaf;
+  }
+
   public String getName() {
     return name;
   }

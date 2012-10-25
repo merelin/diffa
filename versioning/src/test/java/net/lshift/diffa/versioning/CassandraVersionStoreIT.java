@@ -26,11 +26,11 @@ public class CassandraVersionStoreIT {
     List<TestablePartitionedEvent> upstreamEvents = new LinkedList<TestablePartitionedEvent>();
     List<TestablePartitionedEvent> downstreamEvents = new LinkedList<TestablePartitionedEvent>();
 
-    int itemsInSync = 2;
+    int itemsInSync = 10;
 
     for (int i = 0; i < itemsInSync; i++) {
 
-      String id = RandomStringUtils.randomAlphanumeric(10);
+      String id = RandomStringUtils.randomAlphanumeric(4);
       String version = RandomStringUtils.randomAlphanumeric(10);
 
       TestablePartitionedEvent upstreamEvent = new DatePartitionedEvent(id, version, random, "transactionDate" );
@@ -40,7 +40,7 @@ public class CassandraVersionStoreIT {
       insertAtRandomPoint(random, downstreamEvents, downstreamEvent);
     }
 
-    final Long upstream = System.currentTimeMillis();
+    final Long upstream = System.currentTimeMillis() * 2;
     final Long downstream = upstream + 1;
 
     Thread upstreamEventStream = new Thread(new EventStream(upstream, upstreamEvents));
@@ -106,7 +106,6 @@ public class CassandraVersionStoreIT {
     final String thirdTopLevelDownstreamDigest = thirdDownstreamDigests.get(downstream.toString());
 
     assertEquals(thirdTopLevelUpstreamDigest, thirdTopLevelDownstreamDigest);
-
 
   }
 
@@ -176,6 +175,7 @@ public class CassandraVersionStoreIT {
 
   private class EventStream implements Runnable {
 
+    int cnt = 0;
     List<? extends PartitionedEvent> events;
     Long endpoint;
 

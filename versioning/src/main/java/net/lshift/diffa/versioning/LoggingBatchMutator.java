@@ -4,38 +4,39 @@ import com.google.common.base.Function;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableListMultimap;
 import com.google.common.collect.Multimaps;
-import me.prettyprint.cassandra.serializers.DateSerializer;
-import me.prettyprint.cassandra.serializers.StringSerializer;
 import me.prettyprint.hector.api.Keyspace;
 import me.prettyprint.hector.api.beans.HColumn;
-import me.prettyprint.hector.api.factory.HFactory;
-import me.prettyprint.hector.api.mutation.Mutator;
 import org.apache.commons.lang.StringUtils;
 import org.joda.time.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.BufferedWriter;
-import java.io.StringWriter;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
 
-public class LoggingBatchMutator implements BatchMutator {
+public class LoggingBatchMutator extends BasicBatchMutator {
 
   static Logger log = LoggerFactory.getLogger(LoggingBatchMutator.class);
 
-  private Mutator<String> mutator;
-
+  private String description;
   private List<Mutation> mutations = new ArrayList<Mutation>();
 
-  public LoggingBatchMutator(Keyspace keyspace) {
-    mutator = HFactory.createMutator(keyspace, StringSerializer.get());
+  public LoggingBatchMutator(Keyspace keyspace, String description) {
+    super(keyspace);
+    this.description = description;
   }
 
   public void execute() {
-    mutator.execute();
+    super.execute();
+    logMutations();
+  }
 
+  private void logMutations() {
     StringBuilder sb = new StringBuilder();
     sb.append("\n\n");
+
+    sb.append(description).append("\n\n");
 
     Function<Mutation, String> columnFamily = new Function<Mutation, String>() {
       public String apply(Mutation mutation) {
@@ -43,7 +44,7 @@ public class LoggingBatchMutator implements BatchMutator {
       }
     };
 
-    ImmutableListMultimap<String,Mutation> grouped = Multimaps.index(mutations,columnFamily);
+    ImmutableListMultimap<String,Mutation> grouped = Multimaps.index(mutations, columnFamily);
     Iterator<String> it = grouped.keySet().iterator();
 
     while (it.hasNext()) {
@@ -59,7 +60,14 @@ public class LoggingBatchMutator implements BatchMutator {
 
         if (mutation.isInvalidation) {
           sb.append(" invalidated [").append(mutation.columnName).append("]");
-        } else {
+        }
+        else if (mutation.isColumnDeletion) {
+          sb.append(" deleted [").append(mutation.columnName).append("]");
+        }
+        else if (mutation.isRowDeletion) {
+          sb.append(" deleted row");
+        }
+        else {
           sb.append(mutation.columnName).append(" [").append(mutation.columnValue).append("]");
         }
 
@@ -75,26 +83,37 @@ public class LoggingBatchMutator implements BatchMutator {
   @Override
   public void insertColumn(String rowKey, String columnFamily, String columnName, String columnValue) {
     addMutation(rowKey, columnFamily, columnName, columnValue);
-    mutator.addInsertion(rowKey, columnFamily,  HFactory.createStringColumn(columnName, columnValue));
+    super.insertColumn(rowKey, columnFamily, columnName, columnValue);
   }
 
   @Override
   public void insertDateColumn(String rowKey, String columnFamily, String columnName, DateTime columnValue) {
     // TODO use a serializer for Joda DateTime
     addMutation(rowKey, columnFamily, columnName, columnValue);
-    mutator.addInsertion(rowKey, columnFamily,  HFactory.createColumn(columnName, columnValue.toDate(), StringSerializer.get(), DateSerializer.get()));
+    super.insertDateColumn(rowKey, columnFamily, columnName, columnValue);
   }
 
   @Override
   public void invalidateColumn(String rowKey, String columnFamily, String columnName) {
     addInvalidation(rowKey, columnFamily, columnName);
-    mutator.addInsertion(rowKey, columnFamily, HFactory.createStringColumn(columnName,""));
+    super.invalidateColumn(rowKey, columnFamily, columnName);
   }
 
   @Override
   public void insertColumn(String rowKey, String columnFamily, HColumn<String, Boolean> column) {
     addMutation(rowKey, columnFamily, column.getName(), column.getValue());
-    mutator.addInsertion(rowKey, columnFamily, column);
+    super.insertColumn(rowKey, columnFamily, column);
+  }
+
+  @Override
+  public void deleteColumn(String rowKey, String columnFamily, String columnName) {
+    addColumnDeletion(rowKey, columnFamily, columnName);
+    super.deleteColumn(rowKey, columnFamily, columnName);
+  }
+
+  public void deleteRow(String rowKey, String columnFamily) {
+    addRowDeletion(rowKey, columnFamily);
+    super.deleteRow(rowKey, columnFamily);
   }
 
   private void addInvalidation(String rowKey, String columnFamily, String columnName) {
@@ -107,6 +126,16 @@ public class LoggingBatchMutator implements BatchMutator {
     mutations.add(mutation);
   }
 
+  private void addColumnDeletion(String rowKey, String columnFamily, String columnName) {
+    Mutation mutation = new Mutation(true, rowKey, columnFamily, columnName);
+    mutations.add(mutation);
+  }
+
+  private void addRowDeletion(String rowKey, String columnFamily) {
+    Mutation mutation = new Mutation(rowKey, columnFamily);
+    mutations.add(mutation);
+  }
+
   private class Mutation {
 
     String rowKey;
@@ -114,6 +143,8 @@ public class LoggingBatchMutator implements BatchMutator {
     String columnName;
     Object columnValue;
     boolean isInvalidation = false;
+    boolean isColumnDeletion = false;
+    boolean isRowDeletion = false;
 
     private Mutation(String rowKey, String columnFamily, String columnName, Object columnValue) {
       this.rowKey = rowKey;
@@ -127,6 +158,19 @@ public class LoggingBatchMutator implements BatchMutator {
       this.columnFamily = columnFamily;
       this.columnName = columnName;
       this.isInvalidation = isInvalidation;
+    }
+
+    private Mutation(boolean isDeletion, String rowKey, String columnFamily, String columnName) {
+      this.rowKey = rowKey;
+      this.columnFamily = columnFamily;
+      this.columnName = columnName;
+      this.isColumnDeletion = isDeletion;
+    }
+
+    private Mutation(String rowKey, String columnFamily) {
+      this.rowKey = rowKey;
+      this.columnFamily = columnFamily;
+      this.isRowDeletion = true;
     }
 
   }

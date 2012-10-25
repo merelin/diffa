@@ -18,10 +18,14 @@ import me.prettyprint.hector.api.factory.HFactory;
 import me.prettyprint.hector.api.mutation.Mutator;
 import me.prettyprint.hector.api.query.QueryResult;
 import me.prettyprint.hector.api.query.SliceQuery;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.*;
 
 public class CassandraVersionStore implements VersionStore {
+
+  static Logger log = LoggerFactory.getLogger(CassandraVersionStore.class);
 
   StopWatchFactory stopWatchFactory = StopWatchFactory.getInstance("loggingFactory");
 
@@ -79,12 +83,14 @@ public class CassandraVersionStore implements VersionStore {
 
   public void addEvent(Long endpoint, PartitionedEvent event) {
 
+    StopWatch stopWatch = stopWatchFactory.getStopWatch();
+
     final String id = buildIdentifier(endpoint, event.getId());
     final String parentPath = endpoint.toString();
 
     //Mutator<String> mutator = HFactory.createMutator(keyspace, StringSerializer.get());
 
-    BatchMutator mutator = new LoggingBatchMutator(keyspace);
+    BatchMutator mutator = new BasicBatchMutator(keyspace);
 
     //mutator.addInsertion(id, ENTITY_VERSIONS_CF,  HFactory.createStringColumn(VERSION_KEY, event.getVersion()));
     mutator.insertColumn(id, ENTITY_VERSIONS_CF, VERSION_KEY, event.getVersion() );
@@ -122,14 +128,18 @@ public class CassandraVersionStore implements VersionStore {
 
     mutator.execute();
 
+    stopWatch.stop(String.format("addEvent: endpoint = %s / event = %s", endpoint, event.getId()));
+
   }
 
   public void deleteEvent(Long endpoint, String id) {
 
+    StopWatch stopWatch = stopWatchFactory.getStopWatch();
+
     // Assume that the hierarchy definitions are going to get compacted on the the next read
     // so that this function does as little work as possible
 
-    Mutator<String> mutator = HFactory.createMutator(keyspace, StringSerializer.get());
+    BatchMutator mutator = new BasicBatchMutator(keyspace);
 
     final String key = buildIdentifier(endpoint, id);
     final String parentPath = endpoint.toString();
@@ -141,10 +151,14 @@ public class CassandraVersionStore implements VersionStore {
 
     // Delete the raw data pertaining to this event
 
-    mutator.addDeletion(key, ENTITY_VERSIONS_CF);
-    mutator.addDeletion(key, USER_DEFINED_ATTRIBUTES_CF);
+    //mutator.addDeletion(key, ENTITY_VERSIONS_CF);
+    mutator.deleteRow(key, ENTITY_ID_BUCKETS_CF);
+    //mutator.addDeletion(key, USER_DEFINED_ATTRIBUTES_CF);
+    mutator.deleteRow(key, USER_DEFINED_ATTRIBUTES_CF);
 
     mutator.execute();
+
+    stopWatch.stop(String.format("deleteEvent: endpoint = %s / event = %s", endpoint, id));
 
   }
 
@@ -168,10 +182,11 @@ public class CassandraVersionStore implements VersionStore {
   // Internal plumbing
   //////////////////////////////////////////////////////
 
-  private String deleteDescendencyPath(String parentPath, MerkleNode node, Mutator<String> mutator, String digestCF) {
+  private String deleteDescendencyPath(String parentPath, MerkleNode node, BatchMutator mutator, String digestCF) {
     String key = qualifyNodeName(parentPath, node);
 
-    mutator.addInsertion(key, digestCF, HFactory.createStringColumn(DIGEST_KEY, ""));
+    //mutator.addInsertion(key, digestCF, HFactory.createStringColumn(DIGEST_KEY, ""));
+    mutator.invalidateColumn(key, digestCF, DIGEST_KEY);
 
     if (node.isLeaf()) {
       return key;
@@ -238,7 +253,7 @@ public class CassandraVersionStore implements VersionStore {
     return currentNode;
   }
 
-  private void invalidateHierarchy(String id, Mutator<String> mutator, String key, String parentPath, ColumnFamilyTemplate<String, String> template, String digestsCF, String bucketsCF) {
+  private void invalidateHierarchy(String id, BatchMutator mutator, String key, String parentPath, ColumnFamilyTemplate<String, String> template, String digestsCF, String bucketsCF) {
 
     ColumnFamilyResult<String,String> result = template.queryColumns(key);
 
@@ -252,8 +267,8 @@ public class CassandraVersionStore implements VersionStore {
 
       // Delete the item level digest from the buckets CF
 
-      mutator.addDeletion(entityIdBucketKey, bucketsCF, id, StringSerializer.get());
-
+      //mutator.addDeletion(entityIdBucketKey, bucketsCF, id, StringSerializer.get());
+      mutator.deleteColumn(entityIdBucketKey, bucketsCF, id);
     }
   }
 
@@ -367,6 +382,8 @@ public class CassandraVersionStore implements VersionStore {
 
         ColumnSliceIterator<String,String,Boolean> hierarchyIterator = new ColumnSliceIterator<String,String,Boolean>(hierarchyQuery, "", "",false);
 
+        Digester digester = new Digester();
+
         while (hierarchyIterator.hasNext()) {
           HColumn<String, Boolean> hierarchyColumn = hierarchyIterator.next();
 
@@ -379,19 +396,29 @@ public class CassandraVersionStore implements VersionStore {
 
           // We need to roll up the subtree digests to produce an over-arching digest for the current bucket
 
-          Digester digester = new Digester();
+
+
+
 
           for (Map.Entry<String, String> entry : childDigests.entrySet()) {
             digester.addVersion(entry.getValue());
+            //System.err.println(key + ") add version: " + entry.getValue());
           }
 
-          String bucketDigest = digester.getDigest();
-          digests.put(key, bucketDigest);
 
-          // Don't forget to cache this digest for later use
-
-          cacheDigest(key, mutator, hierarchyDigestCF, bucketDigest);
         }
+
+        String bucketDigest = digester.getDigest();
+        digests.put(key, bucketDigest);
+
+
+        //System.err.println(key + ") digest: " + bucketDigest);
+
+
+        // Don't forget to cache this digest for later use
+
+        cacheDigest(key, mutator, hierarchyDigestCF, bucketDigest);
+
       }
       else {
         digests.put(key, cachedDigest);
