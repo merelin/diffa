@@ -88,22 +88,15 @@ public class CassandraVersionStore implements VersionStore {
     final String id = buildIdentifier(endpoint, event.getId());
     final String parentPath = endpoint.toString();
 
-    //Mutator<String> mutator = HFactory.createMutator(keyspace, StringSerializer.get());
-
     BatchMutator mutator = new BasicBatchMutator(keyspace);
 
-    //mutator.addInsertion(id, ENTITY_VERSIONS_CF,  HFactory.createStringColumn(VERSION_KEY, event.getVersion()));
     mutator.insertColumn(id, ENTITY_VERSIONS_CF, VERSION_KEY, event.getVersion() );
 
     if (event.getLastUpdated() != null) {
-      // TODO use a joda serializer instead of converting to java.util.Date
-      //Date date = event.getLastUpdated().toDate();
-      //mutator.addInsertion(id, ENTITY_VERSIONS_CF,  HFactory.createColumn(LAST_UPDATE_KEY, date, StringSerializer.get(), DateSerializer.get()));
       mutator.insertDateColumn(id, ENTITY_VERSIONS_CF, LAST_UPDATE_KEY, event.getLastUpdated());
     }
 
     String entityIdPartition = event.getIdHierarchy().getDescendencyPath();
-    //mutator.addInsertion(id, ENTITY_VERSIONS_CF,  HFactory.createStringColumn(PARTITION_KEY, entityIdPartition));
     mutator.insertColumn(id, ENTITY_VERSIONS_CF,  PARTITION_KEY, entityIdPartition);
 
     MerkleNode entityIdRootNode = new MerkleNode("", event.getIdHierarchy());
@@ -114,12 +107,10 @@ public class CassandraVersionStore implements VersionStore {
     if (attributes != null && !attributes.isEmpty()) {
 
       for(Map.Entry<String,String> entry : attributes.entrySet()) {
-        //mutator.addInsertion(id, USER_DEFINED_ATTRIBUTES_CF, HFactory.createStringColumn(entry.getKey(), entry.getValue()));
         mutator.insertColumn(id, USER_DEFINED_ATTRIBUTES_CF, entry.getKey(), entry.getValue());
       }
 
       String userDefinedPartition = event.getAttributeHierarchy().getDescendencyPath();
-      //mutator.addInsertion(id, USER_DEFINED_ATTRIBUTES_CF, HFactory.createStringColumn(PARTITION_KEY, userDefinedPartition));
       mutator.insertColumn(id, USER_DEFINED_ATTRIBUTES_CF, PARTITION_KEY, userDefinedPartition);
 
       MerkleNode userDefinedRootNode = new MerkleNode("", event.getAttributeHierarchy());
@@ -151,9 +142,7 @@ public class CassandraVersionStore implements VersionStore {
 
     // Delete the raw data pertaining to this event
 
-    //mutator.addDeletion(key, ENTITY_VERSIONS_CF);
     mutator.deleteRow(key, ENTITY_ID_BUCKETS_CF);
-    //mutator.addDeletion(key, USER_DEFINED_ATTRIBUTES_CF);
     mutator.deleteRow(key, USER_DEFINED_ATTRIBUTES_CF);
 
     mutator.execute();
@@ -185,7 +174,6 @@ public class CassandraVersionStore implements VersionStore {
   private String deleteDescendencyPath(String parentPath, MerkleNode node, BatchMutator mutator, String digestCF) {
     String key = qualifyNodeName(parentPath, node);
 
-    //mutator.addInsertion(key, digestCF, HFactory.createStringColumn(DIGEST_KEY, ""));
     mutator.invalidateColumn(key, digestCF, DIGEST_KEY);
 
     if (node.isLeaf()) {
@@ -194,63 +182,6 @@ public class CassandraVersionStore implements VersionStore {
     else {
       return deleteDescendencyPath(key, node.getChild(), mutator, digestCF);
     }
-  }
-
-  public MerkleNode resolveStoredTree(String key, String id, MerkleNode parent, String hierarchyCF) {
-
-
-    MerkleNode currentNode = null;
-
-    String rangeStart;
-
-    if (parent != null) {
-      key = key + "." + parent.getName();
-
-      // "abc123Sdef123Sxyz".replaceAll("^.*?123S","") returns "xyz"
-      String regex = "^.*" + parent.getName();
-
-      String trimmed = id.replaceFirst(regex, "");
-      rangeStart = trimmed.substring(0,1);
-    }
-    else {
-      rangeStart = id.substring(0,1);
-    }
-
-    SliceQuery<String,String,Boolean> hierarchyQuery =  HFactory.createSliceQuery(keyspace, StringSerializer.get(), StringSerializer.get(), BooleanSerializer.get());
-
-    hierarchyQuery.setColumnFamily(hierarchyCF);
-    hierarchyQuery.setKey(key);
-    hierarchyQuery.setRange(rangeStart, "", false, 1);
-
-    QueryResult<ColumnSlice<String,Boolean>> result = hierarchyQuery.execute();
-
-    List<HColumn<String,Boolean>> columns = result.get().getColumns();
-
-    if (columns == null || columns.isEmpty()) {
-
-      throw new EntityNotFoundException(key);
-
-    } else {
-
-      HColumn<String,Boolean> column = columns.get(0);
-      String childPartition = column.getName();
-      boolean isLeaf = column.getValue();
-
-      if (isLeaf) {
-
-        return new MerkleNode(childPartition, id, null);
-
-      } else {
-
-        currentNode = new MerkleNode(childPartition);
-
-        MerkleNode child = resolveStoredTree(key, id, currentNode, hierarchyCF);
-        currentNode.setChild(child);
-
-      }
-    }
-
-    return currentNode;
   }
 
   private void invalidateHierarchy(String id, BatchMutator mutator, String key, String parentPath, ColumnFamilyTemplate<String, String> template, String digestsCF, String bucketsCF) {
@@ -267,7 +198,6 @@ public class CassandraVersionStore implements VersionStore {
 
       // Delete the item level digest from the buckets CF
 
-      //mutator.addDeletion(entityIdBucketKey, bucketsCF, id, StringSerializer.get());
       mutator.deleteColumn(entityIdBucketKey, bucketsCF, id);
     }
   }
@@ -279,13 +209,11 @@ public class CassandraVersionStore implements VersionStore {
     // In any event, since we are updating a bucket in this lineage, we need to invalidate the digest of each
     // parent node
 
-    //mutator.addInsertion(qualifiedBucketName, hierarchyDigestCF, HFactory.createStringColumn(DIGEST_KEY,""));
     mutator.invalidateColumn(qualifiedBucketName, hierarchyDigestCF, DIGEST_KEY);
 
     if (node.isLeaf()) {
       // This a leaf node so record the bucket value and it's parent
 
-      //mutator.addInsertion(qualifiedBucketName, bucketCF, HFactory.createStringColumn(node.getId(), node.getVersion()));
       mutator.insertColumn(qualifiedBucketName, bucketCF, node.getId(), node.getVersion());
     }
     else {
@@ -299,18 +227,14 @@ public class CassandraVersionStore implements VersionStore {
         String digestLabel = result.getString(child.getName());
         if (digestLabel == null || digestLabel.isEmpty()) {
           // TODO Consider populating the child value with the digest of the child instead of leaving it empty
-          //mutator.addInsertion(qualifiedBucketName, hierarchyCF, childColumn);
           mutator.insertColumn(qualifiedBucketName, hierarchyCF, childColumn);
         }
       }
       else {
         // TODO See todo 4 lines back
-        //mutator.addInsertion(qualifiedBucketName, hierarchyCF, childColumn);
         mutator.insertColumn(qualifiedBucketName, hierarchyCF, childColumn);
 
       }
-
-
 
       recordLineage(qualifiedBucketName, node.getChild(), mutator, hierarchyDigests, bucketCF, hierarchyCF, hierarchyDigestCF);
     }
@@ -396,24 +320,13 @@ public class CassandraVersionStore implements VersionStore {
 
           // We need to roll up the subtree digests to produce an over-arching digest for the current bucket
 
-
-
-
-
           for (Map.Entry<String, String> entry : childDigests.entrySet()) {
             digester.addVersion(entry.getValue());
-            //System.err.println(key + ") add version: " + entry.getValue());
           }
-
-
         }
 
         String bucketDigest = digester.getDigest();
         digests.put(key, bucketDigest);
-
-
-        //System.err.println(key + ") digest: " + bucketDigest);
-
 
         // Don't forget to cache this digest for later use
 
@@ -437,7 +350,6 @@ public class CassandraVersionStore implements VersionStore {
 
   private String buildEntityIdDigest(String key) {
 
-    //String key = buildIdentifier(space, endpoint, bucketPrefix);
     Digester digester = new Digester();
 
     SliceQuery<String,String,String> query =  HFactory.createSliceQuery(keyspace, StringSerializer.get(), StringSerializer.get(), StringSerializer.get());

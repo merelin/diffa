@@ -53,3 +53,10 @@ AND key_validation_class=AsciiType
 AND column_metadata = [
 {column_name: digest, validation_class: AsciiType}
 ];
+
+CREATE COLUMN FAMILY dirty_entities
+WITH comparator = AsciiType
+AND key_validation_class=AsciiType
+AND column_metadata = [
+{column_name: id, validation_class: AsciiType}
+];
