@@ -102,18 +102,18 @@ object Step0047 extends VerifiedMigrationStep {
 
   private def createRollingWindow(migration: MigrationBuilder, domainName: String, endpoint: String, viewName: String, name: String) {
     migration.insert("unique_category_names").values(Map(
-      "space" -> domainName,
+      "domain" -> domainName,
       "endpoint" -> endpoint,
       "name" -> name
     ))
     migration.insert("unique_category_view_names").values(Map(
-      "space" -> domainName,
+      "domain" -> domainName,
       "endpoint" -> endpoint,
       "view_name" -> viewName,
       "name" -> name
     ))
     migration.insert("endpoint_view_rolling_windows").values(Map(
-      "space" -> domainName,
+      "domain" -> domainName,
       "endpoint" -> endpoint,
       "view_name" -> viewName,
       "name" -> name,
