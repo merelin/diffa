@@ -26,11 +26,11 @@ public class CassandraVersionStoreIT {
     List<TestablePartitionedEvent> upstreamEvents = new LinkedList<TestablePartitionedEvent>();
     List<TestablePartitionedEvent> downstreamEvents = new LinkedList<TestablePartitionedEvent>();
 
-    int itemsInSync = 10;
+    int itemsInSync = 1000;
 
     for (int i = 0; i < itemsInSync; i++) {
 
-      String id = RandomStringUtils.randomAlphanumeric(4);
+      String id = RandomStringUtils.randomAlphanumeric(10);
       String version = RandomStringUtils.randomAlphanumeric(10);
 
       TestablePartitionedEvent upstreamEvent = new DatePartitionedEvent(id, version, random, "transactionDate" );

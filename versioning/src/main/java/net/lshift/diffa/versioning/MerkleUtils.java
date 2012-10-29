@@ -8,29 +8,21 @@ public class MerkleUtils {
       throw new RuntimeException("Cannot build a merkle node from an empty string, version was " + version);
     }
 
-    int length = id.length();
+    Digester digester = new Digester();
+    digester.addVersion(id);
+    String bucket = digester.getDigest();
 
-    MerkleNode root;
-    String rootId = id.substring(0, Math.min(length, 2) );
+    String rootId = bucket.substring(0,1);
+    MerkleNode root = new MerkleNode(rootId);
 
-    if (length > 2) {
+    String midId = bucket.substring(1,2);
+    MerkleNode mid = new MerkleNode(midId);
 
-      MerkleNode mid;
-      String midId = id.substring(2, Math.min(length, 4) );
+    String leafId = bucket.substring(2,3);
+    MerkleNode leaf = new MerkleNode(leafId, id, version);
 
-      if (length > 4) {
-        MerkleNode leaf = new MerkleNode(id.substring(4, Math.min(length, 6) ) , id, version);
-        mid = new MerkleNode(midId, leaf);
-      }
-      else {
-        mid = new MerkleNode(midId, id, version);
-      }
-
-      root = new MerkleNode(rootId, mid);
-    }
-    else {
-      root = new MerkleNode(rootId, id, version);
-    }
+    root.setChild(mid);
+    mid.setChild(leaf);
 
     return root;
   }
