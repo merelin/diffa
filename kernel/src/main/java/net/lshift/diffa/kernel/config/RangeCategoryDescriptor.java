@@ -166,8 +166,8 @@ public class RangeCategoryDescriptor extends AggregatingCategoryDescriptor {
 
       refinedCategory = new RangeCategoryDescriptor(
           this.dataType,
-          interval.getStartAs(DateTimeTypeDescriptor.byName(dataType)),
-          interval.getEndAs(DateTimeTypeDescriptor.byName(dataType)),
+          interval.getStartAs(DateTimeType.byName(dataType)),
+          interval.getEndAs(DateTimeType.byName(dataType)),
           interval.maximumCoveredPeriodUnit().toString());
     } else {
       refinedCategory = null; // isRefinement guards against this condition.
