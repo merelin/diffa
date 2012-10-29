@@ -23,13 +23,11 @@ import javax.ws.rs.ext.{MessageBodyWriter, MessageBodyReader, Provider}
 import javax.ws.rs.{Consumes, Produces}
 import org.springframework.core.io.ClassPathResource
 import org.springframework.oxm.castor.CastorMarshaller
-import javax.xml.transform.Result
 import java.io.{StringWriter, OutputStream, InputStream}
 import javax.xml.transform.stream.{StreamSource, StreamResult}
 import scala.collection.JavaConversions._
 import reflect.BeanProperty
 import net.lshift.diffa.kernel.config._
-import net.lshift.diffa.kernel.differencing.PairScanState
 import net.lshift.diffa.kernel.frontend._
 
 /**
