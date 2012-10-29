@@ -26,7 +26,7 @@ public class CassandraVersionStoreIT {
     List<TestablePartitionedEvent> upstreamEvents = new LinkedList<TestablePartitionedEvent>();
     List<TestablePartitionedEvent> downstreamEvents = new LinkedList<TestablePartitionedEvent>();
 
-    int itemsInSync = 1;
+    int itemsInSync = 10;
 
     for (int i = 0; i < itemsInSync; i++) {
 

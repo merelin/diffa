@@ -12,11 +12,9 @@ import me.prettyprint.cassandra.service.template.ColumnFamilyResult;
 import me.prettyprint.cassandra.service.template.ThriftColumnFamilyTemplate;
 import me.prettyprint.hector.api.Cluster;
 import me.prettyprint.hector.api.Keyspace;
-import me.prettyprint.hector.api.beans.ColumnSlice;
 import me.prettyprint.hector.api.beans.HColumn;
 import me.prettyprint.hector.api.factory.HFactory;
 import me.prettyprint.hector.api.mutation.Mutator;
-import me.prettyprint.hector.api.query.QueryResult;
 import me.prettyprint.hector.api.query.SliceQuery;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -168,7 +166,7 @@ public class CassandraVersionStore implements VersionStore {
   }
 
   public SortedMap<String,String> getEntityIdDigests(Long endpoint, String bucketName) {
-    return getGenericDigests(endpoint, bucketName, entityIdDigestsTemplate, ENTITY_ID_HIERARCHY_CF, ENTITY_ID_DIGESTS_CF);
+    return getGenericDigests(endpoint, bucketName, entityIdDigestsTemplate, ENTITY_ID_HIERARCHY_CF, ENTITY_ID_DIGESTS_CF, ENTITY_ID_BUCKETS_CF);
   }
 
   public SortedMap<String, String> getUserDefinedDigests(Long endpoint) {
@@ -176,7 +174,7 @@ public class CassandraVersionStore implements VersionStore {
   }
 
   public SortedMap<String,String> getUserDefinedDigests(Long endpoint, String bucketName) {
-    return getGenericDigests(endpoint, bucketName, userDefinedDigestsTemplate, USER_DEFINED_HIERARCHY_CF, USER_DEFINED_DIGESTS_CF);
+    return getGenericDigests(endpoint, bucketName, userDefinedDigestsTemplate, USER_DEFINED_HIERARCHY_CF, USER_DEFINED_DIGESTS_CF, USER_DEFINED_BUCKETS_CF);
   }
 
   //////////////////////////////////////////////////////
@@ -264,7 +262,7 @@ public class CassandraVersionStore implements VersionStore {
     return qualifiedBucketName;
   }
 
-  private SortedMap<String,String> getGenericDigests(Long endpoint, String bucketName, ColumnFamilyTemplate<String, String> hierarchyDigests, String hierarchyCF, String hierarchyDigestCF) {
+  private SortedMap<String,String> getGenericDigests(Long endpoint, String bucketName, ColumnFamilyTemplate<String, String> hierarchyDigests, String hierarchyCF, String digestCF, String bucketCF) {
 
     StopWatch stopWatch = stopWatchFactory.getStopWatch();
 
@@ -279,7 +277,7 @@ public class CassandraVersionStore implements VersionStore {
       key = buildIdentifier(endpoint, bucketName);
     }
 
-    SortedMap<String,String> digest = getDigests(key, false, mutator, hierarchyDigests, hierarchyCF, hierarchyDigestCF);
+    SortedMap<String,String> digest = getDigests(key, false, mutator, hierarchyDigests, hierarchyCF, digestCF, bucketCF);
 
     mutator.execute();
 
@@ -290,7 +288,7 @@ public class CassandraVersionStore implements VersionStore {
 
 
 
-  private SortedMap<String,String> getDigests(String key, boolean isLeaf, Mutator mutator, ColumnFamilyTemplate<String, String> hierarchyDigests, String hierarchyCF, String hierarchyDigestCF) {
+  private SortedMap<String,String> getDigests(String key, boolean isLeaf, Mutator mutator, ColumnFamilyTemplate<String, String> hierarchyDigests, String hierarchyCF, String digestCF, String bucketCF) {
 
     SortedMap<String,String> digests = new TreeMap<String,String>();
     ColumnFamilyResult<String, String> result = hierarchyDigests.queryColumns(key);
@@ -299,8 +297,8 @@ public class CassandraVersionStore implements VersionStore {
 
       // Since this is a leaf node, we need to roll up all of the individual entity digests stored in the bucket CF
 
-      String bucketDigest = buildEntityIdDigest(key);
-      cacheDigest(key, mutator, hierarchyDigestCF, bucketDigest);
+      String bucketDigest = buildBucketDigest(key, bucketCF);
+      cacheDigest(key, mutator, digestCF, bucketDigest);
       digests.put(key, bucketDigest);
 
     }
@@ -328,7 +326,7 @@ public class CassandraVersionStore implements VersionStore {
 
           String qualifiedKey = key + "." + child;
 
-          SortedMap<String,String> childDigests = getDigests(qualifiedKey, leaf, mutator, hierarchyDigests, hierarchyCF, hierarchyDigestCF);
+          SortedMap<String,String> childDigests = getDigests(qualifiedKey, leaf, mutator, hierarchyDigests, hierarchyCF, digestCF, bucketCF);
 
           // We need to roll up the subtree digests to produce an over-arching digest for the current bucket
 
@@ -342,7 +340,7 @@ public class CassandraVersionStore implements VersionStore {
 
         // Don't forget to cache this digest for later use
 
-        cacheDigest(key, mutator, hierarchyDigestCF, bucketDigest);
+        cacheDigest(key, mutator, digestCF, bucketDigest);
 
       }
       else {
@@ -360,12 +358,13 @@ public class CassandraVersionStore implements VersionStore {
     mutator.addInsertion(key, hierarchyDigestCF, HFactory.createStringColumn(DIGEST_KEY, bucketDigest));
   }
 
-  private String buildEntityIdDigest(String key) {
+  private String buildBucketDigest(String key, String bucketCF) {
 
     Digester digester = new Digester();
 
     SliceQuery<String,String,String> query =  HFactory.createSliceQuery(keyspace, StringSerializer.get(), StringSerializer.get(), StringSerializer.get());
-    query.setColumnFamily(ENTITY_ID_BUCKETS_CF);
+    //query.setColumnFamily(ENTITY_ID_BUCKETS_CF);
+    query.setColumnFamily(bucketCF);
     query.setKey(key);
 
     ColumnSliceIterator<String,String,String> bucketIterator = new ColumnSliceIterator<String,String,String>(query, "", "",false);
