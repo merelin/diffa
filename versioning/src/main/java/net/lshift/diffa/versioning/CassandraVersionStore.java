@@ -37,6 +37,7 @@ public class CassandraVersionStore implements VersionStore {
    * Storage for the raw entity version and their raw partitioning attributes (should they have been supplied)
    */
   static final String ENTITY_VERSIONS_CF = "entity_versions";
+  static final String DIRTY_ENTITIES_CF = "dirty_entities";
   static final String USER_DEFINED_ATTRIBUTES_CF = "user_defined_attributes";
 
   /**
@@ -99,6 +100,12 @@ public class CassandraVersionStore implements VersionStore {
     String entityIdPartition = event.getIdHierarchy().getDescendencyPath();
     mutator.insertColumn(id, ENTITY_VERSIONS_CF,  PARTITION_KEY, entityIdPartition);
 
+    // Update the dirty entities for a subsequent re-sync to avoid
+    // having to traverse buckets in order to pair-off changes between two
+    // endpoints.
+    String dirtyKey = buildIdentifier(endpoint, entityIdPartition);
+    mutator.invalidateColumn(dirtyKey, DIRTY_ENTITIES_CF, event.getId());
+
     MerkleNode entityIdRootNode = new MerkleNode("", event.getIdHierarchy());
 
     recordLineage(parentPath, entityIdRootNode, mutator, entityIdDigestsTemplate, ENTITY_ID_BUCKETS_CF, ENTITY_ID_HIERARCHY_CF, ENTITY_ID_DIGESTS_CF);
@@ -144,6 +151,11 @@ public class CassandraVersionStore implements VersionStore {
 
     mutator.deleteRow(key, ENTITY_ID_BUCKETS_CF);
     mutator.deleteRow(key, USER_DEFINED_ATTRIBUTES_CF);
+
+    // Mark the entity as dirty so that subsequent compactions had emit match events based on this
+    MerkleNode dirtyNode = MerkleUtils.buildEntityIdNode(id, null);
+    final String dirtyKey = buildIdentifier(endpoint, dirtyNode.getDescendencyPath());
+    mutator.invalidateColumn(dirtyKey, DIRTY_ENTITIES_CF, id);
 
     mutator.execute();
 
