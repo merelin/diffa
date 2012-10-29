@@ -43,11 +43,11 @@
     <jersey.version>1.13</jersey.version>
     <urlrewritefilter.version>4.0.3</urlrewritefilter.version>
     <jackson.version>1.9.2</jackson.version>
-    <lucene.version>3.6.1</lucene.version>
+    <lucene.version>4.0.0</lucene.version>
     <jodatime.version>2.0</jodatime.version>
     <jadira.version>1.9</jadira.version>
     <javamail.file.transport.version>1.0</javamail.file.transport.version>
-    <jooq.version>2.5.1</jooq.version>
+    <jooq.version>2.6.0</jooq.version>
     <slf4j.version>1.6.4</slf4j.version>
     <logback.version>1.0.0</logback.version>
     <akka.version>2.0.1</akka.version>
