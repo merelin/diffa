@@ -30,6 +30,7 @@ public class CassandraVersionStore implements VersionStore {
   static final Joiner KEY_JOINER = Joiner.on(".").skipNulls();
 
   static final String KEY_SPACE = "version_store";
+  static final String NULL_MD5 = "d41d8cd98f00b204e9800998ecf8427e";
 
   /**
    * Storage for the raw entity version and their raw partitioning attributes (should they have been supplied)
@@ -266,7 +267,7 @@ public class CassandraVersionStore implements VersionStore {
 
     StopWatch stopWatch = stopWatchFactory.getStopWatch();
 
-    Mutator<String> mutator = HFactory.createMutator(keyspace, StringSerializer.get());
+    BatchMutator mutator = new BasicBatchMutator(keyspace);
 
     final String key;
 
@@ -288,7 +289,7 @@ public class CassandraVersionStore implements VersionStore {
 
 
 
-  private SortedMap<String,String> getDigests(String key, boolean isLeaf, Mutator mutator, ColumnFamilyTemplate<String, String> hierarchyDigests, String hierarchyCF, String digestCF, String bucketCF) {
+  private SortedMap<String,String> getDigests(String key, boolean isLeaf, BatchMutator mutator, ColumnFamilyTemplate<String, String> hierarchyDigests, String hierarchyCF, String digestCF, String bucketCF) {
 
     SortedMap<String,String> digests = new TreeMap<String,String>();
     ColumnFamilyResult<String, String> result = hierarchyDigests.queryColumns(key);
@@ -298,8 +299,19 @@ public class CassandraVersionStore implements VersionStore {
       // Since this is a leaf node, we need to roll up all of the individual entity digests stored in the bucket CF
 
       String bucketDigest = buildBucketDigest(key, bucketCF);
-      cacheDigest(key, mutator, digestCF, bucketDigest);
-      digests.put(key, bucketDigest);
+
+      // Check to see whether this bucket can be compacted
+
+      if (NULL_MD5.equals(bucketDigest)) {
+
+        // Delete since it is empty delete this bucket, digest and hierarchy
+        mutator.deleteRow(key, bucketCF);
+        deleteDigest(key, mutator, digestCF, hierarchyCF);
+
+      } else {
+        cacheDigest(key, mutator, digestCF, bucketDigest);
+        digests.put(key, bucketDigest);
+      }
 
     }
     else if (result.hasResults()) {
@@ -336,11 +348,20 @@ public class CassandraVersionStore implements VersionStore {
         }
 
         String bucketDigest = digester.getDigest();
-        digests.put(key, bucketDigest);
 
-        // Don't forget to cache this digest for later use
+        if (NULL_MD5.equals(bucketDigest)) {
+          // Clean up empty digests
+          deleteDigest(key, mutator, digestCF, hierarchyCF);
+        }
+        else {
 
-        cacheDigest(key, mutator, digestCF, bucketDigest);
+          digests.put(key, bucketDigest);
+
+          // Don't forget to cache this digest for later use
+
+          cacheDigest(key, mutator, digestCF, bucketDigest);
+
+        }
 
       }
       else {
@@ -354,8 +375,16 @@ public class CassandraVersionStore implements VersionStore {
     return digests;
   }
 
-  private void cacheDigest(String key, Mutator mutator, String hierarchyDigestCF, String bucketDigest) {
-    mutator.addInsertion(key, hierarchyDigestCF, HFactory.createStringColumn(DIGEST_KEY, bucketDigest));
+  private void cacheDigest(String key, BatchMutator mutator, String digestCF, String bucketDigest) {
+    mutator.insertColumn(key, digestCF, DIGEST_KEY, bucketDigest);
+  }
+
+  private void deleteDigest(String key, BatchMutator mutator, String digestCF, String hierarchyCF) {
+    mutator.deleteRow(key, digestCF);
+    int pivot = key.lastIndexOf(".");
+    String parent = key.substring(0, pivot - 1);
+    String child = key.substring(pivot + 1);
+    mutator.deleteColumn(parent, hierarchyCF, child);
   }
 
   private String buildBucketDigest(String key, String bucketCF) {
