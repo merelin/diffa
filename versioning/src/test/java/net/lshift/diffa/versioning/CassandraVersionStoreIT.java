@@ -1,5 +1,8 @@
 package net.lshift.diffa.versioning;
 
+import com.google.common.base.Predicate;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
 import org.apache.commons.lang.RandomStringUtils;
 import org.joda.time.DateTime;
 import org.joda.time.format.DateTimeFormat;
@@ -26,7 +29,7 @@ public class CassandraVersionStoreIT {
     List<TestablePartitionedEvent> upstreamEvents = new LinkedList<TestablePartitionedEvent>();
     List<TestablePartitionedEvent> downstreamEvents = new LinkedList<TestablePartitionedEvent>();
 
-    int itemsInSync = 10;
+    int itemsInSync = 2;
 
     for (int i = 0; i < itemsInSync; i++) {
 
@@ -54,41 +57,62 @@ public class CassandraVersionStoreIT {
 
     log.info("Initial (uncached) tree query");
 
-    SortedMap<String,String> upstreamDigests = store.getEntityIdDigests(upstream);
-    SortedMap<String,String> downstreamDigests = store.getEntityIdDigests(downstream);
+    SortedMap<String,BucketDigest> upstreamDigests = store.getEntityIdDigests(upstream);
+    SortedMap<String,BucketDigest> downstreamDigests = store.getEntityIdDigests(downstream);
 
-    sanityCheckDigests(upstream, downstream, upstreamDigests, downstreamDigests);
+    sanityCheckDigests("", upstreamDigests, downstreamDigests);
 
-    final String firstTopLevelUpstreamDigest = upstreamDigests.get(upstream.toString());
-    final String firstTopLevelDownstreamDigest = downstreamDigests.get(downstream.toString());
+    final String firstTopLevelUpstreamDigest = upstreamDigests.get("").getDigest();
+    final String firstTopLevelDownstreamDigest = downstreamDigests.get("").getDigest();
 
     assertEquals(firstTopLevelUpstreamDigest, firstTopLevelDownstreamDigest);
+
+    List<EntityDifference> firstDiffs = store.compare(upstream, downstream);
+    assertTrue(firstDiffs.isEmpty());
 
     log.info("Subsequent (cached) tree query");
 
     store.getEntityIdDigests(upstream);
     store.getEntityIdDigests(downstream);
 
-    TestablePartitionedEvent randomUpstreamEvent = upstreamEvents.get(random.nextInt(itemsInSync));
+    final TestablePartitionedEvent randomUpstreamEvent = upstreamEvents.get(random.nextInt(itemsInSync));
     randomUpstreamEvent.setVersion(RandomStringUtils.randomAlphanumeric(10));
 
     store.addEvent(upstream, randomUpstreamEvent);
 
     log.info("Tree query after upstream mutation only (dirty cache)");
 
-    SortedMap<String,String> secondUpstreamDigests = store.getEntityIdDigests(upstream);
-    SortedMap<String,String> secondDownstreamDigests = store.getEntityIdDigests(downstream);
+    SortedMap<String,BucketDigest> secondUpstreamDigests = store.getEntityIdDigests(upstream);
+    SortedMap<String,BucketDigest> secondDownstreamDigests = store.getEntityIdDigests(downstream);
 
-    sanityCheckDigests(upstream, downstream, secondUpstreamDigests, secondDownstreamDigests);
+    sanityCheckDigests("", secondUpstreamDigests, secondDownstreamDigests);
 
-    final String secondTopLevelUpstreamDigest = secondUpstreamDigests.get(upstream.toString());
-    final String secondTopLevelDownstreamDigest = secondDownstreamDigests.get(downstream.toString());
+    final String secondTopLevelUpstreamDigest = secondUpstreamDigests.get("").getDigest();
+    final String secondTopLevelDownstreamDigest = secondDownstreamDigests.get("").getDigest();
 
     assertEquals(firstTopLevelDownstreamDigest, secondTopLevelDownstreamDigest);
     assertFalse(
       "1st and 2nd upstream digests should be different but were both " + firstTopLevelUpstreamDigest,
       firstTopLevelUpstreamDigest.equals(secondTopLevelUpstreamDigest)
     );
+
+    List<EntityDifference> secondDiffs = store.compare(upstream, downstream);
+    assertEquals(1, secondDiffs.size());
+
+    EntityDifference difference = secondDiffs.get(0);
+    assertEquals(randomUpstreamEvent.getId(), difference.getId());
+    assertEquals(randomUpstreamEvent.getVersion(), difference.getUpstreamVersion());
+
+    Predicate<TestablePartitionedEvent> filter = new Predicate<TestablePartitionedEvent>() {
+
+      @Override
+      public boolean apply(TestablePartitionedEvent input) {
+        return input.getId().equals(randomUpstreamEvent.getId());
+      }
+    };
+
+    TestablePartitionedEvent correspondingEvent = Iterables.find(downstreamEvents, filter);
+    assertEquals(correspondingEvent.getVersion(), difference.getDownstreamVersion());
 
     String idToDelete = randomUpstreamEvent.getId();
 
@@ -97,24 +121,24 @@ public class CassandraVersionStoreIT {
 
     log.info("Tree query after upstream and downstream deletions (dirty cache)");
 
-    SortedMap<String,String> thirdUpstreamDigests = store.getEntityIdDigests(upstream);
-    SortedMap<String,String> thirdDownstreamDigests = store.getEntityIdDigests(downstream);
+    SortedMap<String,BucketDigest> thirdUpstreamDigests = store.getEntityIdDigests(upstream);
+    SortedMap<String,BucketDigest> thirdDownstreamDigests = store.getEntityIdDigests(downstream);
 
-    sanityCheckDigests(upstream, downstream, thirdUpstreamDigests, thirdDownstreamDigests);
+    sanityCheckDigests("", thirdUpstreamDigests, thirdDownstreamDigests);
 
-    final String thirdTopLevelUpstreamDigest = thirdUpstreamDigests.get(upstream.toString());
-    final String thirdTopLevelDownstreamDigest = thirdDownstreamDigests.get(downstream.toString());
+    final String thirdTopLevelUpstreamDigest = thirdUpstreamDigests.get("").getDigest();
+    final String thirdTopLevelDownstreamDigest = thirdDownstreamDigests.get("").getDigest();
 
     assertEquals(thirdTopLevelUpstreamDigest, thirdTopLevelDownstreamDigest);
 
   }
 
-  private void sanityCheckDigests(Long upstream, Long downstream, SortedMap<String, String> upstreamDigests, SortedMap<String, String> downstreamDigests) {
+  private void sanityCheckDigests(String expectedKey, SortedMap<String, BucketDigest> upstreamDigests, SortedMap<String, BucketDigest> downstreamDigests) {
     assertNotNull(upstreamDigests);
     assertNotNull(downstreamDigests);
 
-    assertTrue(upstreamDigests.containsKey(upstream.toString()));
-    assertTrue(downstreamDigests.containsKey(downstream.toString()));
+    assertTrue(upstreamDigests.containsKey(expectedKey));
+    assertTrue(downstreamDigests.containsKey(expectedKey));
   }
 
   private <T extends PartitionedEvent> void insertAtRandomPoint(Random random, List<T> eventList, T event) {

@@ -4,6 +4,10 @@ package net.lshift.diffa.versioning;
 import com.ecyrd.speed4j.StopWatch;
 import com.ecyrd.speed4j.StopWatchFactory;
 import com.google.common.base.Joiner;
+import com.google.common.base.Predicate;
+import com.google.common.collect.MapDifference;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import me.prettyprint.cassandra.serializers.BooleanSerializer;
 import me.prettyprint.cassandra.serializers.StringSerializer;
 import me.prettyprint.cassandra.service.ColumnSliceIterator;
@@ -162,25 +166,258 @@ public class CassandraVersionStore implements VersionStore {
 
   }
 
-  public SortedMap<String,String> getEntityIdDigests(Long endpoint) {
+  public SortedMap<String,BucketDigest> getEntityIdDigests(Long endpoint) {
     return getEntityIdDigests(endpoint, null);
   }
 
-  public SortedMap<String,String> getEntityIdDigests(Long endpoint, String bucketName) {
+  public SortedMap<String,BucketDigest> getEntityIdDigests(Long endpoint, String bucketName) {
     return getGenericDigests(endpoint, bucketName, entityIdDigestsTemplate, ENTITY_ID_HIERARCHY_CF, ENTITY_ID_DIGESTS_CF, ENTITY_ID_BUCKETS_CF);
   }
 
-  public SortedMap<String, String> getUserDefinedDigests(Long endpoint) {
+  public SortedMap<String,BucketDigest> getEntityIdDigests(Long endpoint, String bucketName, boolean isLeaf) {
+    return getGenericDigests(endpoint, bucketName, isLeaf, entityIdDigestsTemplate, ENTITY_ID_HIERARCHY_CF, ENTITY_ID_DIGESTS_CF, ENTITY_ID_BUCKETS_CF);
+  }
+
+  public SortedMap<String, BucketDigest> getUserDefinedDigests(Long endpoint) {
     return getUserDefinedDigests(endpoint, null);
   }
 
-  public SortedMap<String,String> getUserDefinedDigests(Long endpoint, String bucketName) {
+  public SortedMap<String,BucketDigest> getUserDefinedDigests(Long endpoint, String bucketName) {
     return getGenericDigests(endpoint, bucketName, userDefinedDigestsTemplate, USER_DEFINED_HIERARCHY_CF, USER_DEFINED_DIGESTS_CF, USER_DEFINED_BUCKETS_CF);
+  }
+
+  public List<EntityDifference> compare(Long left, Long right) {
+    return compare(left, right, null, false);
+  }
+
+  public List<EntityDifference> compare(Long left, Long right, String bucket, boolean isLeaf) {
+
+    List<EntityDifference> diffs = new ArrayList<EntityDifference>();
+
+    SortedMap<String,BucketDigest> leftDigests = maybeGetEntityIdDigests(left, bucket, isLeaf);
+    SortedMap<String,BucketDigest> rightDigests = maybeGetEntityIdDigests(right, bucket, isLeaf);
+
+    // TODO figure out what happens with empty endpoints, i.e. when and if an empty map is returned ....
+
+    MapDifference<String,BucketDigest> d = Maps.difference(leftDigests, rightDigests);
+
+    if ( ! d.areEqual() ) {
+
+      Map<String, MapDifference.ValueDifference<BucketDigest>> differing = d.entriesDiffering();
+      List<EntityDifference> bothDifferent = establishDifferingSides(left, right, differing);
+      diffs.addAll(bothDifferent);
+
+      Map<String,BucketDigest> lhs = d.entriesOnlyOnLeft();
+      List<EntityDifference> lhsDiffs = establishMissingSide(left, right, lhs);
+      diffs.addAll(lhsDiffs);
+
+      Map<String,BucketDigest> rhs = d.entriesOnlyOnRight();
+      List<EntityDifference> rhsDiffs = establishMissingSide(left, right, rhs);
+      diffs.addAll(rhsDiffs);
+
+    }
+
+    return diffs;
+
   }
 
   //////////////////////////////////////////////////////
   // Internal plumbing
   //////////////////////////////////////////////////////
+
+  /**
+   * Hack wrapper so that getting digests for a non-existent key does not blow up.
+   * It might be better to not throw the exception in the first place.
+   */
+  public SortedMap<String,BucketDigest> maybeGetEntityIdDigests(Long endpoint, String bucketName, boolean isLeaf) {
+
+    SortedMap<String,BucketDigest> digests;
+
+    try {
+      digests = getEntityIdDigests(endpoint, bucketName, isLeaf);
+    }
+    catch (BucketNotFoundException e) {
+      digests = new TreeMap<String, BucketDigest>();
+    }
+
+    return digests;
+  }
+
+  /**
+   * This is a hack to overcome the fact that the digest tree builder (unhelpfully) qualifies each node
+   * by prefixing the endpoint id to the key name. This oversight makes subsequent tree comparisons difficult,
+   * because each tree will have differing root names, which is uncool.
+   *
+   * Rather than fixing the underlying issue, at this point I am just going to rewrite each node label to
+   * get rid of this prefixing.
+   */
+  private SortedMap<String, BucketDigest> unqualify(Long endpoint, SortedMap<String, BucketDigest> qualified) {
+    SortedMap<String,BucketDigest> unqualified = new TreeMap<String, BucketDigest>();
+
+    for(Map.Entry<String,BucketDigest> entry : qualified.entrySet()) {
+      String prefix = endpoint + "(\\.)?";
+      String rewrittenKey = entry.getKey().replaceFirst(prefix, "");
+      unqualified.put(rewrittenKey, entry.getValue());
+    }
+
+    return unqualified;
+  }
+
+  private List<EntityDifference> establishDifferingSides(Long left, Long right, Map<String, MapDifference.ValueDifference<BucketDigest>> differing) {
+
+    List<EntityDifference> diffs = new ArrayList<EntityDifference>();
+
+    for (String key : differing.keySet()) {
+
+      MapDifference.ValueDifference<BucketDigest> di = differing.get(key);
+
+      if (di.leftValue().isLeaf() && di.rightValue().isLeaf()) {
+        List<EntityDifference> bucketDifferences = establishBucketDifferences(left, right, key);
+        diffs.addAll(bucketDifferences);
+      }
+      else if (di.leftValue().isLeaf() || di.rightValue().isLeaf()) {
+        throw new RuntimeException("Invalid bucket comparison: " + di);
+      }
+      else {
+
+        // Need to find children of current node
+
+        // TODO ropey .....
+
+        Map<String,Boolean> lChildren = getChildren(left, key, ENTITY_ID_HIERARCHY_CF);
+        Map<String,Boolean> rChildren = getChildren(right, key, ENTITY_ID_HIERARCHY_CF);
+        lChildren.putAll(rChildren);
+
+        for (String child : lChildren.keySet()) {
+          String path;
+
+          if (key.isEmpty()) {
+            path = child;
+          } else {
+            path = key + "." + child;
+          }
+
+          boolean isLeaf = lChildren.get(child);
+          List<EntityDifference> bucketDifferences = compare(left, right, path, isLeaf);
+          diffs.addAll(bucketDifferences);
+        }
+
+      }
+
+    }
+
+    return diffs;
+  }
+
+  private Map<String,Boolean> getChildren(Long endpoint, String bucket, String hierarchyCF) {
+    Map<String,Boolean> children = new HashMap<String, Boolean>();
+
+    final String key = buildKeyFromBucketName(endpoint, bucket);
+
+    ColumnSliceIterator<String, String, Boolean> hierarchyIterator = getHierarchyIterator(key, hierarchyCF);
+
+    while (hierarchyIterator.hasNext()) {
+      HColumn<String, Boolean> column = hierarchyIterator.next();
+      String child = column.getName();
+      boolean isLeaf = column.getValue();
+      children.put(child, isLeaf);
+    }
+
+    return children;
+  }
+
+  private List<EntityDifference> establishMissingSide(Long left, Long right, Map<String,BucketDigest> missingSide) {
+
+    List<EntityDifference> diffs = new ArrayList<EntityDifference>();
+
+    for (String key : missingSide.keySet()) {
+
+      BucketDigest bucketDigest = missingSide.get(key);
+
+      if (bucketDigest.isLeaf()) {
+        List<EntityDifference> established = establishBucketDifferences(left, right, key);
+        diffs.addAll(established);
+      } else {
+        List<EntityDifference> compared = compare(left, right, key, false); // TODO hardcoded
+        diffs.addAll(compared);
+      }
+    }
+
+    return diffs;
+  }
+
+  private List<EntityDifference> establishBucketDifferences(Long left, Long right, String key) {
+    Map<String, EntityDifference> potentialDiffs = new HashMap<String,EntityDifference>();
+
+    // Read out the dirty entities by looking at the LHS first
+    // Once we have the established the differences from the LHS perspective,
+    // do the same for the RHS, but don't attempt to re-establish diffs that were detected
+    // during the LHS processing
+
+    ColumnSliceIterator<String, String, String> leftIterator = getDirtyIterator(left, key);
+
+    while (leftIterator.hasNext()) {
+      HColumn<String,String> dirtyEntity = leftIterator.next();
+      final String dirtyId = dirtyEntity.getName();
+      EntityDifference potentialDiff = getPotentialDifference(left, right, dirtyId);
+      potentialDiffs.put(dirtyId, potentialDiff);
+    }
+
+    ColumnSliceIterator<String, String, String> rightIterator = getDirtyIterator(right, key);
+
+    while (rightIterator.hasNext()) {
+      HColumn<String,String> dirtyEntity = rightIterator.next();
+      final String dirtyId = dirtyEntity.getName();
+
+      if (! potentialDiffs.containsKey(dirtyId) ) {
+
+        EntityDifference potentialDiff = getPotentialDifference(left, right, dirtyId);
+        potentialDiffs.put(dirtyId, potentialDiff);
+      }
+
+    }
+
+    Predicate<EntityDifference> diffFilter = new Predicate<EntityDifference>() {
+      @Override
+      public boolean apply(EntityDifference input) {
+        return input.isDifferent();
+      }
+    };
+
+    Map<String,EntityDifference> filtered = Maps.filterValues(potentialDiffs, diffFilter);
+
+    return new ArrayList<EntityDifference>(filtered.values());
+  }
+
+  private EntityDifference getPotentialDifference(Long left, Long right, String id) {
+    final String leftVersion = getEntityVersion(left, id);
+    final String rightVersion = getEntityVersion(right, id);
+    return new EntityDifference(id, leftVersion, rightVersion);
+  }
+
+  private ColumnSliceIterator<String, String, String> getDirtyIterator(Long endpoint, String key) {
+
+    final String queryKey = buildIdentifier(endpoint, key);
+
+    SliceQuery<String,String,String> query =  HFactory.createSliceQuery(keyspace, StringSerializer.get(), StringSerializer.get(), StringSerializer.get());
+    query.setColumnFamily(DIRTY_ENTITIES_CF);
+    query.setKey(queryKey);
+
+    return new ColumnSliceIterator<String,String,String>(query, "", "",false);
+  }
+
+  private String getEntityVersion(Long endpoint, String key) {
+
+    final String entityKey = buildIdentifier(endpoint, key);
+    ColumnFamilyResult<String,String> result = entityVersionsTemplate.queryColumns(entityKey);
+
+    if (result.hasResults()) {
+      return result.getString(VERSION_KEY);
+    }
+    else {
+      return null;
+    }
+  }
 
   private String deleteDescendencyPath(String parentPath, MerkleNode node, BatchMutator mutator, String digestCF) {
     String key = qualifyNodeName(parentPath, node);
@@ -263,42 +500,49 @@ public class CassandraVersionStore implements VersionStore {
     return qualifiedBucketName;
   }
 
-  private SortedMap<String,String> getGenericDigests(Long endpoint, String bucketName, ColumnFamilyTemplate<String, String> hierarchyDigests, String hierarchyCF, String digestCF, String bucketCF) {
+  private SortedMap<String,BucketDigest> getGenericDigests(Long endpoint, String bucketName, ColumnFamilyTemplate<String, String> hierarchyDigests, String hierarchyCF, String digestCF, String bucketCF) {
+    return getGenericDigests(endpoint, bucketName, false, hierarchyDigests, hierarchyCF, digestCF, bucketCF);
+  }
+
+  private SortedMap<String,BucketDigest> getGenericDigests(Long endpoint, String bucketName, boolean isLeaf, ColumnFamilyTemplate<String, String> hierarchyDigests, String hierarchyCF, String digestCF, String bucketCF) {
 
     StopWatch stopWatch = stopWatchFactory.getStopWatch();
 
     BatchMutator mutator = new BasicBatchMutator(keyspace);
 
-    final String key;
+    final String key = buildKeyFromBucketName(endpoint, bucketName);
 
+    SortedMap<String,BucketDigest> digests = getDigests(key, isLeaf, mutator, hierarchyDigests, hierarchyCF, digestCF, bucketCF);
+
+    mutator.execute();
+
+    stopWatch.stop(String.format("getEntityIdDigests: endpoint = %s / bucket = %s", endpoint, bucketName));
+
+    return unqualify(endpoint, digests);
+  }
+
+  private String buildKeyFromBucketName(Long endpoint, String bucketName) {
+    String key;
     if (bucketName == null || bucketName.isEmpty()) {
       key = endpoint.toString();
     }
     else {
       key = buildIdentifier(endpoint, bucketName);
     }
-
-    SortedMap<String,String> digest = getDigests(key, false, mutator, hierarchyDigests, hierarchyCF, digestCF, bucketCF);
-
-    mutator.execute();
-
-    stopWatch.stop(String.format("getEntityIdDigests: endpoint = %s / bucket = %s", endpoint, bucketName));
-
-    return digest;
+    return key;
   }
 
 
+  private SortedMap<String,BucketDigest> getDigests(String key, boolean isLeaf, BatchMutator mutator, ColumnFamilyTemplate<String, String> hierarchyDigests, String hierarchyCF, String digestCF, String bucketCF) {
 
-  private SortedMap<String,String> getDigests(String key, boolean isLeaf, BatchMutator mutator, ColumnFamilyTemplate<String, String> hierarchyDigests, String hierarchyCF, String digestCF, String bucketCF) {
-
-    SortedMap<String,String> digests = new TreeMap<String,String>();
+    SortedMap<String,BucketDigest> digests = new TreeMap<String,BucketDigest>();
     ColumnFamilyResult<String, String> result = hierarchyDigests.queryColumns(key);
 
     if (isLeaf) {
 
       // Since this is a leaf node, we need to roll up all of the individual entity digests stored in the bucket CF
 
-      String bucketDigest = buildBucketDigest(key, bucketCF);
+      BucketDigest bucketDigest = buildBucketDigest(key, bucketCF);
 
       // Check to see whether this bucket can be compacted
 
@@ -322,11 +566,7 @@ public class CassandraVersionStore implements VersionStore {
 
         // There is no cached digest for this key, we need to resolve the children and establish their digests
 
-        SliceQuery<String,String,Boolean> hierarchyQuery =  HFactory.createSliceQuery(keyspace, StringSerializer.get(), StringSerializer.get(), BooleanSerializer.get());
-        hierarchyQuery.setColumnFamily(hierarchyCF);
-        hierarchyQuery.setKey(key);
-
-        ColumnSliceIterator<String,String,Boolean> hierarchyIterator = new ColumnSliceIterator<String,String,Boolean>(hierarchyQuery, "", "",false);
+        ColumnSliceIterator<String, String, Boolean> hierarchyIterator = getHierarchyIterator(key, hierarchyCF);
 
         Digester digester = new Digester();
 
@@ -338,16 +578,17 @@ public class CassandraVersionStore implements VersionStore {
 
           String qualifiedKey = key + "." + child;
 
-          SortedMap<String,String> childDigests = getDigests(qualifiedKey, leaf, mutator, hierarchyDigests, hierarchyCF, digestCF, bucketCF);
+          SortedMap<String,BucketDigest> childDigests = getDigests(qualifiedKey, leaf, mutator, hierarchyDigests, hierarchyCF, digestCF, bucketCF);
 
           // We need to roll up the subtree digests to produce an over-arching digest for the current bucket
 
-          for (Map.Entry<String, String> entry : childDigests.entrySet()) {
-            digester.addVersion(entry.getValue());
+          for (Map.Entry<String, BucketDigest> entry : childDigests.entrySet()) {
+            digester.addVersion(entry.getValue().getDigest());
           }
         }
 
-        String bucketDigest = digester.getDigest();
+        String digest = digester.getDigest();
+        BucketDigest bucketDigest = new BucketDigest(key, digest, false);
 
         if (NULL_MD5.equals(bucketDigest)) {
           // Clean up empty digests
@@ -365,7 +606,8 @@ public class CassandraVersionStore implements VersionStore {
 
       }
       else {
-        digests.put(key, cachedDigest);
+        BucketDigest bucketDigest = new BucketDigest(key, cachedDigest, false);
+        digests.put(key, bucketDigest);
       }
 
     } else {
@@ -375,8 +617,16 @@ public class CassandraVersionStore implements VersionStore {
     return digests;
   }
 
-  private void cacheDigest(String key, BatchMutator mutator, String digestCF, String bucketDigest) {
-    mutator.insertColumn(key, digestCF, DIGEST_KEY, bucketDigest);
+  private ColumnSliceIterator<String, String, Boolean> getHierarchyIterator(String key, String hierarchyCF) {
+    SliceQuery<String,String,Boolean> hierarchyQuery =  HFactory.createSliceQuery(keyspace, StringSerializer.get(), StringSerializer.get(), BooleanSerializer.get());
+    hierarchyQuery.setColumnFamily(hierarchyCF);
+    hierarchyQuery.setKey(key);
+
+    return new ColumnSliceIterator<String,String,Boolean>(hierarchyQuery, "", "",false);
+  }
+
+  private void cacheDigest(String key, BatchMutator mutator, String digestCF, BucketDigest bucketDigest) {
+    mutator.insertColumn(key, digestCF, DIGEST_KEY, bucketDigest.getDigest());
   }
 
   private void deleteDigest(String key, BatchMutator mutator, String digestCF, String hierarchyCF) {
@@ -387,12 +637,12 @@ public class CassandraVersionStore implements VersionStore {
     mutator.deleteColumn(parent, hierarchyCF, child);
   }
 
-  private String buildBucketDigest(String key, String bucketCF) {
+  private BucketDigest buildBucketDigest(String key, String bucketCF) {
 
     Digester digester = new Digester();
 
     SliceQuery<String,String,String> query =  HFactory.createSliceQuery(keyspace, StringSerializer.get(), StringSerializer.get(), StringSerializer.get());
-    //query.setColumnFamily(ENTITY_ID_BUCKETS_CF);
+
     query.setColumnFamily(bucketCF);
     query.setKey(key);
 
@@ -403,7 +653,7 @@ public class CassandraVersionStore implements VersionStore {
       digester.addVersion(version);
     }
 
-    return digester.getDigest();
+    return new BucketDigest(key, digester.getDigest(), true);
   }
 
 
