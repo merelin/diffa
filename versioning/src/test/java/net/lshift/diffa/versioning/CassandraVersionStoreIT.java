@@ -2,7 +2,6 @@ package net.lshift.diffa.versioning;
 
 import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
 import org.apache.commons.lang.RandomStringUtils;
 import org.joda.time.DateTime;
 import org.joda.time.format.DateTimeFormat;
@@ -29,7 +28,7 @@ public class CassandraVersionStoreIT {
     List<TestablePartitionedEvent> upstreamEvents = new LinkedList<TestablePartitionedEvent>();
     List<TestablePartitionedEvent> downstreamEvents = new LinkedList<TestablePartitionedEvent>();
 
-    int itemsInSync = 2;
+    int itemsInSync = 20;
 
     for (int i = 0; i < itemsInSync; i++) {
 
@@ -67,8 +66,11 @@ public class CassandraVersionStoreIT {
 
     assertEquals(firstTopLevelUpstreamDigest, firstTopLevelDownstreamDigest);
 
-    List<EntityDifference> firstDiffs = store.compare(upstream, downstream);
-    assertTrue(firstDiffs.isEmpty());
+    List<EntityDifference> firstFlatComparison = store.flatComparison(upstream, downstream);
+    assertTrue(firstFlatComparison.isEmpty());
+
+    List<EntityDifference> firstIncrementalComparison = store.incrementalComparison(upstream, downstream);
+    assertTrue(firstIncrementalComparison.isEmpty());
 
     log.info("Subsequent (cached) tree query");
 
@@ -96,7 +98,7 @@ public class CassandraVersionStoreIT {
       firstTopLevelUpstreamDigest.equals(secondTopLevelUpstreamDigest)
     );
 
-    List<EntityDifference> secondDiffs = store.compare(upstream, downstream);
+    List<EntityDifference> secondDiffs = store.flatComparison(upstream, downstream);
     assertEquals(1, secondDiffs.size());
 
     EntityDifference difference = secondDiffs.get(0);
@@ -131,7 +133,7 @@ public class CassandraVersionStoreIT {
 
     assertEquals(thirdTopLevelUpstreamDigest, thirdTopLevelDownstreamDigest);
 
-    List<EntityDifference> thirdDiffs = store.compare(upstream, downstream);
+    List<EntityDifference> thirdDiffs = store.flatComparison(upstream, downstream);
     assertTrue(thirdDiffs.isEmpty());
 
   }

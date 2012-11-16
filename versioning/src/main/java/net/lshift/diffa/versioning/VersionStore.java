@@ -14,6 +14,7 @@ public interface VersionStore {
   SortedMap<String,BucketDigest> getUserDefinedDigests(Long endpoint, String bucketName);
   SortedMap<String, BucketDigest> getUserDefinedDigests(Long endpoint);
 
-  List<EntityDifference> compare(Long left, Long right);
+  List<EntityDifference> flatComparison(Long left, Long right);
+  List<EntityDifference> incrementalComparison(Long left, Long right);
 
 }

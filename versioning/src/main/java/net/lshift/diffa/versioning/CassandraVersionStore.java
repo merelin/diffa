@@ -186,11 +186,17 @@ public class CassandraVersionStore implements VersionStore {
     return getGenericDigests(endpoint, bucketName, userDefinedDigestsTemplate, USER_DEFINED_HIERARCHY_CF, USER_DEFINED_DIGESTS_CF, USER_DEFINED_BUCKETS_CF);
   }
 
-  public List<EntityDifference> compare(Long left, Long right) {
-    return compare(left, right, null, false);
+  public List<EntityDifference> flatComparison(Long left, Long right) {
+    boolean incremental = false;
+    return compare(left, right, null, false, incremental);
   }
 
-  public List<EntityDifference> compare(Long left, Long right, String bucket, boolean isLeaf) {
+  public List<EntityDifference> incrementalComparison(Long left, Long right) {
+    boolean incremental = true;
+    return compare(left, right, null, false, incremental);
+  }
+
+  private List<EntityDifference> compare(Long left, Long right, String bucket, boolean isLeaf, boolean incremental) {
 
     List<EntityDifference> diffs = new ArrayList<EntityDifference>();
 
@@ -204,15 +210,15 @@ public class CassandraVersionStore implements VersionStore {
     if ( ! d.areEqual() ) {
 
       Map<String, MapDifference.ValueDifference<BucketDigest>> differing = d.entriesDiffering();
-      List<EntityDifference> bothDifferent = establishDifferingSides(left, right, differing);
+      List<EntityDifference> bothDifferent = establishDifferingSides(left, right, differing, incremental);
       diffs.addAll(bothDifferent);
 
       Map<String,BucketDigest> lhs = d.entriesOnlyOnLeft();
-      List<EntityDifference> lhsDiffs = establishMissingSide(left, right, lhs);
+      List<EntityDifference> lhsDiffs = establishMissingSide(left, right, lhs, incremental);
       diffs.addAll(lhsDiffs);
 
       Map<String,BucketDigest> rhs = d.entriesOnlyOnRight();
-      List<EntityDifference> rhsDiffs = establishMissingSide(left, right, rhs);
+      List<EntityDifference> rhsDiffs = establishMissingSide(left, right, rhs, incremental);
       diffs.addAll(rhsDiffs);
 
     }
@@ -263,7 +269,7 @@ public class CassandraVersionStore implements VersionStore {
     return unqualified;
   }
 
-  private List<EntityDifference> establishDifferingSides(Long left, Long right, Map<String, MapDifference.ValueDifference<BucketDigest>> differing) {
+  private List<EntityDifference> establishDifferingSides(Long left, Long right, Map<String, MapDifference.ValueDifference<BucketDigest>> differing, boolean incremental) {
 
     List<EntityDifference> diffs = new ArrayList<EntityDifference>();
 
@@ -272,7 +278,7 @@ public class CassandraVersionStore implements VersionStore {
       MapDifference.ValueDifference<BucketDigest> di = differing.get(key);
 
       if (di.leftValue().isLeaf() && di.rightValue().isLeaf()) {
-        List<EntityDifference> bucketDifferences = establishBucketDifferences(left, right, key);
+        List<EntityDifference> bucketDifferences = establishBucketDifferences(left, right, key, incremental);
         diffs.addAll(bucketDifferences);
       }
       else if (di.leftValue().isLeaf() || di.rightValue().isLeaf()) {
@@ -298,7 +304,7 @@ public class CassandraVersionStore implements VersionStore {
           }
 
           boolean isLeaf = lChildren.get(child);
-          List<EntityDifference> bucketDifferences = compare(left, right, path, isLeaf);
+          List<EntityDifference> bucketDifferences = compare(left, right, path, isLeaf, incremental);
           diffs.addAll(bucketDifferences);
         }
 
@@ -326,7 +332,7 @@ public class CassandraVersionStore implements VersionStore {
     return children;
   }
 
-  private List<EntityDifference> establishMissingSide(Long left, Long right, Map<String,BucketDigest> missingSide) {
+  private List<EntityDifference> establishMissingSide(Long left, Long right, Map<String,BucketDigest> missingSide, boolean incremental) {
 
     List<EntityDifference> diffs = new ArrayList<EntityDifference>();
 
@@ -335,10 +341,11 @@ public class CassandraVersionStore implements VersionStore {
       BucketDigest bucketDigest = missingSide.get(key);
 
       if (bucketDigest.isLeaf()) {
-        List<EntityDifference> established = establishBucketDifferences(left, right, key);
+        List<EntityDifference> established = establishBucketDifferences(left, right, key, incremental);
         diffs.addAll(established);
       } else {
-        List<EntityDifference> compared = compare(left, right, key, false); // TODO hardcoded
+        boolean isLeaf = false; // TODO hardcoded
+        List<EntityDifference> compared = compare(left, right, key, isLeaf, incremental);
         diffs.addAll(compared);
       }
     }
@@ -346,7 +353,7 @@ public class CassandraVersionStore implements VersionStore {
     return diffs;
   }
 
-  private List<EntityDifference> establishBucketDifferences(Long left, Long right, String key) {
+  private List<EntityDifference> establishBucketDifferences(Long left, Long right, String key, boolean incremental) {
     Map<String, EntityDifference> potentialDiffs = new HashMap<String,EntityDifference>();
 
     // Read out the dirty entities by looking at the LHS first
@@ -354,25 +361,37 @@ public class CassandraVersionStore implements VersionStore {
     // do the same for the RHS, but don't attempt to re-establish diffs that were detected
     // during the LHS processing
 
-    ColumnSliceIterator<String, String, String> leftIterator = getDirtyIterator(left, key);
+    ColumnSliceIterator<String, String, String> leftIterator;
 
-    while (leftIterator.hasNext()) {
-      HColumn<String,String> dirtyEntity = leftIterator.next();
-      final String dirtyId = dirtyEntity.getName();
-      EntityDifference potentialDiff = getPotentialDifference(left, right, dirtyId);
-      potentialDiffs.put(dirtyId, potentialDiff);
+    if (incremental) {
+      leftIterator = getDirtyIterator(left, key);
+    } else {
+      leftIterator = getEntityIdBucketIterator(left, key);
     }
 
-    ColumnSliceIterator<String, String, String> rightIterator = getDirtyIterator(right, key);
+    while (leftIterator.hasNext()) {
+      HColumn<String,String> entityColumn = leftIterator.next();
+      final String entityId = entityColumn.getName();
+      EntityDifference potentialDiff = getPotentialDifference(left, right, entityId);
+      potentialDiffs.put(entityId, potentialDiff);
+    }
+
+    ColumnSliceIterator<String, String, String> rightIterator;
+
+    if (incremental) {
+      rightIterator = getDirtyIterator(right, key);
+    } else {
+      rightIterator = getEntityIdBucketIterator(right, key);
+    }
 
     while (rightIterator.hasNext()) {
-      HColumn<String,String> dirtyEntity = rightIterator.next();
-      final String dirtyId = dirtyEntity.getName();
+      HColumn<String,String> entityColumn = rightIterator.next();
+      final String entityId = entityColumn.getName();
 
-      if (! potentialDiffs.containsKey(dirtyId) ) {
+      if (! potentialDiffs.containsKey(entityId) ) {
 
-        EntityDifference potentialDiff = getPotentialDifference(left, right, dirtyId);
-        potentialDiffs.put(dirtyId, potentialDiff);
+        EntityDifference potentialDiff = getPotentialDifference(left, right, entityId);
+        potentialDiffs.put(entityId, potentialDiff);
       }
 
     }
@@ -401,6 +420,17 @@ public class CassandraVersionStore implements VersionStore {
 
     SliceQuery<String,String,String> query =  HFactory.createSliceQuery(keyspace, StringSerializer.get(), StringSerializer.get(), StringSerializer.get());
     query.setColumnFamily(DIRTY_ENTITIES_CF);
+    query.setKey(queryKey);
+
+    return new ColumnSliceIterator<String,String,String>(query, "", "",false);
+  }
+
+  private ColumnSliceIterator<String, String, String> getEntityIdBucketIterator(Long endpoint, String key) {
+
+    final String queryKey = buildIdentifier(endpoint, key);
+
+    SliceQuery<String,String,String> query =  HFactory.createSliceQuery(keyspace, StringSerializer.get(), StringSerializer.get(), StringSerializer.get());
+    query.setColumnFamily(ENTITY_ID_BUCKETS_CF);
     query.setKey(queryKey);
 
     return new ColumnSliceIterator<String,String,String>(query, "", "",false);
