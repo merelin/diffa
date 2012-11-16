@@ -131,6 +131,9 @@ public class CassandraVersionStoreIT {
 
     assertEquals(thirdTopLevelUpstreamDigest, thirdTopLevelDownstreamDigest);
 
+    List<EntityDifference> thirdDiffs = store.compare(upstream, downstream);
+    assertTrue(thirdDiffs.isEmpty());
+
   }
 
   private void sanityCheckDigests(String expectedKey, SortedMap<String, BucketDigest> upstreamDigests, SortedMap<String, BucketDigest> downstreamDigests) {

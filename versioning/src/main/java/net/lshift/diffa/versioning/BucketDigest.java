@@ -32,15 +32,13 @@ public class BucketDigest {
 
     if (isLeaf != that.isLeaf) return false;
     if (digest != null ? !digest.equals(that.digest) : that.digest != null) return false;
-    if (name != null ? !name.equals(that.name) : that.name != null) return false;
 
     return true;
   }
 
   @Override
   public int hashCode() {
-    int result = name != null ? name.hashCode() : 0;
-    result = 31 * result + (digest != null ? digest.hashCode() : 0);
+    int result = digest != null ? digest.hashCode() : 0;
     result = 31 * result + (isLeaf ? 1 : 0);
     return result;
   }
