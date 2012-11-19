@@ -1,6 +1,7 @@
 package net.lshift.diffa.versioning;
 
 import java.util.List;
+import java.util.Set;
 import java.util.SortedMap;
 
 public interface VersionStore {
@@ -15,6 +16,7 @@ public interface VersionStore {
   SortedMap<String, BucketDigest> getUserDefinedDigests(Long endpoint);
 
   List<EntityDifference> flatComparison(Long left, Long right);
-  List<EntityDifference> incrementalComparison(Long left, Long right);
+
+  @Deprecated List<EntityDifference> incrementalComparison(Long left, Long right);
 
 }

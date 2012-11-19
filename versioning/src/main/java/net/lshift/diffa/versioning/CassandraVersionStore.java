@@ -3,6 +3,7 @@ package net.lshift.diffa.versioning;
 
 import com.ecyrd.speed4j.StopWatch;
 import com.ecyrd.speed4j.StopWatchFactory;
+import com.google.common.base.Function;
 import com.google.common.base.Joiner;
 import com.google.common.base.Predicate;
 import com.google.common.collect.MapDifference;
@@ -152,6 +153,7 @@ public class CassandraVersionStore implements VersionStore {
 
     // Delete the raw data pertaining to this event
 
+    mutator.deleteRow(key, ENTITY_VERSIONS_CF);
     mutator.deleteRow(key, ENTITY_ID_BUCKETS_CF);
     mutator.deleteRow(key, USER_DEFINED_ATTRIBUTES_CF);
 
@@ -191,10 +193,14 @@ public class CassandraVersionStore implements VersionStore {
     return compare(left, right, null, false, incremental);
   }
 
-  public List<EntityDifference> incrementalComparison(Long left, Long right) {
+  @Deprecated public List<EntityDifference> incrementalComparison(Long left, Long right) {
     boolean incremental = true;
     return compare(left, right, null, false, incremental);
   }
+
+  //////////////////////////////////////////////////////
+  // Internal plumbing
+  //////////////////////////////////////////////////////
 
   private List<EntityDifference> compare(Long left, Long right, String bucket, boolean isLeaf, boolean incremental) {
 
@@ -226,10 +232,6 @@ public class CassandraVersionStore implements VersionStore {
     return diffs;
 
   }
-
-  //////////////////////////////////////////////////////
-  // Internal plumbing
-  //////////////////////////////////////////////////////
 
   /**
    * Hack wrapper so that getting digests for a non-existent key does not blow up.
