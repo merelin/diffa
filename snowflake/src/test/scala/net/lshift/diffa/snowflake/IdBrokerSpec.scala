@@ -110,7 +110,7 @@ class IdBrokerSpec extends SpecificationWithJUnit with ScalaCheck {
         broker.getId()
         otherThread.join()
         (System.currentTimeMillis() - startTime) must be greaterThanOrEqualTo (2 * pause)
-      })
+      })(set(minTestsOk -> 5))
     }
 
     "generates k-ordered identifiers over a period" in {
