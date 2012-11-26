@@ -1,6 +1,6 @@
 package net.lshift.diffa.versioning;
 
-public class BucketDigest {
+public class BucketDigest implements Comparable {
   private String name;
   private String digest;
   private boolean isLeaf;
@@ -41,5 +41,11 @@ public class BucketDigest {
     int result = digest != null ? digest.hashCode() : 0;
     result = 31 * result + (isLeaf ? 1 : 0);
     return result;
+  }
+
+  @Override
+  public int compareTo(Object o) {
+    BucketDigest other = (BucketDigest) o;
+    return name.compareTo(other.name);
   }
 }

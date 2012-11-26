@@ -21,10 +21,15 @@ public class Digester {
 
   public void addVersion(String version) {
     if (sealed) {
-      throw new RuntimeException("Digester has already been sealed");
+      throw new RuntimeException("Digester has already been sealed and not yet been reset");
     }
     byte[] vsnBytes = version.getBytes();
     digest.update(vsnBytes, 0, vsnBytes.length);
+  }
+
+  public void reset() {
+    digest.reset();
+    sealed = false;
   }
 
   public String getDigest() {

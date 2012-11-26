@@ -1,11 +1,10 @@
 package net.lshift.diffa.versioning;
 
-import com.google.common.base.Function;
+import com.ecyrd.speed4j.StopWatch;
 import com.google.common.base.Predicate;
-import com.google.common.collect.Collections2;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
+import com.google.common.collect.*;
+import net.lshift.diffa.adapter.scanning.*;
+import net.lshift.diffa.versioning.tables.records.ThingsRecord;
 import org.apache.commons.lang.RandomStringUtils;
 import org.joda.time.DateTime;
 import org.joda.time.format.DateTimeFormat;
@@ -22,10 +21,50 @@ public class CassandraVersionStoreIT {
 
   static Logger log = LoggerFactory.getLogger(CassandraVersionStoreIT.class);
 
-  CassandraVersionStore store = new CassandraVersionStore();
+  @Test
+  public void interviewShouldFinishWhenVersionStoreIsInSyncWithRemoteSystem() throws Exception {
+
+    int maxSliceSize = 100;
+    final Long left = System.currentTimeMillis() * 2;
+
+    CassandraVersionStore store = new CassandraVersionStore();
+    store.setMaxSliceSize(left, maxSliceSize);
+
+    PartitionAwareStore partitionAwareStore = new PartitionAwareStore(left + "");
+
+    String attributeName = "bizDate";
+
+    // Populate the remote system with some random data
+
+    Random random = new Random();
+    DateTime median = new DateTime();
+    int itemsInSync = 100;
+
+    for (int i = 0; i < itemsInSync; i++) {
+      DateTime randomDate = median.minusDays(random.nextInt(365 * 10));
+      PartitionedEvent event = partitionAwareStore.createRandomThing(ImmutableMap.of(attributeName, randomDate));
+      store.addEvent(left, event);
+    }
+
+    // Begin the interview process
+
+    ScanAggregation dateAggregation = new DateAggregation(attributeName, DateGranularityEnum.Yearly);
+
+    Set<ScanConstraint> cons = null;
+    Set<ScanAggregation> aggs = ImmutableSet.of(dateAggregation);
+
+    Set<ScanResultEntry> entries = partitionAwareStore.scanStore(cons, aggs, maxSliceSize);
+
+    List<ScanRequest> requests = store.continueInterview(left, cons, aggs, entries);
+
+    assertTrue(requests.isEmpty());
+
+  }
 
   @Test
   public void shouldBeAbleToRoundTripChangeEvent() throws Exception {
+
+    CassandraVersionStore store = new CassandraVersionStore();
 
     Random random = new Random();
 
@@ -49,8 +88,8 @@ public class CassandraVersionStoreIT {
     final Long upstream = System.currentTimeMillis() * 2;
     final Long downstream = upstream + 1;
 
-    Thread upstreamEventStream = new Thread(new EventStream(upstream, upstreamEvents));
-    Thread downstreamEventStream = new Thread(new EventStream(downstream, downstreamEvents));
+    Thread upstreamEventStream = new Thread(new EventStream(store, upstream, upstreamEvents));
+    Thread downstreamEventStream = new Thread(new EventStream(store, downstream, downstreamEvents));
 
     upstreamEventStream.start();
     downstreamEventStream.start();
@@ -211,11 +250,13 @@ public class CassandraVersionStoreIT {
     int cnt = 0;
     List<? extends PartitionedEvent> events;
     Long endpoint;
+    VersionStore store;
 
 
-    EventStream(Long endpoint, List<? extends PartitionedEvent> events) {
+    EventStream(VersionStore store, Long endpoint, List<? extends PartitionedEvent> events) {
       this.events = events;
       this.endpoint = endpoint;
+      this.store = store;
     }
 
     @Override
