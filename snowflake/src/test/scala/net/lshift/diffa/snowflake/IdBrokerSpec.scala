@@ -113,7 +113,7 @@ class IdBrokerSpec extends SpecificationWithJUnit with ScalaCheck {
       })(set(minTestsOk -> 5))
     }
 
-    "generates k-ordered identifiers over a period" in {
+    "generate k-ordered identifiers over a period" in {
       val broker = new IdBroker(1)
       val period = 200L // milliseconds
       var lastId = -1L
@@ -128,7 +128,7 @@ class IdBrokerSpec extends SpecificationWithJUnit with ScalaCheck {
       def elapsedTime = System.currentTimeMillis() - startTime
     }
 
-    "generates only unique identifiers, even when time runs backwards" in {
+    "generate only unique identifiers, even when time runs backwards" in {
       val broker = new IdBroker(1)
       broker.timeFn = new TimeFunction { def now = 3L }
       val id = broker.getId()
