@@ -35,7 +35,6 @@ public class CassandraVersionStore implements VersionStore {
   StopWatchFactory stopWatchFactory = StopWatchFactory.getInstance("loggingFactory");
 
   static final int UNLIMITED_SLICE_SIZE = -1;
-  static final String MAX_SLICE_SIZE_KEY = "max.slice.size";
 
   static final Joiner KEY_JOINER = Joiner.on(".").skipNulls();
 
@@ -48,7 +47,6 @@ public class CassandraVersionStore implements VersionStore {
   static final String ENTITY_VERSIONS_CF = "entity_versions";
   @Deprecated static final String DIRTY_ENTITIES_CF = "dirty_entities";
   static final String USER_DEFINED_ATTRIBUTES_CF = "user_defined_attributes";
-  static final String PAIR_DELTA_CF = "pair_delta";
 
   /**
    * Storage for Merkle trees for each endpoint using the (optional) user defined partitioning attribute(s)
@@ -212,13 +210,6 @@ public class CassandraVersionStore implements VersionStore {
     return getGenericDigests(endpoint, bucketName, isLeaf, entityIdDigestsTemplate, ENTITY_ID_HIERARCHY_CF, ENTITY_ID_DIGESTS_CF, ENTITY_ID_BUCKETS_CF, UNLIMITED_SLICE_SIZE);
   }
 
-  public SortedMap<String,BucketDigest> getUserDefinedDigests(Long endpoint, String bucketName, int maxSliceSize) {
-    return getGenericDigests2(endpoint, bucketName, false, userDefinedDigestsTemplate, USER_DEFINED_HIERARCHY_CF, USER_DEFINED_DIGESTS_CF, USER_DEFINED_BUCKETS_CF, maxSliceSize);
-  }
-
-  @Deprecated public List<EntityDifference> flatComparison(Long left, Long right) {
-    return compare(left, right, null, false);
-  }
 
   public void setMaxSliceSize(Long endpoint, int size) {
     sliceSizes.put(endpoint, size);
@@ -226,7 +217,6 @@ public class CassandraVersionStore implements VersionStore {
 
   public void delta(PairProjection view) {
     String bucket = "";
-    boolean isLeaf = false;
     deltify(view.getLeft(), view.getRight(), bucket);
   }
 
@@ -349,54 +339,6 @@ public class CassandraVersionStore implements VersionStore {
 
   }
 
-  private List<EntityDifference> compare(Long left, Long right, String bucket, boolean isLeaf) {
-
-    List<EntityDifference> diffs = new ArrayList<EntityDifference>();
-
-    SortedMap<String,BucketDigest> leftDigests = maybeGetEntityIdDigests(left, bucket, isLeaf);
-    SortedMap<String,BucketDigest> rightDigests = maybeGetEntityIdDigests(right, bucket, isLeaf);
-
-    // TODO figure out what happens with empty endpoints, i.e. when and if an empty map is returned ....
-
-    MapDifference<String,BucketDigest> d = Maps.difference(leftDigests, rightDigests);
-
-    if ( ! d.areEqual() ) {
-      /*
-      Map<String, MapDifference.ValueDifference<BucketDigest>> differing = d.entriesDiffering();
-      List<EntityDifference> bothDifferent = establishDifferingSides(left, right, null, isLeaf);
-      diffs.addAll(bothDifferent);
-
-      Map<String,BucketDigest> lhs = d.entriesOnlyOnLeft();
-      List<EntityDifference> lhsDiffs = establishMissingSide(left, right, lhs);
-      diffs.addAll(lhsDiffs);
-
-      Map<String,BucketDigest> rhs = d.entriesOnlyOnRight();
-      List<EntityDifference> rhsDiffs = establishMissingSide(left, right, rhs);
-      diffs.addAll(rhsDiffs);
-      */
-    }
-
-    return diffs;
-
-  }
-
-  /**
-   * Hack wrapper so that getting digests for a non-existent key does not blow up.
-   * It might be better to not throw the exception in the first place.
-   */
-  private SortedMap<String,BucketDigest> maybeGetEntityIdDigests(Long endpoint, String bucketName, boolean isLeaf) {
-
-    SortedMap<String,BucketDigest> digests;
-
-    try {
-      digests = getEntityIdDigests(endpoint, bucketName, isLeaf);
-    }
-    catch (BucketNotFoundException e) {
-      digests = new TreeMap<String, BucketDigest>();
-    }
-
-    return digests;
-  }
 
   private void establishDifferingSides(Long left, Long right, TreeLevelDifference currentTreeLevelDiff, BatchMutator mutator) {
 
@@ -447,26 +389,6 @@ public class CassandraVersionStore implements VersionStore {
     TreeLevelRollup qualified =  getChildDigests(key, entityIdDigestsTemplate, ENTITY_ID_HIERARCHY_CF, ENTITY_ID_DIGESTS_CF, ENTITY_ID_BUCKETS_CF);
     return unqualify(endpoint, qualified);
   }
-
-  /*
-  private Map<String,Boolean> getChildren(Long endpoint, String bucket, String hierarchyCF) {
-    Map<String,Boolean> children = new HashMap<String, Boolean>();
-
-    final String key = buildKeyFromBucketName(endpoint, bucket);
-
-    ColumnSliceIterator<String, String, Boolean> hierarchyIterator = getHierarchyIterator(key, hierarchyCF);
-
-    while (hierarchyIterator.hasNext()) {
-      HColumn<String, Boolean> column = hierarchyIterator.next();
-      String child = column.getName();
-      boolean isLeaf = column.getValue();
-      children.put(child, isLeaf);
-    }
-
-    return children;
-  }
-  */
-
 
   private void establishBucketDifferences(Long side, String key, BatchMutator mutator) {
     establishBucketDifferences(side, null, key , mutator);
@@ -541,17 +463,6 @@ public class CassandraVersionStore implements VersionStore {
     final String leftVersion = getEntityVersion(left, id);
     final String rightVersion = getEntityVersion(right, id);
     return new EntityDifference(id, leftVersion, rightVersion);
-  }
-
-  private ColumnSliceIterator<String, String, String> getDirtyIterator(Long endpoint, String key) {
-
-    final String queryKey = buildIdentifier(endpoint, key);
-
-    SliceQuery<String,String,String> query =  HFactory.createSliceQuery(keyspace, StringSerializer.get(), StringSerializer.get(), StringSerializer.get());
-    query.setColumnFamily(DIRTY_ENTITIES_CF);
-    query.setKey(queryKey);
-
-    return new ColumnSliceIterator<String,String,String>(query, "", "",false);
   }
 
   private ColumnSliceIterator<String, String, String> getEntityIdBucketIterator(Long endpoint, String key) {
@@ -720,7 +631,7 @@ public class CassandraVersionStore implements VersionStore {
     }
     return key;
   }
-
+  /*
   private String buildKeyFromBucketName(Long left, Long right, String bucketName) {
     if (bucketName == null || bucketName.isEmpty()) {
       return KEY_JOINER.join(left, right);
@@ -729,6 +640,7 @@ public class CassandraVersionStore implements VersionStore {
       return KEY_JOINER.join(left, right, bucketName);
     }
   }
+  */
 
   private TreeLevelRollup getChildDigests(String key, ColumnFamilyTemplate<String, String> hierarchyDigests, String hierarchyCF, String digestCF, String bucketCF) {
     return getChildDigests(key, hierarchyDigests, hierarchyCF, digestCF, bucketCF, UNLIMITED_SLICE_SIZE);
@@ -958,19 +870,6 @@ public class CassandraVersionStore implements VersionStore {
     SortedMap<String,BucketDigest> unqualified = unqualify(endpoint, qualified.getMembers());
     return new TreeLevelRollup(unqualified, qualified.isLeaf());
   }
-  /*
-  private Map<String, String> unqualify(Long endpoint, Map<String, BucketDigest> qualified) {
-    SortedMap<String,String> unqualified = new TreeMap<String, String>();
-
-    for(Map.Entry<String,String> entry : qualified.entrySet()) {
-      String prefix = endpoint + "(\\.)?";
-      String rewrittenKey = entry.getKey().replaceFirst(prefix, "");
-      unqualified.put(rewrittenKey, entry.getValue());
-    }
-
-    return unqualified;
-  }
-  */
 
   private void rolloverSlice(List<String> digests, Digester digester) {
     String currentDigest = digester.getDigest();

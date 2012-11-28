@@ -120,7 +120,7 @@ public class CassandraVersionStoreIT {
 
   }
 
-  //@Test
+  @Test
   public void shouldBeAbleToRoundTripChangeEvent() throws Exception {
 
     CassandraVersionStore store = new CassandraVersionStore();
@@ -168,13 +168,6 @@ public class CassandraVersionStoreIT {
 
     assertEquals(firstTopLevelUpstreamDigest, firstTopLevelDownstreamDigest);
 
-    List<EntityDifference> firstFlatComparison = store.flatComparison(upstream, downstream);
-    assertTrue(firstFlatComparison.isEmpty());
-
-    /*
-    List<EntityDifference> firstIncrementalComparison = store.incrementalComparison(upstream, downstream);
-    assertTrue(firstIncrementalComparison.isEmpty());
-    */
     log.info("Subsequent (cached) tree query");
 
     store.getEntityIdDigests(upstream);
@@ -201,24 +194,6 @@ public class CassandraVersionStoreIT {
       firstTopLevelUpstreamDigest.equals(secondTopLevelUpstreamDigest)
     );
 
-    List<EntityDifference> secondDiffs = store.flatComparison(upstream, downstream);
-    assertEquals(1, secondDiffs.size());
-
-    EntityDifference difference = secondDiffs.get(0);
-    assertEquals(randomUpstreamEvent.getId(), difference.getId());
-    assertEquals(randomUpstreamEvent.getVersion(), difference.getLeft());
-
-    Predicate<TestablePartitionedEvent> filter = new Predicate<TestablePartitionedEvent>() {
-
-      @Override
-      public boolean apply(TestablePartitionedEvent input) {
-        return input.getId().equals(randomUpstreamEvent.getId());
-      }
-    };
-
-    TestablePartitionedEvent correspondingEvent = Iterables.find(downstreamEvents, filter);
-    assertEquals(correspondingEvent.getVersion(), difference.getRight());
-
     String idToDelete = randomUpstreamEvent.getId();
 
     store.deleteEvent(upstream, idToDelete);
@@ -235,9 +210,6 @@ public class CassandraVersionStoreIT {
     final String thirdTopLevelDownstreamDigest = thirdDownstreamDigests.get("").getDigest();
 
     assertEquals(thirdTopLevelUpstreamDigest, thirdTopLevelDownstreamDigest);
-
-    List<EntityDifference> thirdDiffs = store.flatComparison(upstream, downstream);
-    assertTrue(thirdDiffs.isEmpty());
 
   }
 
