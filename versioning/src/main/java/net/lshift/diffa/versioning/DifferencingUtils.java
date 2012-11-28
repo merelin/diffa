@@ -10,12 +10,12 @@ public class DifferencingUtils {
 
   static final Joiner KEY_JOINER = Joiner.on(".").skipNulls();
 
-  public static Map<String,String> convertAggregates(Set<ScanResultEntry> aggregates) {
+  public static Map<String,BucketDigest> convertAggregates(Set<ScanResultEntry> aggregates) {
 
     // TODO We should probably validate the aggregates against the bucketing and constraints
     // to make sure that no bogus shit is getting sent
 
-    Map<String,String> mapped = new HashMap<String, String>();
+    Map<String,BucketDigest> mapped = new HashMap<String, BucketDigest>();
 
     for (ScanResultEntry entry : aggregates) {
 
@@ -41,7 +41,10 @@ public class DifferencingUtils {
         if (mapped.containsKey(partition)) {
           throw new RuntimeException("Duplicate partition (" + partition + ")");
         } else {
-          mapped.put(partition, entry.getVersion());
+          boolean isLeaf = false; // TODO It might be a bad decision to hard code this
+
+          BucketDigest bucket = new BucketDigest(partition, entry.getVersion(), isLeaf);
+          mapped.put(partition, bucket);
         }
       }
     }

@@ -54,6 +54,24 @@ AND column_metadata = [
 {column_name: digest, validation_class: AsciiType}
 ];
 
+-- Pair Storage
+
+CREATE COLUMN FAMILY pair_buckets
+WITH comparator = AsciiType
+AND key_validation_class=AsciiType;
+
+CREATE COLUMN FAMILY pair_hierarchy
+WITH comparator = AsciiType
+AND key_validation_class=AsciiType;
+
+CREATE COLUMN FAMILY pair_digests
+WITH comparator = AsciiType
+AND key_validation_class=AsciiType
+AND column_metadata = [
+{column_name: digest, validation_class: AsciiType}
+];
+
+
 CREATE COLUMN FAMILY dirty_entities
 WITH comparator = AsciiType
 AND key_validation_class=AsciiType

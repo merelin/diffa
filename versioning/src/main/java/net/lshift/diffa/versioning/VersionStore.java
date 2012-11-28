@@ -18,11 +18,8 @@ public interface VersionStore {
   SortedMap<String, BucketDigest> getEntityIdDigests(Long endpoint);
 
   SortedMap<String,BucketDigest> getUserDefinedDigests(Long endpoint, String bucketName, int maxSliceSize);
-  SortedMap<String, BucketDigest> getUserDefinedDigests(Long endpoint, int maxSliceSize);
 
   List<EntityDifference> flatComparison(Long left, Long right);
-
-  @Deprecated List<EntityDifference> incrementalComparison(Long left, Long right);
 
   // New API
 

@@ -2,13 +2,13 @@ package net.lshift.diffa.versioning;
 
 public class EntityDifference {
   private String id;
-  private String upstreamVersion;
-  private String downstreamVersion;
+  private String left;
+  private String right;
 
-  public EntityDifference(String id, String upstreamVersion, String downstreamVersion) {
+  public EntityDifference(String id, String left, String right) {
     this.id = id;
-    this.upstreamVersion = upstreamVersion;
-    this.downstreamVersion = downstreamVersion;
+    this.left = left;
+    this.right = right;
   }
 
   public String getId() {
@@ -19,35 +19,35 @@ public class EntityDifference {
     this.id = id;
   }
 
-  public String getUpstreamVersion() {
-    return upstreamVersion;
+  public String getLeft() {
+    return left;
   }
 
-  public void setUpstreamVersion(String upstreamVersion) {
-    this.upstreamVersion = upstreamVersion;
+  public void setLeft(String left) {
+    this.left = left;
   }
 
-  public String getDownstreamVersion() {
-    return downstreamVersion;
+  public String getRight() {
+    return right;
   }
 
-  public void setDownstreamVersion(String downstreamVersion) {
-    this.downstreamVersion = downstreamVersion;
+  public void setRight(String right) {
+    this.right = right;
   }
 
   public boolean isDifferent() {
 
-    if (upstreamVersion == null && downstreamVersion == null) {
+    if (left == null && right == null) {
       return false;
     }
-    else if (upstreamVersion != null && downstreamVersion == null) {
+    else if (left != null && right == null) {
       return true;
     }
-    else if (upstreamVersion == null && downstreamVersion != null) {
+    else if (left == null && right != null) {
       return true;
     }
     else {
-      return !upstreamVersion.equals(downstreamVersion);
+      return !left.equals(right);
     }
 
   }

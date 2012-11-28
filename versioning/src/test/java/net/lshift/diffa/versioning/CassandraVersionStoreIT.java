@@ -1,10 +1,8 @@
 package net.lshift.diffa.versioning;
 
-import com.ecyrd.speed4j.StopWatch;
 import com.google.common.base.Predicate;
 import com.google.common.collect.*;
 import net.lshift.diffa.adapter.scanning.*;
-import net.lshift.diffa.versioning.tables.records.ThingsRecord;
 import org.apache.commons.lang.RandomStringUtils;
 import org.joda.time.DateTime;
 import org.joda.time.format.DateTimeFormat;
@@ -20,6 +18,67 @@ import java.util.*;
 public class CassandraVersionStoreIT {
 
   static Logger log = LoggerFactory.getLogger(CassandraVersionStoreIT.class);
+
+  @Test
+  public void differingEndpointsShouldProduceDelta() throws Exception {
+
+    CassandraVersionStore store = new CassandraVersionStore();
+
+    final Long left = System.currentTimeMillis() * 2;
+    final Long right = left + 1;
+
+    Random random = new Random();
+
+    List<TestablePartitionedEvent> leftEvents = new LinkedList<TestablePartitionedEvent>();
+    List<TestablePartitionedEvent> rightEvents = new LinkedList<TestablePartitionedEvent>();
+
+    int itemsInSync = 2;
+
+    for (int i = 0; i < itemsInSync; i++) {
+
+      String id = RandomStringUtils.randomAlphanumeric(10);
+      String version = RandomStringUtils.randomAlphanumeric(10);
+
+      TestablePartitionedEvent leftEvent = new DatePartitionedEvent(id, version, random, "transactionDate" );
+      TestablePartitionedEvent rightEvent = new StringPartitionedEvent(id, version, "userId");
+
+      insertAtRandomPoint(random, leftEvents, leftEvent);
+      insertAtRandomPoint(random, rightEvents, rightEvent);
+    }
+
+    Thread leftEventStream = new Thread(new EventStream(store, left, leftEvents));
+    Thread rightEventStream = new Thread(new EventStream(store, right, rightEvents));
+
+    leftEventStream.start();
+    rightEventStream.start();
+
+    leftEventStream.join();
+    rightEventStream.join();
+
+    PairProjection view = new PairProjection(left,  right);
+
+    store.delta(view);
+    TreeLevelRollup firstRollup = store.getMaterializedDelta(view);
+
+    assertNotNull(firstRollup);
+    assertTrue(firstRollup.isEmpty());
+
+    // mutate an event to produce a delta
+
+    final TestablePartitionedEvent randomLeftEvent = leftEvents.get(random.nextInt(itemsInSync));
+    randomLeftEvent.setVersion(RandomStringUtils.randomAlphanumeric(10));
+
+    store.addEvent(left, randomLeftEvent);
+
+    store.delta(view);
+    TreeLevelRollup secondRollup = store.getMaterializedDelta(view);
+
+    assertNotNull(secondRollup);
+    assertFalse(secondRollup.isEmpty());
+
+
+
+  }
 
   @Test
   public void interviewShouldFinishWhenVersionStoreIsInSyncWithRemoteSystem() throws Exception {
@@ -61,7 +120,7 @@ public class CassandraVersionStoreIT {
 
   }
 
-  @Test
+  //@Test
   public void shouldBeAbleToRoundTripChangeEvent() throws Exception {
 
     CassandraVersionStore store = new CassandraVersionStore();
@@ -112,9 +171,10 @@ public class CassandraVersionStoreIT {
     List<EntityDifference> firstFlatComparison = store.flatComparison(upstream, downstream);
     assertTrue(firstFlatComparison.isEmpty());
 
+    /*
     List<EntityDifference> firstIncrementalComparison = store.incrementalComparison(upstream, downstream);
     assertTrue(firstIncrementalComparison.isEmpty());
-
+    */
     log.info("Subsequent (cached) tree query");
 
     store.getEntityIdDigests(upstream);
@@ -146,7 +206,7 @@ public class CassandraVersionStoreIT {
 
     EntityDifference difference = secondDiffs.get(0);
     assertEquals(randomUpstreamEvent.getId(), difference.getId());
-    assertEquals(randomUpstreamEvent.getVersion(), difference.getUpstreamVersion());
+    assertEquals(randomUpstreamEvent.getVersion(), difference.getLeft());
 
     Predicate<TestablePartitionedEvent> filter = new Predicate<TestablePartitionedEvent>() {
 
@@ -157,7 +217,7 @@ public class CassandraVersionStoreIT {
     };
 
     TestablePartitionedEvent correspondingEvent = Iterables.find(downstreamEvents, filter);
-    assertEquals(correspondingEvent.getVersion(), difference.getDownstreamVersion());
+    assertEquals(correspondingEvent.getVersion(), difference.getRight());
 
     String idToDelete = randomUpstreamEvent.getId();
 

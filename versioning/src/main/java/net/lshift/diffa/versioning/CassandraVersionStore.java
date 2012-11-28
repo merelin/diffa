@@ -19,6 +19,9 @@ import me.prettyprint.hector.api.beans.HColumn;
 import me.prettyprint.hector.api.factory.HFactory;
 import me.prettyprint.hector.api.query.SliceQuery;
 import net.lshift.diffa.adapter.scanning.*;
+import net.lshift.diffa.versioning.plumbing.BucketWriter;
+import net.lshift.diffa.versioning.plumbing.DeltaBucketWriter;
+import net.lshift.diffa.versioning.plumbing.OutrightBucketWriter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,8 +46,9 @@ public class CassandraVersionStore implements VersionStore {
    * Storage for the raw entity version and their raw partitioning attributes (should they have been supplied)
    */
   static final String ENTITY_VERSIONS_CF = "entity_versions";
-  static final String DIRTY_ENTITIES_CF = "dirty_entities";
+  @Deprecated static final String DIRTY_ENTITIES_CF = "dirty_entities";
   static final String USER_DEFINED_ATTRIBUTES_CF = "user_defined_attributes";
+  static final String PAIR_DELTA_CF = "pair_delta";
 
   /**
    * Storage for Merkle trees for each endpoint using the (optional) user defined partitioning attribute(s)
@@ -54,11 +58,23 @@ public class CassandraVersionStore implements VersionStore {
   static final String USER_DEFINED_HIERARCHY_CF = "user_defined_hierarchy";
 
   /**
-   * Storage for Merkle trees for each endpoint using the (mandatory) entity id field as a partitioning attribute
+   * Storage for Merkle trees for each pair using the (mandatory) entity id field as a partitioning attribute
+   */
+  static final String PAIR_BUCKETS_CF = "pair_buckets";
+  static final String PAIR_DIGESTS_CF = "pair_digests";
+  static final String PAIR_HIERARCHY_CF = "pair_hierarchy";
+
+  /**
+   * Storage for Merkle trees for the delta between two pairs using the (mandatory) entity id field as a partitioning attribute
    */
   static final String ENTITY_ID_BUCKETS_CF = "entity_id_buckets";
   static final String ENTITY_ID_DIGESTS_CF = "entity_id_digests";
   static final String ENTITY_ID_HIERARCHY_CF = "entity_id_hierarchy";
+
+
+  /**
+   * Commonly used constants in columns
+   */
 
   static final String DIGEST_KEY = "digest";
   static final String VERSION_KEY = "version";
@@ -85,6 +101,11 @@ public class CassandraVersionStore implements VersionStore {
 
   private ColumnFamilyTemplate<String, String> userDefinedAttributesTemplate =
       new ThriftColumnFamilyTemplate<String, String>(keyspace, USER_DEFINED_ATTRIBUTES_CF,
+          StringSerializer.get(),
+          StringSerializer.get());
+
+  private ColumnFamilyTemplate<String, String> pairDigestsTemplate =
+      new ThriftColumnFamilyTemplate<String, String>(keyspace, PAIR_DIGESTS_CF,
           StringSerializer.get(),
           StringSerializer.get());
 
@@ -116,7 +137,13 @@ public class CassandraVersionStore implements VersionStore {
 
     MerkleNode entityIdRootNode = new MerkleNode("", event.getIdHierarchy());
 
-    recordLineage(parentPath, entityIdRootNode, mutator, entityIdDigestsTemplate, ENTITY_ID_BUCKETS_CF, ENTITY_ID_HIERARCHY_CF, ENTITY_ID_DIGESTS_CF);
+    List<String> viewsToUpdate = eventSubscribers(endpoint, event);
+
+    for(String view : viewsToUpdate) {
+      // TODO Work out how to include the view
+      BucketWriter writer = new OutrightBucketWriter(mutator, ENTITY_ID_BUCKETS_CF);
+      recordLineage(parentPath, entityIdRootNode, mutator, entityIdDigestsTemplate, writer, ENTITY_ID_HIERARCHY_CF, ENTITY_ID_DIGESTS_CF);
+    }
 
     Map<String, String> attributes = event.getAttributes();
     if (attributes != null && !attributes.isEmpty()) {
@@ -129,7 +156,8 @@ public class CassandraVersionStore implements VersionStore {
       mutator.insertColumn(id, USER_DEFINED_ATTRIBUTES_CF, PARTITION_KEY, userDefinedPartition);
 
       MerkleNode userDefinedRootNode = new MerkleNode("", event.getAttributeHierarchy());
-      recordLineage(parentPath, userDefinedRootNode, mutator, userDefinedDigestsTemplate, USER_DEFINED_BUCKETS_CF, USER_DEFINED_HIERARCHY_CF, USER_DEFINED_DIGESTS_CF);
+      BucketWriter writer = new OutrightBucketWriter(mutator, USER_DEFINED_BUCKETS_CF);
+      recordLineage(parentPath, userDefinedRootNode, mutator, userDefinedDigestsTemplate, writer, USER_DEFINED_HIERARCHY_CF, USER_DEFINED_DIGESTS_CF);
     }
 
     mutator.execute();
@@ -184,38 +212,35 @@ public class CassandraVersionStore implements VersionStore {
     return getGenericDigests(endpoint, bucketName, isLeaf, entityIdDigestsTemplate, ENTITY_ID_HIERARCHY_CF, ENTITY_ID_DIGESTS_CF, ENTITY_ID_BUCKETS_CF, UNLIMITED_SLICE_SIZE);
   }
 
-  public SortedMap<String, BucketDigest> getUserDefinedDigests(Long endpoint, int maxSliceSize) {
-    return getUserDefinedDigests(endpoint, null, maxSliceSize);
-  }
-
   public SortedMap<String,BucketDigest> getUserDefinedDigests(Long endpoint, String bucketName, int maxSliceSize) {
     return getGenericDigests2(endpoint, bucketName, false, userDefinedDigestsTemplate, USER_DEFINED_HIERARCHY_CF, USER_DEFINED_DIGESTS_CF, USER_DEFINED_BUCKETS_CF, maxSliceSize);
   }
 
-  public List<EntityDifference> flatComparison(Long left, Long right) {
-    boolean incremental = false;
-    return compare(left, right, null, false, incremental);
-  }
-
-  @Deprecated public List<EntityDifference> incrementalComparison(Long left, Long right) {
-    boolean incremental = true;
-    return compare(left, right, null, false, incremental);
+  @Deprecated public List<EntityDifference> flatComparison(Long left, Long right) {
+    return compare(left, right, null, false);
   }
 
   public void setMaxSliceSize(Long endpoint, int size) {
     sliceSizes.put(endpoint, size);
   }
 
-  private int getSliceSize(Long endpoint) {
+  public void delta(PairProjection view) {
+    String bucket = "";
+    boolean isLeaf = false;
+    deltify(view.getLeft(), view.getRight(), bucket);
+  }
 
-    Integer sliceSize = sliceSizes.get(endpoint);
+  public TreeLevelRollup getMaterializedDelta(PairProjection view) {
+    return getMaterializedDelta(view, null);
+  }
 
-    if (sliceSize == null) {
-      return UNLIMITED_SLICE_SIZE;
-    }
-    else {
-      return sliceSize;
-    }
+  public TreeLevelRollup getMaterializedDelta(PairProjection view, String bucket) {
+
+    int maxSliceSize = 100; // TODO hard coded
+
+    String key = KEY_JOINER.join(view.getLeft(), view.getRight(), bucket);
+
+    return getChildDigests(key, pairDigestsTemplate, PAIR_HIERARCHY_CF, PAIR_DIGESTS_CF, PAIR_BUCKETS_CF, maxSliceSize);
   }
 
   public List<ScanRequest> continueInterview(
@@ -242,12 +267,12 @@ public class CassandraVersionStore implements VersionStore {
 
               int maxSliceSize = getSliceSize(endpoint);
               String key = endpoint + "";
-              Map<String,String> qualified = getChildDigests(key, userDefinedDigestsTemplate, USER_DEFINED_HIERARCHY_CF, USER_DEFINED_DIGESTS_CF, USER_DEFINED_BUCKETS_CF, maxSliceSize);
-              Map<String,String> unqualified = unqualify(endpoint, qualified);
+              TreeLevelRollup qualified = getChildDigests(key, userDefinedDigestsTemplate, USER_DEFINED_HIERARCHY_CF, USER_DEFINED_DIGESTS_CF, USER_DEFINED_BUCKETS_CF, maxSliceSize);
+              TreeLevelRollup unqualified = unqualify(endpoint, qualified);
 
-              Map<String,String> remote = DifferencingUtils.convertAggregates(entries);
+              Map<String,BucketDigest> remote = DifferencingUtils.convertAggregates(entries);
 
-              MapDifference<String,String> d = Maps.difference(remote,unqualified);
+              MapDifference<String,BucketDigest> d = Maps.difference(remote,unqualified.getMembers());
 
               if (d.areEqual()) {
                 return new ArrayList<ScanRequest>();
@@ -262,14 +287,7 @@ public class CassandraVersionStore implements VersionStore {
 
                 return r;
               }
-
-
-
             }
-
-
-
-
           }
         }
 
@@ -282,24 +300,56 @@ public class CassandraVersionStore implements VersionStore {
     return null;
   }
 
-  public List<ScanRequest> proceedWithInterview(Long endpoint) {
-
-    String bucket = null;
-    boolean isLeaf = false;
-    //SortedMap<String,BucketDigest> leftDigests = maybeGetEntityIdDigests(endpoint, bucket, isLeaf);
-
-
-
-
-
-    return null;
-  }
-
   //////////////////////////////////////////////////////
   // Internal plumbing
   //////////////////////////////////////////////////////
 
-  private List<EntityDifference> compare(Long left, Long right, String bucket, boolean isLeaf, boolean incremental) {
+  /**
+   * This returns the list of views that requires an entity based tree (i.e. for each pair.)
+   */
+  private List<String> eventSubscribers(Long endpoint, PartitionedEvent event) {
+    List<String> views = new ArrayList<String>();
+
+    // TODO Hack - make sure that the caller indexes at least once (for now) in the for loop that this is called
+    views.add("");
+
+    return views;
+  }
+
+  private int getSliceSize(Long endpoint) {
+
+    Integer sliceSize = sliceSizes.get(endpoint);
+
+    if (sliceSize == null) {
+      return UNLIMITED_SLICE_SIZE;
+    }
+    else {
+      return sliceSize;
+    }
+  }
+
+  private void deltify(Long left, Long right, String bucket) {
+    TreeLevelDifference treeLevelDifference = getDifference(left, right, bucket);
+    BatchMutator mutator = new BasicBatchMutator(keyspace);
+    establishDifferingSides(left, right, treeLevelDifference, mutator);
+    mutator.execute();
+  }
+
+  private TreeLevelDifference getDifference(Long left, Long right, String bucket) {
+    TreeLevelRollup leftTree = getEntityIdChildDigests(left, bucket);
+    TreeLevelRollup rightTree = getEntityIdChildDigests(right, bucket);
+    MapDifference<String, BucketDigest> difference = Maps.difference(leftTree.getMembers(), rightTree.getMembers());
+
+    if (leftTree.isLeaf() == rightTree.isLeaf()) {
+      return new TreeLevelDifference(difference, leftTree.isLeaf());
+    }
+    else {
+      throw new RuntimeException("Inconsistent leafyness; left [ " + leftTree + " ]; right [ " + rightTree + " ]");
+    }
+
+  }
+
+  private List<EntityDifference> compare(Long left, Long right, String bucket, boolean isLeaf) {
 
     List<EntityDifference> diffs = new ArrayList<EntityDifference>();
 
@@ -311,19 +361,19 @@ public class CassandraVersionStore implements VersionStore {
     MapDifference<String,BucketDigest> d = Maps.difference(leftDigests, rightDigests);
 
     if ( ! d.areEqual() ) {
-
+      /*
       Map<String, MapDifference.ValueDifference<BucketDigest>> differing = d.entriesDiffering();
-      List<EntityDifference> bothDifferent = establishDifferingSides(left, right, differing, incremental);
+      List<EntityDifference> bothDifferent = establishDifferingSides(left, right, null, isLeaf);
       diffs.addAll(bothDifferent);
 
       Map<String,BucketDigest> lhs = d.entriesOnlyOnLeft();
-      List<EntityDifference> lhsDiffs = establishMissingSide(left, right, lhs, incremental);
+      List<EntityDifference> lhsDiffs = establishMissingSide(left, right, lhs);
       diffs.addAll(lhsDiffs);
 
       Map<String,BucketDigest> rhs = d.entriesOnlyOnRight();
-      List<EntityDifference> rhsDiffs = establishMissingSide(left, right, rhs, incremental);
+      List<EntityDifference> rhsDiffs = establishMissingSide(left, right, rhs);
       diffs.addAll(rhsDiffs);
-
+      */
     }
 
     return diffs;
@@ -348,100 +398,57 @@ public class CassandraVersionStore implements VersionStore {
     return digests;
   }
 
-  /*
-  private SortedMap<String,BucketDigest> maybeGetUserDefinedDigests(Long endpoint, String bucketName, int maxSliceSize) {
+  private void establishDifferingSides(Long left, Long right, TreeLevelDifference currentTreeLevelDiff, BatchMutator mutator) {
 
-    SortedMap<String,BucketDigest> digests;
+    MapDifference<String,BucketDigest> diffs = currentTreeLevelDiff.getDifference();
+    Map<String, MapDifference.ValueDifference<BucketDigest>> differing = diffs.entriesDiffering();
 
-    try {
-      digests = getUserDefinedDigests(endpoint, bucketName, maxSliceSize);
-    }
-    catch (BucketNotFoundException e) {
-      digests = new TreeMap<String, BucketDigest>();
-    }
+    for (String bucket : differing.keySet()) {
 
-    return digests;
-  }
-  */
-
-  /**
-   * This is a hack to overcome the fact that the digest tree builder (unhelpfully) qualifies each node
-   * by prefixing the endpoint id to the key name. This oversight makes subsequent tree comparisons difficult,
-   * because each tree will have differing root names, which is uncool.
-   *
-   * Rather than fixing the underlying issue, at this point I am just going to rewrite each node label to
-   * get rid of this prefixing.
-   */
-  private SortedMap<String, BucketDigest> unqualify(Long endpoint, SortedMap<String, BucketDigest> qualified) {
-    SortedMap<String,BucketDigest> unqualified = new TreeMap<String, BucketDigest>();
-
-    for(Map.Entry<String,BucketDigest> entry : qualified.entrySet()) {
-      String prefix = endpoint + "(\\.)?";
-      String rewrittenKey = entry.getKey().replaceFirst(prefix, "");
-      unqualified.put(rewrittenKey, entry.getValue());
-    }
-
-    return unqualified;
-  }
-
-  private Map<String, String> unqualify(Long endpoint, Map<String, String> qualified) {
-    SortedMap<String,String> unqualified = new TreeMap<String, String>();
-
-    for(Map.Entry<String,String> entry : qualified.entrySet()) {
-      String prefix = endpoint + "(\\.)?";
-      String rewrittenKey = entry.getKey().replaceFirst(prefix, "");
-      unqualified.put(rewrittenKey, entry.getValue());
-    }
-
-    return unqualified;
-  }
-
-  private List<EntityDifference> establishDifferingSides(Long left, Long right, Map<String, MapDifference.ValueDifference<BucketDigest>> differing, boolean incremental) {
-
-    List<EntityDifference> diffs = new ArrayList<EntityDifference>();
-
-    for (String key : differing.keySet()) {
-
-      MapDifference.ValueDifference<BucketDigest> di = differing.get(key);
-
-      if (di.leftValue().isLeaf() && di.rightValue().isLeaf()) {
-        List<EntityDifference> bucketDifferences = establishBucketDifferences(left, right, key, incremental);
-        diffs.addAll(bucketDifferences);
-      }
-      else if (di.leftValue().isLeaf() || di.rightValue().isLeaf()) {
-        throw new RuntimeException("Invalid bucket comparison: " + di);
+      if (currentTreeLevelDiff.isLeaf()) {
+        establishBucketDifferences(left, right, bucket, mutator);
       }
       else {
-
-        // Need to find children of current node
-
-        // TODO ropey .....
-
-        Map<String,Boolean> lChildren = getChildren(left, key, ENTITY_ID_HIERARCHY_CF);
-        Map<String,Boolean> rChildren = getChildren(right, key, ENTITY_ID_HIERARCHY_CF);
-        lChildren.putAll(rChildren);
-
-        for (String child : lChildren.keySet()) {
-          String path;
-
-          if (key.isEmpty()) {
-            path = child;
-          } else {
-            path = key + "." + child;
-          }
-
-          boolean isLeaf = lChildren.get(child);
-          List<EntityDifference> bucketDifferences = compare(left, right, path, isLeaf, incremental);
-          diffs.addAll(bucketDifferences);
-        }
-
+        TreeLevelDifference nextTreeLevelDiff = getDifference(left, right, bucket);
+        establishDifferingSides(left, right, nextTreeLevelDiff, mutator);
       }
 
     }
 
-    return diffs;
+    Map<String,BucketDigest> onlyOnLeft = diffs.entriesOnlyOnLeft();
+    establishMissingSide(left, onlyOnLeft, mutator);
+
+    Map<String,BucketDigest> onlyOnRight = diffs.entriesOnlyOnRight();
+    establishMissingSide(right, onlyOnRight, mutator);
+
   }
 
+  private void establishMissingSide(Long side, Map<String,BucketDigest> missingSide, BatchMutator mutator) {
+
+    for (String bucket : missingSide.keySet()) {
+
+      BucketDigest bucketDigest = missingSide.get(bucket);
+
+      if (bucketDigest.isLeaf()) {
+
+        establishBucketDifferences(side, bucket, mutator);
+
+      } else {
+
+        TreeLevelRollup subTree = getEntityIdChildDigests(side, bucket);
+        Map<String,BucketDigest> members = subTree.getMembers();
+        establishMissingSide(side, members, mutator);
+      }
+    }
+  }
+
+  private TreeLevelRollup getEntityIdChildDigests(Long endpoint, String bucket) {
+    String key = buildKeyFromBucketName(endpoint, bucket);
+    TreeLevelRollup qualified =  getChildDigests(key, entityIdDigestsTemplate, ENTITY_ID_HIERARCHY_CF, ENTITY_ID_DIGESTS_CF, ENTITY_ID_BUCKETS_CF);
+    return unqualify(endpoint, qualified);
+  }
+
+  /*
   private Map<String,Boolean> getChildren(Long endpoint, String bucket, String hierarchyCF) {
     Map<String,Boolean> children = new HashMap<String, Boolean>();
 
@@ -458,29 +465,14 @@ public class CassandraVersionStore implements VersionStore {
 
     return children;
   }
+  */
 
-  private List<EntityDifference> establishMissingSide(Long left, Long right, Map<String,BucketDigest> missingSide, boolean incremental) {
 
-    List<EntityDifference> diffs = new ArrayList<EntityDifference>();
-
-    for (String key : missingSide.keySet()) {
-
-      BucketDigest bucketDigest = missingSide.get(key);
-
-      if (bucketDigest.isLeaf()) {
-        List<EntityDifference> established = establishBucketDifferences(left, right, key, incremental);
-        diffs.addAll(established);
-      } else {
-        boolean isLeaf = false; // TODO hardcoded
-        List<EntityDifference> compared = compare(left, right, key, isLeaf, incremental);
-        diffs.addAll(compared);
-      }
-    }
-
-    return diffs;
+  private void establishBucketDifferences(Long side, String key, BatchMutator mutator) {
+    establishBucketDifferences(side, null, key , mutator);
   }
 
-  private List<EntityDifference> establishBucketDifferences(Long left, Long right, String key, boolean incremental) {
+  private void establishBucketDifferences(Long left, Long right, String key, BatchMutator mutator) {
     Map<String, EntityDifference> potentialDiffs = new HashMap<String,EntityDifference>();
 
     // Read out the dirty entities by looking at the LHS first
@@ -488,37 +480,33 @@ public class CassandraVersionStore implements VersionStore {
     // do the same for the RHS, but don't attempt to re-establish diffs that were detected
     // during the LHS processing
 
-    ColumnSliceIterator<String, String, String> leftIterator;
+    if (left != null) {
 
-    if (incremental) {
-      leftIterator = getDirtyIterator(left, key);
-    } else {
-      leftIterator = getEntityIdBucketIterator(left, key);
-    }
+      ColumnSliceIterator<String, String, String> leftIterator = getEntityIdBucketIterator(left, key);
 
-    while (leftIterator.hasNext()) {
-      HColumn<String,String> entityColumn = leftIterator.next();
-      final String entityId = entityColumn.getName();
-      EntityDifference potentialDiff = getPotentialDifference(left, right, entityId);
-      potentialDiffs.put(entityId, potentialDiff);
-    }
-
-    ColumnSliceIterator<String, String, String> rightIterator;
-
-    if (incremental) {
-      rightIterator = getDirtyIterator(right, key);
-    } else {
-      rightIterator = getEntityIdBucketIterator(right, key);
-    }
-
-    while (rightIterator.hasNext()) {
-      HColumn<String,String> entityColumn = rightIterator.next();
-      final String entityId = entityColumn.getName();
-
-      if (! potentialDiffs.containsKey(entityId) ) {
-
+      while (leftIterator.hasNext()) {
+        HColumn<String,String> entityColumn = leftIterator.next();
+        final String entityId = entityColumn.getName();
         EntityDifference potentialDiff = getPotentialDifference(left, right, entityId);
         potentialDiffs.put(entityId, potentialDiff);
+      }
+
+    }
+
+    if (right != null) {
+
+      ColumnSliceIterator<String, String, String> rightIterator = getEntityIdBucketIterator(right, key);
+
+      while (rightIterator.hasNext()) {
+        HColumn<String,String> entityColumn = rightIterator.next();
+        final String entityId = entityColumn.getName();
+
+        if (! potentialDiffs.containsKey(entityId) ) {
+
+          EntityDifference potentialDiff = getPotentialDifference(left, right, entityId);
+          potentialDiffs.put(entityId, potentialDiff);
+        }
+
       }
 
     }
@@ -532,7 +520,21 @@ public class CassandraVersionStore implements VersionStore {
 
     Map<String,EntityDifference> filtered = Maps.filterValues(potentialDiffs, diffFilter);
 
-    return new ArrayList<EntityDifference>(filtered.values());
+    if (!filtered.isEmpty()) {
+
+      String parentPath = KEY_JOINER.join(left, right);//buildKeyFromBucketName(left, right, key);
+
+      for(Map.Entry<String,EntityDifference> entry : filtered.entrySet()) {
+        EntityDifference diff = entry.getValue();
+        MerkleNode entityIdNode = MerkleUtils.buildEntityIdNode(diff.getId(), null);
+        MerkleNode rootNode = new MerkleNode("", entityIdNode);
+        BucketWriter writer = new DeltaBucketWriter(PAIR_BUCKETS_CF, mutator, diff);
+        recordLineage(parentPath, rootNode, mutator, pairDigestsTemplate, writer, PAIR_HIERARCHY_CF, PAIR_DIGESTS_CF);
+        //asd
+      }
+
+    }
+
   }
 
   private EntityDifference getPotentialDifference(Long left, Long right, String id) {
@@ -565,15 +567,22 @@ public class CassandraVersionStore implements VersionStore {
 
   private String getEntityVersion(Long endpoint, String key) {
 
-    final String entityKey = buildIdentifier(endpoint, key);
-    ColumnFamilyResult<String,String> result = entityVersionsTemplate.queryColumns(entityKey);
-
-    if (result.hasResults()) {
-      return result.getString(VERSION_KEY);
-    }
-    else {
+    if (endpoint == null || key == null) {
       return null;
     }
+    else {
+
+      final String entityKey = buildIdentifier(endpoint, key);
+      ColumnFamilyResult<String,String> result = entityVersionsTemplate.queryColumns(entityKey);
+
+      if (result.hasResults()) {
+        return result.getString(VERSION_KEY);
+      }
+      else {
+        return null;
+      }
+    }
+
   }
 
   private String deleteDescendencyPath(String parentPath, MerkleNode node, BatchMutator mutator, String digestCF) {
@@ -607,7 +616,7 @@ public class CassandraVersionStore implements VersionStore {
     }
   }
 
-  private void recordLineage(String parentName, MerkleNode node, BatchMutator mutator, ColumnFamilyTemplate<String,String> hierarchyDigests, String bucketCF, String hierarchyCF, String hierarchyDigestCF) {
+  private void recordLineage(String parentName, MerkleNode node, BatchMutator mutator, ColumnFamilyTemplate<String,String> hierarchyDigests, BucketWriter bucketWriter, String hierarchyCF, String hierarchyDigestCF) {
 
     String qualifiedBucketName = qualifyNodeName(parentName, node);
 
@@ -618,8 +627,8 @@ public class CassandraVersionStore implements VersionStore {
 
     if (node.isLeaf()) {
       // This a leaf node so record the bucket value and it's parent
-
-      mutator.insertColumn(qualifiedBucketName, bucketCF, node.getId(), node.getVersion());
+      bucketWriter.write(qualifiedBucketName, node);
+      //mutator.insertColumn(qualifiedBucketName, bucketCF, node.getId(), node.getVersion());
     }
     else {
 
@@ -641,7 +650,7 @@ public class CassandraVersionStore implements VersionStore {
 
       }
 
-      recordLineage(qualifiedBucketName, node.getChild(), mutator, hierarchyDigests, bucketCF, hierarchyCF, hierarchyDigestCF);
+      recordLineage(qualifiedBucketName, node.getChild(), mutator, hierarchyDigests, bucketWriter, hierarchyCF, hierarchyDigestCF);
     }
 
   }
@@ -712,11 +721,26 @@ public class CassandraVersionStore implements VersionStore {
     return key;
   }
 
-  private Map<String, String> getChildDigests(String key, ColumnFamilyTemplate<String, String> hierarchyDigests, String hierarchyCF, String digestCF, String bucketCF, int maxSliceSize) {
+  private String buildKeyFromBucketName(Long left, Long right, String bucketName) {
+    if (bucketName == null || bucketName.isEmpty()) {
+      return KEY_JOINER.join(left, right);
+    }
+    else {
+      return KEY_JOINER.join(left, right, bucketName);
+    }
+  }
+
+  private TreeLevelRollup getChildDigests(String key, ColumnFamilyTemplate<String, String> hierarchyDigests, String hierarchyCF, String digestCF, String bucketCF) {
+    return getChildDigests(key, hierarchyDigests, hierarchyCF, digestCF, bucketCF, UNLIMITED_SLICE_SIZE);
+  }
+
+  private TreeLevelRollup getChildDigests(String key, ColumnFamilyTemplate<String, String> hierarchyDigests, String hierarchyCF, String digestCF, String bucketCF, int maxSliceSize) {
 
     BatchMutator mutator = new BasicBatchMutator(keyspace);
 
-    Map<String,String> digests = new HashMap<String,String>();
+    BitSet bits = new BitSet();
+    int index = 0;
+    Map<String,BucketDigest> digests = new HashMap<String,BucketDigest>();
 
     ColumnSliceIterator<String, String, Boolean> hierarchyIterator = getHierarchyIterator(key, hierarchyCF);
 
@@ -726,16 +750,30 @@ public class CassandraVersionStore implements VersionStore {
       String childName = hierarchyColumn.getName();
       boolean leaf = hierarchyColumn.getValue();
 
+      if (leaf) {
+        bits.set(index++);
+      }
+
       String child = key + "." + childName;
 
       BucketDigest digest = getDigest(child, leaf, mutator, hierarchyDigests, hierarchyCF, digestCF, bucketCF, maxSliceSize);
-      digests.put(child, digest.getDigest());
+      digests.put(child, digest);
 
     }
 
     mutator.execute();
 
-    return digests;
+    if (bits.cardinality() == 0 || bits.cardinality() == bits.length()) {
+
+      boolean isLeaf = bits.get(0);
+      return new TreeLevelRollup(digests, isLeaf);
+
+    }
+    else {
+      throw new RuntimeException("Inconsistent sub tree: " + digests);
+    }
+
+
   }
 
 
@@ -891,6 +929,48 @@ public class CassandraVersionStore implements VersionStore {
 
     return new BucketDigest(key, digester.getDigest(), true);
   }
+
+  /**
+   * This is a hack to overcome the fact that the digest tree builder (unhelpfully) qualifies each node
+   * by prefixing the endpoint id to the key name. This oversight makes subsequent tree comparisons difficult,
+   * because each tree will have differing root names, which is uncool.
+   *
+   * Rather than fixing the underlying issue, at this point I am just going to rewrite each node label to
+   * get rid of this prefixing.
+   */
+  private SortedMap<String, BucketDigest> unqualify(Long endpoint, Map<String, BucketDigest> qualified) {
+    SortedMap<String,BucketDigest> unqualified = new TreeMap<String, BucketDigest>();
+
+    if (qualified != null) {
+
+      for(Map.Entry<String,BucketDigest> entry : qualified.entrySet()) {
+        String prefix = endpoint + "(\\.)?";
+        String rewrittenKey = entry.getKey().replaceFirst(prefix, "");
+        unqualified.put(rewrittenKey, entry.getValue());
+      }
+
+    }
+
+    return unqualified;
+  }
+
+  private TreeLevelRollup unqualify(Long endpoint, TreeLevelRollup qualified) {
+    SortedMap<String,BucketDigest> unqualified = unqualify(endpoint, qualified.getMembers());
+    return new TreeLevelRollup(unqualified, qualified.isLeaf());
+  }
+  /*
+  private Map<String, String> unqualify(Long endpoint, Map<String, BucketDigest> qualified) {
+    SortedMap<String,String> unqualified = new TreeMap<String, String>();
+
+    for(Map.Entry<String,String> entry : qualified.entrySet()) {
+      String prefix = endpoint + "(\\.)?";
+      String rewrittenKey = entry.getKey().replaceFirst(prefix, "");
+      unqualified.put(rewrittenKey, entry.getValue());
+    }
+
+    return unqualified;
+  }
+  */
 
   private void rolloverSlice(List<String> digests, Digester digester) {
     String currentDigest = digester.getDigest();

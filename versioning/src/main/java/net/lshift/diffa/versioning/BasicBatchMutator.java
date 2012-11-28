@@ -1,8 +1,10 @@
 package net.lshift.diffa.versioning;
 
 import me.prettyprint.cassandra.serializers.DateSerializer;
+import me.prettyprint.cassandra.serializers.DynamicCompositeSerializer;
 import me.prettyprint.cassandra.serializers.StringSerializer;
 import me.prettyprint.hector.api.Keyspace;
+import me.prettyprint.hector.api.beans.DynamicComposite;
 import me.prettyprint.hector.api.beans.HColumn;
 import me.prettyprint.hector.api.factory.HFactory;
 import me.prettyprint.hector.api.mutation.Mutator;
@@ -25,6 +27,13 @@ public class BasicBatchMutator implements BatchMutator {
   public void insertColumn(String rowKey, String columnFamily, String columnName, String columnValue) {
     mutator.addInsertion(rowKey, columnFamily,  HFactory.createStringColumn(columnName, columnValue));
   }
+
+  @Override
+  public void insertColumn(String rowKey, String columnFamily, String columnName, DynamicComposite composite) {
+    HColumn<String, DynamicComposite> column = HFactory.createColumn(columnName, composite, StringSerializer.get(), DynamicCompositeSerializer.get());
+    mutator.addInsertion(rowKey, columnFamily, column);
+  }
+
 
   @Override
   public void insertDateColumn(String rowKey, String columnFamily, String columnName, DateTime columnValue) {
