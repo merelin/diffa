@@ -1,6 +1,5 @@
 package net.lshift.diffa.versioning;
 
-import com.google.common.base.Predicate;
 import com.google.common.collect.*;
 import net.lshift.diffa.adapter.scanning.*;
 import org.apache.commons.lang.RandomStringUtils;
@@ -58,7 +57,7 @@ public class CassandraVersionStoreIT {
     PairProjection view = new PairProjection(left,  right);
 
     store.delta(view);
-    TreeLevelRollup firstRollup = store.getMaterializedDelta(view);
+    TreeLevelRollup firstRollup = store.getDeltaDigest(view);
 
     assertNotNull(firstRollup);
     assertTrue(firstRollup.isEmpty());
@@ -71,12 +70,27 @@ public class CassandraVersionStoreIT {
     store.addEvent(left, randomLeftEvent);
 
     store.delta(view);
-    TreeLevelRollup secondRollup = store.getMaterializedDelta(view);
+    TreeLevelRollup secondRollup = store.getDeltaDigest(view);
 
     assertNotNull(secondRollup);
     assertFalse(secondRollup.isEmpty());
 
+    // At this point we could/should walk the delta tree, but we already know which event caused the delta
+    // and hence we know the bucket that it belongs to
 
+    MerkleNode leftEntityNode = MerkleUtils.buildEntityIdNode(randomLeftEvent.getId(), randomLeftEvent.getVersion());
+    String path = leftEntityNode.getDescendencyPath();
+
+    List<EntityDifference> diffs = store.getOutrightDifferences(view, path);
+
+    assertEquals(1, diffs.size());
+
+    EntityDifference diff = diffs.get(0);
+
+    assertEquals(randomLeftEvent.getId(), diff.getId());
+    assertEquals(randomLeftEvent.getVersion(), diff.getLeft());
+
+    // TODO This could be more comprehensive, i.e. it asserts nothing about the RHS of the diff
 
   }
 

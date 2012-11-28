@@ -8,6 +8,7 @@ import com.google.common.base.Predicate;
 import com.google.common.collect.MapDifference;
 import com.google.common.collect.Maps;
 import me.prettyprint.cassandra.serializers.BooleanSerializer;
+import me.prettyprint.cassandra.serializers.DynamicCompositeSerializer;
 import me.prettyprint.cassandra.serializers.StringSerializer;
 import me.prettyprint.cassandra.service.ColumnSliceIterator;
 import me.prettyprint.cassandra.service.template.ColumnFamilyTemplate;
@@ -15,6 +16,7 @@ import me.prettyprint.cassandra.service.template.ColumnFamilyResult;
 import me.prettyprint.cassandra.service.template.ThriftColumnFamilyTemplate;
 import me.prettyprint.hector.api.Cluster;
 import me.prettyprint.hector.api.Keyspace;
+import me.prettyprint.hector.api.beans.DynamicComposite;
 import me.prettyprint.hector.api.beans.HColumn;
 import me.prettyprint.hector.api.factory.HFactory;
 import me.prettyprint.hector.api.query.SliceQuery;
@@ -220,17 +222,41 @@ public class CassandraVersionStore implements VersionStore {
     deltify(view.getLeft(), view.getRight(), bucket);
   }
 
-  public TreeLevelRollup getMaterializedDelta(PairProjection view) {
-    return getMaterializedDelta(view, null);
+  public TreeLevelRollup getDeltaDigest(PairProjection view) {
+    return getDeltaDigest(view, null);
   }
 
-  public TreeLevelRollup getMaterializedDelta(PairProjection view, String bucket) {
+  public TreeLevelRollup getDeltaDigest(PairProjection view, String bucket) {
 
     int maxSliceSize = 100; // TODO hard coded
 
     String key = KEY_JOINER.join(view.getLeft(), view.getRight(), bucket);
 
-    return getChildDigests(key, pairDigestsTemplate, PAIR_HIERARCHY_CF, PAIR_DIGESTS_CF, PAIR_BUCKETS_CF, maxSliceSize);
+    TreeLevelRollup rollup = getChildDigests(key, pairDigestsTemplate, PAIR_HIERARCHY_CF, PAIR_DIGESTS_CF, PAIR_BUCKETS_CF, maxSliceSize);
+    return unqualify(view.getLeft(), view.getRight(), rollup);
+  }
+
+  public List<EntityDifference> getOutrightDifferences(PairProjection view, String bucket) {
+    List<EntityDifference> diffs = new ArrayList<EntityDifference>();
+    String key = KEY_JOINER.join(view.getLeft(), view.getRight(), bucket);
+
+    SliceQuery<String,String,DynamicComposite> bucketQuery =  HFactory.createSliceQuery(keyspace, StringSerializer.get(), StringSerializer.get(), DynamicCompositeSerializer.get());
+    bucketQuery.setColumnFamily(PAIR_BUCKETS_CF);
+    bucketQuery.setKey(key);
+
+    ColumnSliceIterator<String,String,DynamicComposite> iterator = new ColumnSliceIterator<String,String,DynamicComposite>(bucketQuery, "", "",false);
+
+    while(iterator.hasNext()) {
+      HColumn<String,DynamicComposite> column = iterator.next();
+      String entityId = column.getName();
+      DynamicComposite composite = column.getValue();
+      String left = composite.get(0).toString();
+      String right = composite.get(1).toString();
+      EntityDifference diff = new EntityDifference(entityId, left, right);
+      diffs.add(diff);
+    }
+
+    return diffs;
   }
 
   public List<ScanRequest> continueInterview(
@@ -444,7 +470,7 @@ public class CassandraVersionStore implements VersionStore {
 
     if (!filtered.isEmpty()) {
 
-      String parentPath = KEY_JOINER.join(left, right);//buildKeyFromBucketName(left, right, key);
+      String parentPath = KEY_JOINER.join(left, right);
 
       for(Map.Entry<String,EntityDifference> entry : filtered.entrySet()) {
         EntityDifference diff = entry.getValue();
@@ -452,7 +478,6 @@ public class CassandraVersionStore implements VersionStore {
         MerkleNode rootNode = new MerkleNode("", entityIdNode);
         BucketWriter writer = new DeltaBucketWriter(PAIR_BUCKETS_CF, mutator, diff);
         recordLineage(parentPath, rootNode, mutator, pairDigestsTemplate, writer, PAIR_HIERARCHY_CF, PAIR_DIGESTS_CF);
-        //asd
       }
 
     }
@@ -631,16 +656,6 @@ public class CassandraVersionStore implements VersionStore {
     }
     return key;
   }
-  /*
-  private String buildKeyFromBucketName(Long left, Long right, String bucketName) {
-    if (bucketName == null || bucketName.isEmpty()) {
-      return KEY_JOINER.join(left, right);
-    }
-    else {
-      return KEY_JOINER.join(left, right, bucketName);
-    }
-  }
-  */
 
   private TreeLevelRollup getChildDigests(String key, ColumnFamilyTemplate<String, String> hierarchyDigests, String hierarchyCF, String digestCF, String bucketCF) {
     return getChildDigests(key, hierarchyDigests, hierarchyCF, digestCF, bucketCF, UNLIMITED_SLICE_SIZE);
@@ -842,6 +857,9 @@ public class CassandraVersionStore implements VersionStore {
     return new BucketDigest(key, digester.getDigest(), true);
   }
 
+  private SortedMap<String, BucketDigest> unqualify(Long endpoint, Map<String, BucketDigest> qualified) {
+    return unqualify(endpoint, null, qualified);
+  }
   /**
    * This is a hack to overcome the fact that the digest tree builder (unhelpfully) qualifies each node
    * by prefixing the endpoint id to the key name. This oversight makes subsequent tree comparisons difficult,
@@ -850,13 +868,27 @@ public class CassandraVersionStore implements VersionStore {
    * Rather than fixing the underlying issue, at this point I am just going to rewrite each node label to
    * get rid of this prefixing.
    */
-  private SortedMap<String, BucketDigest> unqualify(Long endpoint, Map<String, BucketDigest> qualified) {
+  private SortedMap<String, BucketDigest> unqualify(Long left, Long right, Map<String, BucketDigest> qualified) {
     SortedMap<String,BucketDigest> unqualified = new TreeMap<String, BucketDigest>();
 
     if (qualified != null) {
 
       for(Map.Entry<String,BucketDigest> entry : qualified.entrySet()) {
-        String prefix = endpoint + "(\\.)?";
+        StringBuilder sb = new StringBuilder();
+        if (left != null) {
+          sb.append(left);
+        }
+
+        if (right != null) {
+          if (left != null) {
+            sb.append(".");
+          }
+          sb.append(right);
+        }
+
+        sb.append("(\\.)?");
+
+        String prefix = sb.toString();
         String rewrittenKey = entry.getKey().replaceFirst(prefix, "");
         unqualified.put(rewrittenKey, entry.getValue());
       }
@@ -868,6 +900,11 @@ public class CassandraVersionStore implements VersionStore {
 
   private TreeLevelRollup unqualify(Long endpoint, TreeLevelRollup qualified) {
     SortedMap<String,BucketDigest> unqualified = unqualify(endpoint, qualified.getMembers());
+    return new TreeLevelRollup(unqualified, qualified.isLeaf());
+  }
+
+  private TreeLevelRollup unqualify(Long left, Long right, TreeLevelRollup qualified) {
+    SortedMap<String,BucketDigest> unqualified = unqualify(left, right, qualified.getMembers());
     return new TreeLevelRollup(unqualified, qualified.isLeaf());
   }
 
