@@ -23,6 +23,7 @@
     <module>jst-packaging</module>
     <!--module>partitioning</module-->
     <module>versioning</module>
+    <module>snowflake</module>
   </modules>
 
   <properties>
