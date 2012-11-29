@@ -21,7 +21,7 @@
   <New id="ServerLog" class="java.io.PrintStream">
     <Arg>
       <New class="org.eclipse.jetty.util.RolloverFileOutputStream">
-        <Arg><SystemProperty name="jetty.home" default="."/>/logs/jetty-yyyy_mm_dd.log</Arg>
+        <Arg><SystemProperty name="diffa.home" default="."/>/logs/jetty-yyyy_mm_dd.log</Arg>
         <Arg type="boolean">false</Arg>
         <Arg type="int">90</Arg>
         <Arg>
@@ -104,7 +104,7 @@
     <Arg>
       <Ref id="Contexts"/>
     </Arg>
-    <Arg>webapps/root</Arg>
+    <Arg><SystemProperty name="diffa.home" default="."/>/webapps/root</Arg>
     <Arg>/</Arg>
     <Set name="ConfigurationClasses">
       <Array type="java.lang.String">
