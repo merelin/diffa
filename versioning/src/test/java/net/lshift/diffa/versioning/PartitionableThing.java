@@ -2,8 +2,8 @@ package net.lshift.diffa.versioning;
 
 import com.google.common.base.Function;
 import com.google.common.collect.Maps;
-import net.lshift.diffa.versioning.tables.records.ThingsRecord;
 import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 
@@ -11,7 +11,7 @@ import java.sql.Date;
 import java.util.HashMap;
 import java.util.Map;
 
-public class PartitionableThing extends ThingsRecord implements PartitionedEvent {
+public class PartitionableThing implements PartitionedEvent {
 
   private final DateTimeFormatter YEARLY_FORMAT = DateTimeFormat.forPattern("yyyy");
   private final DateTimeFormatter MONTHLY_FORMAT = DateTimeFormat.forPattern("MM");
@@ -20,7 +20,9 @@ public class PartitionableThing extends ThingsRecord implements PartitionedEvent
   private final Map<String, ?> attributes;
 
   private MerkleNode node;
-
+  private Date entryDate;
+  private String id;
+  private String version;
 
 
   // TODO need a function to infer the hierarchy from the attributes using ref data
@@ -32,6 +34,24 @@ public class PartitionableThing extends ThingsRecord implements PartitionedEvent
         setEntryDate(new Date(date.getMillis()));
       }
     }
+  }
+
+  public void setId(String id) {
+    this.id = id;
+  }
+
+  public void setVersion(String version) {
+    this.version = version;
+  }
+
+  @Override
+  public String getId() {
+    return id;
+  }
+
+  @Override
+  public String getVersion() {
+    return version;
   }
 
   @Override
@@ -71,5 +91,13 @@ public class PartitionableThing extends ThingsRecord implements PartitionedEvent
     }
 
     throw new RuntimeException("Unfinished code");
+  }
+
+  public void setEntryDate(Date entryDate) {
+    this.entryDate = entryDate;
+  }
+
+  public Date getEntryDate() {
+    return entryDate;
   }
 }

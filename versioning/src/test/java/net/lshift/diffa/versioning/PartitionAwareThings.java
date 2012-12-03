@@ -3,7 +3,6 @@ package net.lshift.diffa.versioning;
 import com.jolbox.bonecp.BoneCPDataSource;
 import net.lshift.diffa.sql.PartitionAwareStore;
 import net.lshift.diffa.sql.StoreConfiguration;
-import net.lshift.diffa.versioning.tables.records.ThingsRecord;
 import org.apache.commons.lang.RandomStringUtils;
 import org.jooq.impl.*;
 import java.sql.Connection;
@@ -17,14 +16,18 @@ public class PartitionAwareThings extends PartitionAwareStore {
 
   public PartitionableThing createRandomThing(Map<String, ?> attributes) {
 
+    String id = RandomStringUtils.randomAlphabetic(10);
+    String version = RandomStringUtils.randomAlphabetic(10);
+
     PartitionableThing record = new PartitionableThing(attributes);
-    record.setId(RandomStringUtils.randomAlphabetic(10));
-    record.setVersion(RandomStringUtils.randomAlphabetic(10));
+
+    record.setId(id);
+    record.setVersion(version);
 
     Connection connection = getConnection();
 
     Factory db = getFactory(connection);
-    db.executeInsert((ThingsRecord)record);
+    db.execute("insert into things (id, version,entry_date) values (?,?,?)", id, version, record.getEntryDate());
 
     closeConnection(connection, true);
 
