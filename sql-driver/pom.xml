@@ -5,7 +5,7 @@
   <parent>
     <groupId>net.lshift.diffa</groupId>
     <artifactId>diffa-parent</artifactId>
-    <version>1.6.1-SNAPSHOT</version>
+    <version>1.6.2-SNAPSHOT</version>
   </parent>
 
   <artifactId>diffa-sql-driver</artifactId>
@@ -33,7 +33,6 @@
     <dependency>
       <groupId>commons-codec</groupId>
       <artifactId>commons-codec</artifactId>
-      <version>1.6</version>
     </dependency>
 
     <dependency>
@@ -100,95 +99,6 @@
 
   <build>
     <plugins>
-
-      <plugin>
-        <groupId>com.googlecode.flyway</groupId>
-        <artifactId>flyway-maven-plugin</artifactId>
-        <version>2.0</version>
-        <configuration>
-          <driver>${jdbcDriverClass}</driver>
-          <url>${jdbcUrl}</url>
-          <user>${jdbcUser}</user>
-          <password>${jdbcPass}</password>
-        </configuration>
-        <executions>
-          <execution>
-            <phase>process-resources</phase>
-            <goals>
-              <goal>migrate</goal>
-            </goals>
-          </execution>
-        </executions>
-        <dependencies>
-          <dependency>
-            <groupId>com.pyx4j</groupId>
-            <artifactId>maven-plugin-log4j</artifactId>
-            <version>1.0.1</version>
-          </dependency>
-        </dependencies>
-      </plugin>
-
-      <plugin>
-        <groupId>org.jooq</groupId>
-        <artifactId>jooq-codegen-maven</artifactId>
-        <executions>
-          <execution>
-            <phase>process-resources</phase>
-            <goals>
-              <goal>generate</goal>
-            </goals>
-          </execution>
-        </executions>
-        <dependencies>
-          <dependency>
-            <groupId>org.hsqldb</groupId>
-            <artifactId>hsqldb</artifactId>
-            <version>${hsqldb.version}</version>
-          </dependency>
-          <dependency>
-            <groupId>ch.qos.logback</groupId>
-            <artifactId>logback-classic</artifactId>
-            <version>${logback.version}</version>
-          </dependency>
-          <dependency>
-            <groupId>ch.qos.logback</groupId>
-            <artifactId>logback-core</artifactId>
-            <version>${logback.version}</version>
-          </dependency>
-          <dependency>
-            <groupId>commons-codec</groupId>
-            <artifactId>commons-codec</artifactId>
-            <version>1.6</version>
-          </dependency>
-        </dependencies>
-        <configuration>
-          <jdbc>
-            <driver>${jdbcDriverClass}</driver>
-            <url>${jdbcUrl}</url>
-            <user>${jdbcUser}</user>
-            <password>${jdbcPass}</password>
-          </jdbc>
-          <generator>
-            <name>org.jooq.util.DefaultGenerator</name>
-            <database>
-              <name>org.jooq.util.hsqldb.HSQLDBDatabase</name>
-              <includes>.*</includes>
-              <excludes />
-              <inputSchema>PUBLIC</inputSchema>
-            </database>
-            <generate>
-              <relations>true</relations>
-              <deprecated>false</deprecated>
-            </generate>
-            <target>
-              <packageName>net.lshift.diffa.versioning</packageName>
-              <directory>${basedir}/target/generated-sources/jooq</directory>
-            </target>
-          </generator>
-        </configuration>
-      </plugin>
-
-
       <plugin>
         <artifactId>maven-surefire-plugin</artifactId>
         <version>2.12.4</version>

@@ -29,6 +29,7 @@ import net.lshift.diffa.kernel.config.{DomainConfigStore, PairRef}
 import org.springframework.security.access.PermissionEvaluator
 import net.lshift.diffa.agent.rest.PermissionUtils._
 import net.lshift.diffa.agent.auth.{DiffTarget, PairTarget, Privileges}
+import net.lshift.diffa.adapter.scanning.{ScanResultEntry, AggregationBuilder, ConstraintsBuilder}
 
 class DifferencesResource(val differencesManager: DifferencesManager,
                           val domainConfigStore:DomainConfigStore,
@@ -143,6 +144,32 @@ class DifferencesResource(val differencesManager: DifferencesManager,
     val restored = differencesManager.unignoreDifference(space, evtSeqId).toExternalFormat
 
     Response.ok(restored).build
+  }
+
+  @GET
+  @Path("/tree/{pair}")
+  @Produces(Array("application/json"))
+  def scanPairs(@Context request:HttpServletRequest) = {
+
+    def generateVersion(domain:String) = ScannableUtils.generateDigest(domain)
+
+    /*
+    val constraintsBuilder = new ConstraintsBuilder(request)
+    constraintsBuilder.maybeAddStringPrefixConstraint("name")
+    val constraints = constraintsBuilder.toList
+
+    val aggregationsBuilder = new AggregationBuilder(request)
+    aggregationsBuilder.maybeAddStringPrefixAggregation("name")
+    val aggregations = aggregationsBuilder.toList
+
+    val domains = ScannableUtils.filterByKey[String](systemConfig.listDomains, constraints, x => x)
+    val scanResults = domains.map { d => new ScanResultEntry(d, generateVersion(d), null, Map("name" -> d)) }
+    val aggregated = ScannableUtils.maybeAggregate(scanResults, aggregations, systemConfig)
+    */
+
+    val aggregated = List[ScanResultEntry]()
+
+    Response.ok(aggregated).build()
   }
 
   def validateETag(request:Request) = {
