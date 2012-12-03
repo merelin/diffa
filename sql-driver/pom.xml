@@ -8,16 +8,13 @@
     <version>1.6.1-SNAPSHOT</version>
   </parent>
 
-  <artifactId>diffa-versioning</artifactId>
-  <name>LShift Diffa Versioning</name>
+  <artifactId>diffa-sql-driver</artifactId>
+  <name>LShift Diffa SQL Driver</name>
 
   <packaging>jar</packaging>
 
   <properties>
     <buildVersion>${project.version}</buildVersion>    <!-- Can be overridden via -D -->
-    <avro.version>1.7.2</avro.version>
-    <hector.version>1.1-1</hector.version>
-    <cassandra.version>1.1.5</cassandra.version>
 
     <jdbcDriverClass>org.hsqldb.jdbc.JDBCDriver</jdbcDriverClass>
     <jdbcUrl>jdbc:hsqldb:target/temp;hsqldb.lock_file=false</jdbcUrl>
@@ -27,11 +24,6 @@
   </properties>
 
   <dependencies>
-
-    <dependency>
-      <groupId>net.lshift.diffa</groupId>
-      <artifactId>diffa-sql-driver</artifactId>
-    </dependency>
 
     <dependency>
       <groupId>ch.qos.logback</groupId>
@@ -196,50 +188,7 @@
         </configuration>
       </plugin>
 
-      <plugin>
-        <groupId>org.codehaus.mojo</groupId>
-        <artifactId>cassandra-maven-plugin</artifactId>
-        <version>1.1.0-1</version>
-        <dependencies>
-          <!--
-            Snappy 1.0.4.1 appears to miss a native library on OSX, 1.0.5+ doesn't seem to have this issue
-          -->        
-          <dependency>
-            <groupId>org.xerial.snappy</groupId>
-            <artifactId>snappy-java</artifactId>
-            <version>1.0.5-M3</version>
-          </dependency>
-          <!-- Make sure the tests run against the correct version of Cassandra -->
-          <dependency>
-            <groupId>org.apache.cassandra</groupId>
-            <artifactId>cassandra-all</artifactId>
-            <version>${cassandra.version}</version>
-          </dependency>
-        </dependencies>
-        <configuration>
-          <loadAfterFirstStart>false</loadAfterFirstStart>
-          <rpcAddress>0.0.0.0</rpcAddress>
-        </configuration>
-        <executions>
-          <execution>
-            <id>start-cassandra</id>
-            <phase>pre-integration-test</phase>
-            <goals>
-              <goal>delete</goal>
-              <goal>start</goal>
-              <goal>load</goal>
-            </goals>
-          </execution>
-          <execution>
-            <id>stop-cassandra</id>
-            <phase>post-integration-test</phase>
-            <goals>
-              <goal>stop</goal>
-              <goal>delete</goal>
-            </goals>
-          </execution>
-        </executions>
-      </plugin>
+
       <plugin>
         <artifactId>maven-surefire-plugin</artifactId>
         <version>2.12.4</version>

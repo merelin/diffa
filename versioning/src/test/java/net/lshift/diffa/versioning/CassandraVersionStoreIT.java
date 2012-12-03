@@ -1,11 +1,16 @@
 package net.lshift.diffa.versioning;
 
 import com.google.common.collect.*;
+import com.googlecode.flyway.core.Flyway;
+import com.jolbox.bonecp.BoneCPConfig;
+import com.jolbox.bonecp.BoneCPDataSource;
 import net.lshift.diffa.adapter.scanning.*;
+import net.lshift.diffa.sql.StoreConfiguration;
 import org.apache.commons.lang.RandomStringUtils;
 import org.joda.time.DateTime;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
+import org.jooq.impl.SQLDataType;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -103,7 +108,33 @@ public class CassandraVersionStoreIT {
     CassandraVersionStore store = new CassandraVersionStore();
     store.setMaxSliceSize(left, maxSliceSize);
 
-    PartitionAwareStore partitionAwareStore = new PartitionAwareStore(left + "");
+    BoneCPDataSource ds = null;
+
+    try {
+
+      Class.forName("org.hsqldb.jdbcDriver");
+
+      BoneCPConfig config = new BoneCPConfig();
+      config.setJdbcUrl("jdbc:hsqldb:mem:" + RandomStringUtils.randomAlphabetic(5));
+      config.setUsername("sa");
+      config.setPassword("");
+
+      ds = new BoneCPDataSource(config);
+
+      Flyway flyway = new Flyway();
+      flyway.setDataSource(ds);
+      flyway.migrate();
+
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+
+    StoreConfiguration conf = new StoreConfiguration("THINGS");
+    conf.withId("ID", SQLDataType.VARCHAR).
+         withVersion("VERSION", SQLDataType.VARCHAR).
+         partitionBy("ENTRY_DATE", SQLDataType.DATE);
+
+    PartitionAwareThings partitionAwareStore = new PartitionAwareThings(ds, left + "", conf);
 
     String attributeName = "bizDate";
 

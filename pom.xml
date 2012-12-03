@@ -24,6 +24,7 @@
     <!--module>partitioning</module-->
     <module>versioning</module>
     <module>snowflake</module>
+    <module>sql-driver</module>
   </modules>
 
   <properties>
