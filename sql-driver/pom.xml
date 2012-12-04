@@ -2,19 +2,24 @@
 
   <modelVersion>4.0.0</modelVersion>
 
-  <parent>
-    <groupId>net.lshift.diffa</groupId>
-    <artifactId>diffa-parent</artifactId>
-    <version>1.6.2-SNAPSHOT</version>
-  </parent>
-
-  <artifactId>diffa-sql-driver</artifactId>
+  <groupId>net.lshift.diffa</groupId>
+  <artifactId>sql-driver</artifactId>
   <name>LShift Diffa SQL Driver</name>
+  <version>1.6.2-SNAPSHOT</version>
 
   <packaging>jar</packaging>
 
   <properties>
     <buildVersion>${project.version}</buildVersion>    <!-- Can be overridden via -D -->
+
+    <slf4j.version>1.6.4</slf4j.version>
+    <jodatime.version>2.0</jodatime.version>
+    <commons.codec.version>1.4</commons.codec.version>
+    <junit.version>4.10</junit.version>
+    <hsqldb.version>2.2.8</hsqldb.version>
+    <jooq.version>2.5.1 </jooq.version>
+    <bonecp.version>0.7.1.RELEASE</bonecp.version>
+    <flyway.version>2.0</flyway.version>
 
     <jdbcDriverClass>org.hsqldb.jdbc.JDBCDriver</jdbcDriverClass>
     <jdbcUrl>jdbc:hsqldb:target/temp;hsqldb.lock_file=false</jdbcUrl>
@@ -26,18 +31,15 @@
   <dependencies>
 
     <dependency>
-      <groupId>ch.qos.logback</groupId>
-      <artifactId>logback-classic</artifactId>
-    </dependency>
-
-    <dependency>
       <groupId>commons-codec</groupId>
       <artifactId>commons-codec</artifactId>
+      <version>${commons.codec.version}</version>
     </dependency>
 
     <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-api</artifactId>
+      <version>${slf4j.version}</version>
     </dependency>
 
     <dependency>
@@ -47,21 +49,10 @@
     </dependency>
 
     <dependency>
-      <groupId>org.xerial.snappy</groupId>
-      <artifactId>snappy-java</artifactId>
-      <version>1.0.5-M3</version>
-    </dependency>
-
-    <dependency>
-      <groupId>org.hectorclient</groupId>
-      <artifactId>hector-core</artifactId>
-      <version>1.1-2</version>
-    </dependency>
-
-    <dependency>
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>
       <scope>test</scope>
+      <version>${junit.version}</version>
     </dependency>
 
     <!-- Try to make this stuff in the test scope -->
@@ -69,11 +60,13 @@
     <dependency>
       <groupId>org.hsqldb</groupId>
       <artifactId>hsqldb</artifactId>
+      <version>${hsqldb.version}</version>
     </dependency>
 
     <dependency>
       <groupId>org.jooq</groupId>
       <artifactId>jooq</artifactId>
+      <version>${jooq.version}</version>
     </dependency>
 
     <dependency>
@@ -82,16 +75,10 @@
       <version>${bonecp.version}</version>
     </dependency>
 
-    <!--dependency>
-      <groupId>org.springframework</groupId>
-      <artifactId>spring-jdbc</artifactId>
-      <scope>test</scope>
-    </dependency-->
-
     <dependency>
       <groupId>com.googlecode.flyway</groupId>
       <artifactId>flyway-core</artifactId>
-      <version>2.0</version>
+      <version>${flyway.version}</version>
       <scope>test</scope>
     </dependency>
 

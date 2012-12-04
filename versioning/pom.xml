@@ -42,7 +42,7 @@
 
     <dependency>
       <groupId>net.lshift.diffa</groupId>
-      <artifactId>diffa-sql-driver</artifactId>
+      <artifactId>sql-driver</artifactId>
       <version>${project.version}</version>
     </dependency>
 
