@@ -5,7 +5,15 @@ import com.googlecode.flyway.core.Flyway;
 import com.jolbox.bonecp.BoneCPConfig;
 import com.jolbox.bonecp.BoneCPDataSource;
 import net.lshift.diffa.adapter.scanning.*;
+import net.lshift.diffa.adapter.scanning.ScanResultEntry;
+import net.lshift.diffa.scanning.*;
 import net.lshift.diffa.sql.StoreConfiguration;
+import net.lshift.diffa.versioning.plumbing.EntityIdBucketing;
+import org.apache.avro.file.DataFileStream;
+import org.apache.avro.file.DataFileWriter;
+import org.apache.avro.io.*;
+import org.apache.avro.specific.SpecificDatumReader;
+import org.apache.avro.specific.SpecificDatumWriter;
 import org.apache.commons.lang.RandomStringUtils;
 import org.joda.time.DateTime;
 import org.joda.time.format.DateTimeFormat;
@@ -17,11 +25,65 @@ import org.slf4j.LoggerFactory;
 
 import static org.junit.Assert.*;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.util.*;
 
 public class CassandraVersionStoreIT {
 
   static Logger log = LoggerFactory.getLogger(CassandraVersionStoreIT.class);
+
+  @Test
+  public void u() throws Exception {
+
+    ByteArrayOutputStream os = new ByteArrayOutputStream();
+
+
+    DatumWriter<net.lshift.diffa.scanning.ScanResultEntry> writer = new SpecificDatumWriter<net.lshift.diffa.scanning.ScanResultEntry>(net.lshift.diffa.scanning.ScanResultEntry.class);
+
+    //DataFileWriter <net.lshift.diffa.scanning.ScanResultEntry> dataFileWriter = new DataFileWriter <net.lshift.diffa.scanning.ScanResultEntry>(writer);
+    //dataFileWriter.create(net.lshift.diffa.scanning.ScanResultEntry.SCHEMA$, os);
+
+    writer.setSchema(net.lshift.diffa.scanning.ScanResultEntry.SCHEMA$);
+
+    net.lshift.diffa.scanning.ScanResultEntry e = new net.lshift.diffa.scanning.ScanResultEntry();
+    //e.setId("foo");
+    e.setVersion("bar");
+    //e.setLastUpdated(System.currentTimeMillis());
+    //e.setAttributes(new HashMap<CharSequence, CharSequence>());
+
+    Encoder en = EncoderFactory.get().binaryEncoder(os, null);
+    writer.write(e, en);
+    en.flush();
+    writer.write(e, en);
+    en.flush();
+
+    //dataFileWriter.append(e);
+    //dataFileWriter.flush();
+
+
+
+    final DatumReader<net.lshift.diffa.scanning.ScanResultEntry> reader = new SpecificDatumReader<net.lshift.diffa.scanning.ScanResultEntry>(net.lshift.diffa.scanning.ScanResultEntry.class);
+
+    ByteArrayInputStream is = new ByteArrayInputStream(os.toByteArray());
+    Decoder d = DecoderFactory.get().binaryDecoder(is, null);
+
+    net.lshift.diffa.scanning.ScanResultEntry e4 = reader.read(null, d);
+    net.lshift.diffa.scanning.ScanResultEntry e5 = reader.read(null, d);
+
+    System.err.println(e4);
+    System.err.println(e5);
+
+    //DataFileStream<net.lshift.diffa.scanning.ScanResultEntry> dfs = new DataFileStream<net.lshift.diffa.scanning.ScanResultEntry>(is, reader);
+    /*
+    while (dfs.hasNext()) {
+      System.err.println(dfs.next());
+    }
+    */
+    //Decoder decoder = DecoderFactory.get().binaryDecoder(bodyPart.getBodyPartBytes(), null);
+
+
+  }
 
   @Test
   public void differingEndpointsShouldProduceDelta() throws Exception {
@@ -96,6 +158,22 @@ public class CassandraVersionStoreIT {
     assertEquals(randomLeftEvent.getVersion(), diff.getLeft());
 
     // TODO This could be more comprehensive, i.e. it asserts nothing about the RHS of the diff
+
+    String agent = "http://localhost:19093/diffa-agent/store/scan/foo";
+    Scannable scannable = new RestDriver(agent, "guest", "guest");
+
+
+    Set<ScanConstraint> cons = new HashSet<ScanConstraint>();
+
+    Set<ScanAggregation> aggs = new HashSet<ScanAggregation>();
+    ScanAggregation equivalentAggregation = EntityIdBucketing.getEquivalentAggregation(secondRollup.getBucket());
+    aggs.add(equivalentAggregation);
+
+    int maxSliceSize = secondRollup.getMaxSliceSize();
+
+    Set<ScanResultEntry> e = scannable.scan(cons, aggs, maxSliceSize);
+
+    System.err.println(e);
 
   }
 

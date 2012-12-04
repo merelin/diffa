@@ -20,6 +20,8 @@ import net.lshift.diffa.kernel.events.VersionID
 import org.joda.time.{Interval, DateTime}
 import net.lshift.diffa.kernel.config.PairRef
 import reflect.BeanProperty
+import net.lshift.diffa.adapter.scanning.{ScanResultEntry, ScanAggregation, ScanConstraint}
+import java.io.OutputStream
 
 /**
  * The domain cache provides facilities for storing difference events that occur, and managing the states of these
@@ -161,6 +163,15 @@ trait DomainDifferenceStore {
    * Removes any differences that have been orphaned due to pair vacuuming or deletions.
    */
   def purgeOrphanedEvents : Int
+
+  /**
+   * Builds a Merkle tree over the diffs store for the given query.
+   */
+  def scan(constraints:Seq[ScanConstraint], aggregations:Seq[ScanAggregation], maxSliceSize:Int, handler: ScanResultHandler)
+}
+
+trait ScanResultHandler {
+  def onEntry(result:ScanResultEntry)
 }
 
 case class TileGroup(

@@ -18,11 +18,13 @@
     <module>adapter-support</module>
     <module>dist</module>
     <module>db-migrations</module>
+    <!--module>merkle</module-->
     <module>schema</module>
     <module>schema-bindings</module>
     <module>jst-packaging</module>
     <!--module>partitioning</module-->
     <module>versioning</module>
+    <module>scanning-support</module>
     <module>snowflake</module>
     <module>sql-driver</module>
   </modules>
@@ -58,6 +60,7 @@
     <quartz.version>2.1.3</quartz.version>
     <wroj.version>1.4.4</wroj.version>
     <hazelcast.version>2.3.1</hazelcast.version>
+    <avro.version>1.7.2</avro.version>
   </properties>
 
   <scm>
@@ -203,6 +206,11 @@
       <!-- Hibernate imports 1.5.2 of slf4j, which is incompatible with the version
            of logback that we're using. Force an upgrade.
       -->
+    <dependency>
+      <groupId>org.apache.avro</groupId>
+      <artifactId>avro</artifactId>
+      <version>${avro.version}</version>
+    </dependency>
     <dependency>
       <groupId>com.sun.jersey</groupId>
       <artifactId>jersey-server</artifactId>

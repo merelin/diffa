@@ -223,16 +223,13 @@ public class CassandraVersionStore implements VersionStore {
   }
 
   public TreeLevelRollup getDeltaDigest(PairProjection view) {
-    return getDeltaDigest(view, null);
-  }
 
-  public TreeLevelRollup getDeltaDigest(PairProjection view, String bucket) {
+    String bucket = (view.getParent() == null) ? "" : view.getParent();
 
-    int maxSliceSize = 100; // TODO hard coded
+    String context = KEY_JOINER.join(view.getLeft(), view.getRight());
+    String key = KEY_JOINER.join(context, bucket);
 
-    String key = KEY_JOINER.join(view.getLeft(), view.getRight(), bucket);
-
-    TreeLevelRollup rollup = getChildDigests(key, pairDigestsTemplate, PAIR_HIERARCHY_CF, PAIR_DIGESTS_CF, PAIR_BUCKETS_CF, maxSliceSize);
+    TreeLevelRollup rollup = getChildDigests(context, bucket, pairDigestsTemplate, PAIR_HIERARCHY_CF, PAIR_DIGESTS_CF, PAIR_BUCKETS_CF, view.getMaxSliceSize());
     return unqualify(view.getLeft(), view.getRight(), rollup);
   }
 
@@ -282,8 +279,9 @@ public class CassandraVersionStore implements VersionStore {
             if (g == DateGranularityEnum.Yearly) {
 
               int maxSliceSize = getSliceSize(endpoint);
+              final String context = endpoint + "";
               String key = endpoint + "";
-              TreeLevelRollup qualified = getChildDigests(key, userDefinedDigestsTemplate, USER_DEFINED_HIERARCHY_CF, USER_DEFINED_DIGESTS_CF, USER_DEFINED_BUCKETS_CF, maxSliceSize);
+              TreeLevelRollup qualified = getChildDigests(context, key, userDefinedDigestsTemplate, USER_DEFINED_HIERARCHY_CF, USER_DEFINED_DIGESTS_CF, USER_DEFINED_BUCKETS_CF, maxSliceSize);
               TreeLevelRollup unqualified = unqualify(endpoint, qualified);
 
               Map<String,BucketDigest> remote = DifferencingUtils.convertAggregates(entries);
@@ -412,7 +410,9 @@ public class CassandraVersionStore implements VersionStore {
 
   private TreeLevelRollup getEntityIdChildDigests(Long endpoint, String bucket) {
     String key = buildKeyFromBucketName(endpoint, bucket);
-    TreeLevelRollup qualified =  getChildDigests(key, entityIdDigestsTemplate, ENTITY_ID_HIERARCHY_CF, ENTITY_ID_DIGESTS_CF, ENTITY_ID_BUCKETS_CF);
+    String context = endpoint + "";
+    TreeLevelRollup qualified =  getChildDigests(context, bucket, entityIdDigestsTemplate, ENTITY_ID_HIERARCHY_CF, ENTITY_ID_DIGESTS_CF, ENTITY_ID_BUCKETS_CF);
+    //TreeLevelRollup qualified =  getChildDigests(key, entityIdDigestsTemplate, ENTITY_ID_HIERARCHY_CF, ENTITY_ID_DIGESTS_CF, ENTITY_ID_BUCKETS_CF);
     return unqualify(endpoint, qualified);
   }
 
@@ -614,7 +614,9 @@ public class CassandraVersionStore implements VersionStore {
 
     final String key = buildKeyFromBucketName(endpoint, bucketName);
 
-    BucketDigest digest = getDigest(key, isLeaf, mutator, hierarchyDigests, hierarchyCF, digestCF, bucketCF, maxSliceSize);
+    String context = endpoint + "";
+    BucketDigest digest = getDigest(context, bucketName, isLeaf, mutator, hierarchyDigests, hierarchyCF, digestCF, bucketCF, maxSliceSize);
+    //BucketDigest digest = getDigest(key, isLeaf, mutator, hierarchyDigests, hierarchyCF, digestCF, bucketCF, maxSliceSize);
 
     mutator.execute();
 
@@ -624,26 +626,6 @@ public class CassandraVersionStore implements VersionStore {
     digests.put(key, digest);
 
     return unqualify(endpoint, digests);
-  }
-
-  private SortedMap<String,BucketDigest> getGenericDigests2(Long endpoint, String bucketName, boolean isLeaf, ColumnFamilyTemplate<String, String> hierarchyDigests, String hierarchyCF, String digestCF, String bucketCF, int maxSliceSize) {
-
-    StopWatch stopWatch = stopWatchFactory.getStopWatch();
-
-    BatchMutator mutator = new BasicBatchMutator(keyspace);
-
-    final String key = buildKeyFromBucketName(endpoint, bucketName);
-
-    BucketDigest digest = getDigest(key, isLeaf, mutator, hierarchyDigests, hierarchyCF, digestCF, bucketCF, maxSliceSize);
-
-    mutator.execute();
-
-    stopWatch.stop(String.format("getEntityIdDigests: endpoint = %s / bucket = %s", endpoint, bucketName));
-
-    SortedMap<String,BucketDigest> digests = new TreeMap<String, BucketDigest>();
-    digests.put(key, digest);
-
-    return digests;
   }
 
   private String buildKeyFromBucketName(Long endpoint, String bucketName) {
@@ -657,11 +639,35 @@ public class CassandraVersionStore implements VersionStore {
     return key;
   }
 
-  private TreeLevelRollup getChildDigests(String key, ColumnFamilyTemplate<String, String> hierarchyDigests, String hierarchyCF, String digestCF, String bucketCF) {
-    return getChildDigests(key, hierarchyDigests, hierarchyCF, digestCF, bucketCF, UNLIMITED_SLICE_SIZE);
+  // TOODO this is very hacky
+  private String buildKey(String context, String bucketName) {
+    StringBuilder sb = new StringBuilder();
+
+    boolean ctx = false;
+
+    if (context != null && !context.isEmpty()) {
+      sb.append(context);
+      ctx = true;
+    }
+
+    if (bucketName != null && !bucketName.isEmpty()) {
+
+      if (ctx) {
+        sb.append(".");
+      }
+
+      sb.append(bucketName);
+
+    }
+
+    return sb.toString();
   }
 
-  private TreeLevelRollup getChildDigests(String key, ColumnFamilyTemplate<String, String> hierarchyDigests, String hierarchyCF, String digestCF, String bucketCF, int maxSliceSize) {
+  private TreeLevelRollup getChildDigests(String context, String key, ColumnFamilyTemplate<String, String> hierarchyDigests, String hierarchyCF, String digestCF, String bucketCF) {
+    return getChildDigests(context, key, hierarchyDigests, hierarchyCF, digestCF, bucketCF, UNLIMITED_SLICE_SIZE);
+  }
+
+  private TreeLevelRollup getChildDigests(final String context, String key, ColumnFamilyTemplate<String, String> hierarchyDigests, String hierarchyCF, String digestCF, String bucketCF, int maxSliceSize) {
 
     BatchMutator mutator = new BasicBatchMutator(keyspace);
 
@@ -669,7 +675,9 @@ public class CassandraVersionStore implements VersionStore {
     int index = 0;
     Map<String,BucketDigest> digests = new HashMap<String,BucketDigest>();
 
-    ColumnSliceIterator<String, String, Boolean> hierarchyIterator = getHierarchyIterator(key, hierarchyCF);
+
+    String q = buildKey(context, key);
+    ColumnSliceIterator<String, String, Boolean> hierarchyIterator = getHierarchyIterator(q, hierarchyCF);
 
     while (hierarchyIterator.hasNext()) {
       HColumn<String, Boolean> hierarchyColumn = hierarchyIterator.next();
@@ -681,9 +689,10 @@ public class CassandraVersionStore implements VersionStore {
         bits.set(index++);
       }
 
-      String child = key + "." + childName;
+      //String child = key + "." + childName;
+      String child = buildKey(key, childName);
 
-      BucketDigest digest = getDigest(child, leaf, mutator, hierarchyDigests, hierarchyCF, digestCF, bucketCF, maxSliceSize);
+      BucketDigest digest = getDigest(context, child, leaf, mutator, hierarchyDigests, hierarchyCF, digestCF, bucketCF, maxSliceSize);
       digests.put(child, digest);
 
     }
@@ -693,7 +702,7 @@ public class CassandraVersionStore implements VersionStore {
     if (bits.cardinality() == 0 || bits.cardinality() == bits.length()) {
 
       boolean isLeaf = bits.get(0);
-      return new TreeLevelRollup(digests, isLeaf);
+      return new TreeLevelRollup(context, key, maxSliceSize, digests, isLeaf);
 
     }
     else {
@@ -704,27 +713,29 @@ public class CassandraVersionStore implements VersionStore {
   }
 
 
-  private BucketDigest getDigest(String key, boolean isLeaf, BatchMutator mutator, ColumnFamilyTemplate<String, String> hierarchyDigests, String hierarchyCF, String digestCF, String bucketCF, int maxSliceSize) {
+  private BucketDigest getDigest(final String context, String key, boolean isLeaf, BatchMutator mutator, ColumnFamilyTemplate<String, String> hierarchyDigests, String hierarchyCF, String digestCF, String bucketCF, int maxSliceSize) {
 
-    //SortedMap<String,BucketDigest> digests = new TreeMap<String,BucketDigest>();
-    ColumnFamilyResult<String, String> result = hierarchyDigests.queryColumns(key);
+
+    String qualifiedKey = KEY_JOINER.join(context, key);
+
+    ColumnFamilyResult<String, String> result = hierarchyDigests.queryColumns(qualifiedKey);
 
     if (isLeaf) {
 
       // Since this is a leaf node, we need to roll up all of the individual entity digests stored in the bucket CF
 
-      BucketDigest bucketDigest = buildBucketDigest(key, bucketCF, maxSliceSize);
+      BucketDigest bucketDigest = buildBucketDigest(qualifiedKey, bucketCF, maxSliceSize);
 
       // Check to see whether this bucket can be compacted
 
       if (NULL_MD5.equals(bucketDigest)) {
 
         // Delete since it is empty delete this bucket, digest and hierarchy
-        mutator.deleteRow(key, bucketCF);
-        deleteDigest(key, mutator, digestCF, hierarchyCF);
+        mutator.deleteRow(qualifiedKey, bucketCF);
+        deleteDigest(qualifiedKey, mutator, digestCF, hierarchyCF);
 
       } else {
-        cacheDigest(key, mutator, digestCF, bucketDigest);
+        cacheDigest(qualifiedKey, mutator, digestCF, bucketDigest);
 
       }
 
@@ -739,7 +750,7 @@ public class CassandraVersionStore implements VersionStore {
 
         // There is no cached digest for this key, we need to resolve the children and establish their digests
 
-        ColumnSliceIterator<String, String, Boolean> hierarchyIterator = getHierarchyIterator(key, hierarchyCF);
+        ColumnSliceIterator<String, String, Boolean> hierarchyIterator = getHierarchyIterator(qualifiedKey, hierarchyCF);
 
         Digester digester = new Digester();
 
@@ -749,10 +760,10 @@ public class CassandraVersionStore implements VersionStore {
           String child = hierarchyColumn.getName();
           boolean leaf = hierarchyColumn.getValue();
 
-          String qualifiedKey = key + "." + child;
+          String childKey = key + "." + child;
 
           //SortedMap<String,BucketDigest> childDigests = getDigest(qualifiedKey, leaf, mutator, hierarchyDigests, hierarchyCF, digestCF, bucketCF);
-          BucketDigest childDigest = getDigest(qualifiedKey, leaf, mutator, hierarchyDigests, hierarchyCF, digestCF, bucketCF, maxSliceSize);
+          BucketDigest childDigest = getDigest(context, childKey, leaf, mutator, hierarchyDigests, hierarchyCF, digestCF, bucketCF, maxSliceSize);
           digester.addVersion(childDigest.getDigest());
 
           // We need to roll up the subtree digests to produce an over-arching digest for the current bucket
@@ -763,11 +774,11 @@ public class CassandraVersionStore implements VersionStore {
         }
 
         String digest = digester.getDigest();
-        BucketDigest bucketDigest = new BucketDigest(key, digest, false);
+        BucketDigest bucketDigest = new BucketDigest(qualifiedKey, digest, false);
 
         if (NULL_MD5.equals(bucketDigest)) {
           // Clean up empty digests
-          deleteDigest(key, mutator, digestCF, hierarchyCF);
+          deleteDigest(qualifiedKey, mutator, digestCF, hierarchyCF);
         }
         else {
 
@@ -775,7 +786,7 @@ public class CassandraVersionStore implements VersionStore {
 
           // Don't forget to cache this digest for later use
 
-          cacheDigest(key, mutator, digestCF, bucketDigest);
+          cacheDigest(qualifiedKey, mutator, digestCF, bucketDigest);
 
         }
 
@@ -789,6 +800,7 @@ public class CassandraVersionStore implements VersionStore {
       }
 
     } else {
+      // TODO qualify with context
       throw new BucketNotFoundException(key);
     }
 
@@ -900,12 +912,12 @@ public class CassandraVersionStore implements VersionStore {
 
   private TreeLevelRollup unqualify(Long endpoint, TreeLevelRollup qualified) {
     SortedMap<String,BucketDigest> unqualified = unqualify(endpoint, qualified.getMembers());
-    return new TreeLevelRollup(unqualified, qualified.isLeaf());
+    return new TreeLevelRollup(qualified.getContext(), qualified.getBucket(), qualified.getMaxSliceSize(), unqualified, qualified.isLeaf());
   }
 
   private TreeLevelRollup unqualify(Long left, Long right, TreeLevelRollup qualified) {
     SortedMap<String,BucketDigest> unqualified = unqualify(left, right, qualified.getMembers());
-    return new TreeLevelRollup(unqualified, qualified.isLeaf());
+    return new TreeLevelRollup(qualified.getContext(), qualified.getBucket(), qualified.getMaxSliceSize(), unqualified, qualified.isLeaf());
   }
 
   private void rolloverSlice(List<String> digests, Digester digester) {

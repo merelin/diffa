@@ -38,6 +38,8 @@ import net.lshift.diffa.kernel.naming.{CacheName, SequenceName}
 import net.lshift.diffa.kernel.config.PairRef
 import net.lshift.diffa.kernel.events.VersionID
 import net.lshift.diffa.kernel.lifecycle.PairLifecycleAware
+import net.lshift.diffa.adapter.scanning.{ScanResultEntry, ScanAggregation, ScanConstraint}
+import java.io.{BufferedOutputStream, OutputStream}
 
 /**
  * Hibernate backed Domain Cache provider.
@@ -576,6 +578,19 @@ class JooqDomainDifferenceStore(db: DatabaseFacade,
     reset
     t.truncate(DIFFS).execute()
     t.truncate(PENDING_DIFFS).execute()
+  }
+
+  def scan(constraints:Seq[ScanConstraint], aggregations:Seq[ScanAggregation], maxSliceSize:Int, handler: ScanResultHandler) {
+    db.execute(t => {
+      val cursor = t.select().from(SPACES).fetchLazy()
+      while (cursor.hasNext) {
+        // TODO Don't know whether the chunk size needs tweaking here rather than fetching one at a time
+        val record = cursor.fetchOne()
+        val id = record.getValue(SPACES.ID)
+        val entry = ScanResultEntry.forAggregate(id.toString, Map("foo" -> "bar"))
+        handler.onEntry(entry)
+      }
+    })
   }
 
   private def orphanExtentForPair(t:Factory, pair:PairRef) = {

@@ -147,33 +147,6 @@ class DifferencesResource(val differencesManager: DifferencesManager,
     Response.ok(restored).build
   }
 
-  @GET
-  @Path("/tree/{pair}")
-  @Produces(Array("application/json"))
-  def scanPairs(@Context request:HttpServletRequest) = {
-
-    def generateVersion(domain:String) = ScannableUtils.generateDigest(domain)
-
-    /*
-    val constraintsBuilder = new ConstraintsBuilder(request)
-    constraintsBuilder.maybeAddStringPrefixConstraint("name")
-    val constraints = constraintsBuilder.toList
-
-    val aggregationsBuilder = new AggregationBuilder(request)
-    aggregationsBuilder.maybeAddStringPrefixAggregation("name")
-    val aggregations = aggregationsBuilder.toList
-    */
-    /*
-    val domains = ScannableUtils.filterByKey[String](systemConfig.listDomains, constraints, x => x)
-    val scanResults = domains.map { d => new ScanResultEntry(d, generateVersion(d), null, Map("name" -> d)) }
-    val aggregated = ScannableUtils.maybeAggregate(scanResults, aggregations, systemConfig)
-    */
-
-    val aggregated = new java.util.ArrayList[ScanResultEntry]()
-
-    Response.ok(aggregated).build()
-  }
-
   def validateETag(request:Request) = {
     val domainConfigVersion = domainConfigStore.getConfigVersion(space)
     val eventSequenceNumber = differencesManager.retrieveDomainSequenceNum(space)
