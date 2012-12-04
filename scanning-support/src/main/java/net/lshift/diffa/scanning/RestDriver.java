@@ -11,16 +11,19 @@ import org.apache.avro.io.Decoder;
 import org.apache.avro.io.DecoderFactory;
 import org.apache.avro.io.EncoderFactory;
 import org.apache.avro.specific.SpecificDatumReader;
+import org.joda.time.DateTime;
 
 import java.io.ByteArrayInputStream;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Future;
 
-public class RestDriver implements Scannable{
+public class RestDriver implements Scannable {
 
   private AsyncHttpClient client = new AsyncHttpClient();
   private String url;
@@ -53,6 +56,7 @@ public class RestDriver implements Scannable{
 
 
     final Set<ScanResultEntry> entries = new HashSet<ScanResultEntry>();
+    final DatumReader<net.lshift.diffa.scanning.ScanResultEntry> reader = new SpecificDatumReader<net.lshift.diffa.scanning.ScanResultEntry>(net.lshift.diffa.scanning.ScanResultEntry.class);
 
     AsyncHandler<Response> handler = new AsyncHandler<Response>() {
 
@@ -66,16 +70,33 @@ public class RestDriver implements Scannable{
       @Override
       public STATE onBodyPartReceived(HttpResponseBodyPart bodyPart) throws Exception {
 
-        final DatumReader<net.lshift.diffa.scanning.ScanResultEntry> reader = new SpecificDatumReader<net.lshift.diffa.scanning.ScanResultEntry>(net.lshift.diffa.scanning.ScanResultEntry.class);
         Decoder decoder = DecoderFactory.get().binaryDecoder(bodyPart.getBodyPartBytes(), null);
 
         while (true) {
           try {
+
             net.lshift.diffa.scanning.ScanResultEntry entry = reader.read(null, decoder);
             ScanResultEntry e = new ScanResultEntry();
-            e.setId(entry.getId().toString());
-            // ...
+
+            if (entry.getId() != null) {
+              e.setId(entry.getId().toString());
+            }
+            if (entry.getVersion() != null) {
+              e.setVersion(entry.getVersion().toString());
+            }
+            if (entry.getLastUpdated() != null) {
+              e.setLastUpdated(new DateTime(entry.getLastUpdated()));
+            }
+            if (entry.getAttributes() != null) {
+              Map<String,String> tmp = new HashMap<String, String>();
+              for (Map.Entry<CharSequence,CharSequence> me : entry.getAttributes().entrySet()) {
+                tmp.put(me.getKey().toString(), me.getValue().toString());
+              }
+              e.setAttributes(tmp);
+            }
+
             entries.add(e);
+
           } catch (EOFException e) {
             break;
           }
@@ -104,10 +125,10 @@ public class RestDriver implements Scannable{
     };
 
     try {
-      response = client.prepareRequest(req).
-                 setRealm(realm).
-                 execute(handler).
-                 get();
+      client.prepareRequest(req).
+             setRealm(realm).
+             execute(handler).
+             get();
 
     } catch (Exception e) {
       throw new RuntimeException(e);
