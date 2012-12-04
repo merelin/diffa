@@ -8,5 +8,6 @@ import java.util.Set;
 
 public interface PartitionAwareDriver {
 
-  Set<ScanResultEntry> scanStore(Set<ScanConstraint> constraints, Set<ScanAggregation> aggregations, int maxSliceSize);
+  void scanStore(Set<ScanConstraint> constraints, Set<ScanAggregation> aggregations, int maxSliceSize, ScanResultHandler handler);
+
 }

@@ -7,6 +7,7 @@ import com.jolbox.bonecp.BoneCPDataSource;
 import net.lshift.diffa.adapter.scanning.*;
 import net.lshift.diffa.adapter.scanning.ScanResultEntry;
 import net.lshift.diffa.scanning.*;
+import net.lshift.diffa.sql.ScanResultHandler;
 import net.lshift.diffa.sql.StoreConfiguration;
 import net.lshift.diffa.versioning.plumbing.EntityIdBucketing;
 import org.apache.avro.file.DataFileStream;
@@ -235,7 +236,16 @@ public class CassandraVersionStoreIT {
     Set<ScanConstraint> cons = null;
     Set<ScanAggregation> aggs = ImmutableSet.of(dateAggregation);
 
-    Set<ScanResultEntry> entries = partitionAwareStore.scanStore(cons, aggs, maxSliceSize);
+    final Set<ScanResultEntry> entries = new HashSet<ScanResultEntry>();
+
+    ScanResultHandler handler = new ScanResultHandler() {
+      @Override
+      public void onEntry(ScanResultEntry entry) {
+        entries.add(entry);
+      }
+    };
+
+    partitionAwareStore.scanStore(cons, aggs, maxSliceSize, handler);
 
     List<ScanRequest> requests = store.continueInterview(left, cons, aggs, entries);
 

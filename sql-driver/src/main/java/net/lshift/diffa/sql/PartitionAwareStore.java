@@ -35,9 +35,7 @@ public class PartitionAwareStore implements PartitionAwareDriver {
   }
 
   @Override
-  public Set<ScanResultEntry> scanStore(Set<ScanConstraint> constraints, Set<ScanAggregation> aggregations, int maxSliceSize) {
-
-    Set<ScanResultEntry> entries = new HashSet<ScanResultEntry>();
+  public void scanStore(Set<ScanConstraint> constraints, Set<ScanAggregation> aggregations, int maxSliceSize, ScanResultHandler handler) {
 
     Connection connection = getConnection();
     Factory db = getFactory(connection);
@@ -117,10 +115,10 @@ public class PartitionAwareStore implements PartitionAwareDriver {
             from(monthlyBuckets).
             groupBy(truncYear);
 
-    Iterator<Record> it = yearlyBuckets.fetch().iterator();
+    Cursor<Record> cursor = yearlyBuckets.fetchLazy();
 
-    while(it.hasNext()) {
-      Record record = it.next();
+    while(cursor.hasNext()) {
+      Record record = cursor.fetchOne();
 
       Date sqlDate = record.getValueAsDate(year);
       DateTime date = new DateTime(sqlDate.getTime());
@@ -129,14 +127,12 @@ public class PartitionAwareStore implements PartitionAwareDriver {
       Map<String,String> partition = ImmutableMap.of("bizDate", dateComponent);
       String digestValue = record.getValueAsString(digest);
       ScanResultEntry entry = ScanResultEntry.forAggregate(digestValue, partition);
-      entries.add(entry);
+      handler.onEntry(entry);
 
     }
 
 
     closeConnection(connection);
-
-    return entries;
   }
 
   protected Factory getFactory(Connection c) {
