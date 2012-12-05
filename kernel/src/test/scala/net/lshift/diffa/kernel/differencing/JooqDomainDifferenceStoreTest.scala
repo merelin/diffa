@@ -36,6 +36,7 @@ import net.lshift.diffa.kernel.frontend.{RepairActionDef, EscalationDef, Endpoin
 import org.apache.commons.lang.RandomStringUtils
 import net.lshift.diffa.scanning.ScanResultHandler
 import net.lshift.diffa.adapter.scanning.ScanResultEntry
+import net.lshift.diffa.scanning.plumbing.BufferingScanResultHandler
 
 
 /**
@@ -787,14 +788,14 @@ class JooqDomainDifferenceStoreTest {
 
   @Test
   def shouldRenderMerkleTree() {
+    val timestamp = new DateTime()
+    domainDiffStore.addReportableUnmatchedEvent(VersionID(PairRef("pair1", space.id), "id1"), timestamp, "uV", "dV", timestamp)
 
-    val handler = new ScanResultHandler {
-      def onEntry(entry: ScanResultEntry) {
-        println(entry)
-      }
-    }
-
+    val handler = new BufferingScanResultHandler()
     domainDiffStore.scan(null,null,100, handler)
+
+    assertFalse(handler.getEntries.isEmpty)
+
   }
 
   @Test

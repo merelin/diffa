@@ -10,8 +10,11 @@ import org.joda.time.DateTime;
 import org.jooq.*;
 import org.jooq.impl.Factory;
 import org.jooq.impl.SQLDataType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.sql.DataSource;
+import java.lang.reflect.ParameterizedType;
 import java.sql.Connection;
 import java.sql.Date;
 import java.util.Map;
@@ -21,11 +24,41 @@ import static org.jooq.impl.Factory.*;
 
 public class PartitionAwareDriver extends AbstractDatabaseAware implements Scannable {
 
+  static Logger log = LoggerFactory.getLogger(PartitionAwareDriver.class);
+
   private PartitionMetadata config;
 
   public PartitionAwareDriver(DataSource ds, PartitionMetadata config) {
     super(ds);
     this.config = config;
+
+    Connection connection = getConnection();
+    Factory db = getFactory(connection);
+
+    try {
+
+      if (db.getDialect().equals(SQLDialect.HSQLDB)) {
+
+        // TODO Hack - Just try to create the function, if it fails, we just assume that it already exists
+        // It is probably a better idea to introspect the information schema to find out for sure that this function is available
+
+        db.execute("create function md5(v varchar(32672)) returns varchar(32) language java deterministic no sql external name 'CLASSPATH:org.apache.commons.codec.digest.DigestUtils.md5Hex'");
+        log.info("Created md5 function");
+      }
+
+    }
+    catch (Exception e) {
+
+      if (e.getMessage().contains("already exists")) {
+        // Crude way of ignoring
+        log.info("Did not create md5 function, since it looks like it already exists in the target database");
+      }
+      else {
+        log.info("Find out whether we need to care about this", e);
+      }
+
+    }
+
   }
 
   @Override
@@ -39,31 +72,32 @@ public class PartitionAwareDriver extends AbstractDatabaseAware implements Scann
     Table<Record> A = underlyingTable.as("a");
     Table<Record> B = underlyingTable.as("b");
 
-    Field<?> underlyingId = config.getId();
-    Field<?> underlyingVersion = config.getVersion();
+    /**
+     * This is pretty dodgy - we assume that anything you can md5 must be coercible to a VARCHAR for the purposes
+     * of this query - this is probably not generally the case for any type of query, but until it blows
+     * up for us, we assume it to hold true.
+     */
+    Field<String> underlyingId = (Field<String>) config.getId();
+    Field<String> underlyingVersion = (Field<String>) config.getVersion();
+
+    /**
+     * OTOH we do need to do something more sensible with partition because we need to slice and dice in different
+     * ways for different data types.
+     */
     Field<?> underlyingPartition = config.partitionBy();
 
-    Condition firstJoinCondition = null;
-    Condition secondJoinCondition = null;
+    Field<String> A_ID = A.getField(underlyingId);
+    Field<String> B_ID = B.getField(underlyingId);
+    Field<String> A_VERSION = A.getField(underlyingVersion);
 
-    Field<?> A_ID = null;
-    Field<?> A_VERSION = null;
+    DataType<?> partitionType = underlyingPartition.getDataType();
 
-    if (underlyingId.getDataType().equals(SQLDataType.VARCHAR)) {
-      Field<String> typedField = (Field<String>) underlyingId;
-      firstJoinCondition = A.getField(typedField).eq(B.getField(typedField));
-      secondJoinCondition = A.getField(typedField).ge(B.getField(typedField));
-      A_ID = A.getField(typedField);
-    }
-
-    if (underlyingVersion.getDataType().equals(SQLDataType.VARCHAR)) {
-      Field<Date> typedField = (Field<Date>) underlyingVersion;
-      underlyingVersion = A.getField(typedField);
-    }
-
-    if (underlyingPartition.getDataType().equals(SQLDataType.DATE)) {
+    if (partitionType.equals(SQLDataType.DATE) || partitionType.equals(SQLDataType.TIMESTAMP)) {
       Field<Date> typedField = (Field<Date>) underlyingPartition;
       underlyingPartition = A.getField(typedField);
+    }
+    else {
+      throw new RuntimeException("Currently we can not handle partition type: " + underlyingPartition.getDataType() + " ; please contact your nearest software developer");
     }
 
     Field<Object> day = field("DAY");
@@ -84,11 +118,11 @@ public class PartitionAwareDriver extends AbstractDatabaseAware implements Scann
     SelectHavingStep slicedBuckets =
         db.select(day, bucket, function("md5", String.class, groupConcat(version).orderBy(id.asc()).separator("")).as(digest.getName())).
             from(
-                db.select(truncDay.as(day.getName()), A_ID.as(id.getName()), underlyingVersion.as(version.getName()), bucketCount.as(bucket.getName())).
+                db.select(truncDay.as(day.getName()), A_ID.as(id.getName()), A_VERSION.as(version.getName()), bucketCount.as(bucket.getName())).
                     from(A).
                     join(B).
-                    on(firstJoinCondition).
-                    and(secondJoinCondition).
+                    on(A_ID.eq(B_ID)).
+                    and(A_ID.ge(B_ID)).
                     groupBy(truncDay, A_ID, A_VERSION).
                     orderBy(truncDay, bucket)
             ).
@@ -120,6 +154,8 @@ public class PartitionAwareDriver extends AbstractDatabaseAware implements Scann
       Date sqlDate = record.getValueAsDate(year);
       DateTime date = new DateTime(sqlDate.getTime());
       String dateComponent = date.getYear() + "";
+
+      // TODO This attribute is horribly hard coded
 
       Map<String,String> partition = ImmutableMap.of("bizDate", dateComponent);
       String digestValue = record.getValueAsString(digest);

@@ -42,6 +42,7 @@ import net.lshift.diffa.adapter.scanning.{ScanResultEntry, ScanAggregation, Scan
 import java.io.{BufferedOutputStream, OutputStream}
 import net.lshift.diffa.scanning.{ScanResultHandler, Scannable}
 import java.util
+import net.lshift.diffa.sql.{PartitionMetadata, PartitionAwareDriver}
 
 /**
  * Hibernate backed Domain Cache provider.
@@ -78,6 +79,15 @@ class JooqDomainDifferenceStore(db: DatabaseFacade,
   val PAIR_NAME_ALIAS = "pair_name"
   val ESCALATION_NAME_ALIAS = "escalation_name"
 
+
+  // TODO We should be able to configure the metadata with JOOQ generated objects as well as just strings ......
+
+  val metadata = new PartitionMetadata(DIFFS.getName)
+  metadata.withId(DIFFS.SEQ_ID.getName, DIFFS.SEQ_ID.getDataType)
+  metadata.withVersion(DIFFS.SEQ_ID.getName, DIFFS.SEQ_ID.getDataType)
+  metadata.partitionBy(DIFFS.DETECTED_AT.getName, DIFFS.DETECTED_AT.getDataType)
+
+  val scanDriver = new PartitionAwareDriver(db.dataSource, metadata)
 
   def reset {
     pendingEvents.evictAll()
@@ -584,6 +594,10 @@ class JooqDomainDifferenceStore(db: DatabaseFacade,
 
   // TODO Test
   def scan(constraints: java.util.Set[ScanConstraint], aggregations: java.util.Set[ScanAggregation], maxSliceSize: Int, handler: ScanResultHandler) = {
+
+    scanDriver.scan(constraints, aggregations, maxSliceSize, handler)
+
+    /*
     db.execute(t => {
       val cursor = t.select().from(SPACES).fetchLazy()
       while (cursor.hasNext) {
@@ -594,6 +608,7 @@ class JooqDomainDifferenceStore(db: DatabaseFacade,
         handler.onEntry(entry)
       }
     })
+    */
   }
 
   private def orphanExtentForPair(t:Factory, pair:PairRef) = {
