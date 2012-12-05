@@ -1,13 +1,15 @@
 package net.lshift.diffa.sql;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
-import net.lshift.diffa.adapter.scanning.DateAggregation;
-import net.lshift.diffa.adapter.scanning.DateGranularityEnum;
-import net.lshift.diffa.adapter.scanning.ScanAggregation;
-import net.lshift.diffa.adapter.scanning.ScanConstraint;
+import net.lshift.diffa.adapter.scanning.*;
 import net.lshift.diffa.scanning.plumbing.BufferingScanResultHandler;
+import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.joda.time.DateTime;
+import org.joda.time.Duration;
+import org.joda.time.Interval;
+import org.joda.time.LocalDate;
 import org.jooq.impl.Factory;
 import org.jooq.impl.SQLDataType;
 import org.junit.Test;
@@ -15,6 +17,7 @@ import static org.junit.Assert.*;
 
 import java.sql.Connection;
 import java.sql.Date;
+import java.util.HashSet;
 import java.util.Set;
 
 public class SQLDriverIT extends AbstractDatabaseAware {
@@ -26,16 +29,21 @@ public class SQLDriverIT extends AbstractDatabaseAware {
   @Test
   public void shouldPartitionByDate() throws Exception {
 
-    String id = RandomStringUtils.randomAlphabetic(10);
-    String version = RandomStringUtils.randomAlphabetic(10);
-    DateTime date = new DateTime();
-    Date sqlDate = new Date(date.getMillis());
-
+    DateTime start = new DateTime(2005,7,29,0,0,0,0);
+    int days = 1000;
 
     Connection connection = getConnection();
 
     Factory db = getFactory(connection);
-    db.execute("insert into things (id, version,entry_date) values (?,?,?)", id, version, sqlDate);
+
+    for (int i = 0; i < days; i++) {
+      String id = i + "";
+      String version = DigestUtils.md5Hex(id);
+      DateTime entryDate = start.plusDays(i);
+      Date date = new Date(entryDate.getMillis());
+      db.execute("insert into things (id, version,entry_date) values (?,?,?)", id, version, date);
+    }
+
     connection.commit();
     closeConnection(connection, true);
 
@@ -54,7 +62,18 @@ public class SQLDriverIT extends AbstractDatabaseAware {
     BufferingScanResultHandler handler = new BufferingScanResultHandler();
     driver.scan(cons, aggs, 100, handler);
 
-    assertFalse(handler.getEntries().isEmpty());
+    /**
+     * Please note that I got this working and then reverse-engineered the results from that code,
+     * rather than forwards engineering the expected from some kind of logic ......
+     */
+
+    Set<ScanResultEntry> expectedResults = new HashSet<ScanResultEntry>();
+    expectedResults.add(ScanResultEntry.forAggregate("6b4ee3a8dcf9e71af301b5722406e52f", ImmutableMap.of("bizDate", "2006")));
+    expectedResults.add(ScanResultEntry.forAggregate("696a51b5982b8521625d39631c1175bb", ImmutableMap.of("bizDate", "2005")));
+    expectedResults.add(ScanResultEntry.forAggregate("c7b7eb798fcf835ace16f469c6919e1c", ImmutableMap.of("bizDate", "2007")));
+    expectedResults.add(ScanResultEntry.forAggregate("0906f8b73c3e2ff365ff235b3cb020b7", ImmutableMap.of("bizDate", "2008")));
+
+    assertEquals(expectedResults, handler.getEntries());
 
   }
 }
