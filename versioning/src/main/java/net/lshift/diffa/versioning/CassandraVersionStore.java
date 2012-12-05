@@ -280,7 +280,7 @@ public class CassandraVersionStore implements VersionStore {
 
               int maxSliceSize = getSliceSize(endpoint);
               final String context = endpoint + "";
-              String key = endpoint + "";
+              String key = "";
               TreeLevelRollup qualified = getChildDigests(context, key, userDefinedDigestsTemplate, USER_DEFINED_HIERARCHY_CF, USER_DEFINED_DIGESTS_CF, USER_DEFINED_BUCKETS_CF, maxSliceSize);
               TreeLevelRollup unqualified = unqualify(endpoint, qualified);
 

@@ -15,9 +15,9 @@
 
   <properties>
     <buildVersion>${project.version}</buildVersion>    <!-- Can be overridden via -D -->
-    <avro.version>1.7.2</avro.version>
-    <hector.version>1.1-1</hector.version>
-    <cassandra.version>1.1.5</cassandra.version>
+    <!--<avro.version>1.7.2</avro.version>-->
+
+
 
     <jdbcDriverClass>org.hsqldb.jdbc.JDBCDriver</jdbcDriverClass>
     <jdbcUrl>jdbc:hsqldb:target/temp;hsqldb.lock_file=false</jdbcUrl>
@@ -76,7 +76,6 @@
     <dependency>
       <groupId>org.hectorclient</groupId>
       <artifactId>hector-core</artifactId>
-      <version>1.1-2</version>
     </dependency>
 
     <dependency>

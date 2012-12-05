@@ -61,6 +61,8 @@
     <wroj.version>1.4.4</wroj.version>
     <hazelcast.version>2.3.1</hazelcast.version>
     <avro.version>1.7.2</avro.version>
+    <cassandra.version>1.1.7</cassandra.version>
+    <hector.version>1.1-2</hector.version>
   </properties>
 
   <scm>
@@ -181,6 +183,11 @@
       <groupId>cglib</groupId>
       <artifactId>cglib-nodep</artifactId>
       <version>2.1_3</version>
+    </dependency>
+    <dependency>
+      <groupId>org.hectorclient</groupId>
+      <artifactId>hector-core</artifactId>
+      <version>${hector.version}</version>
     </dependency>
     <dependency>
       <groupId>org.codehaus.castor</groupId>
