@@ -7,11 +7,10 @@ import com.jolbox.bonecp.BoneCPDataSource;
 import net.lshift.diffa.adapter.scanning.*;
 import net.lshift.diffa.adapter.scanning.ScanResultEntry;
 import net.lshift.diffa.scanning.*;
-import net.lshift.diffa.sql.ScanResultHandler;
+import net.lshift.diffa.scanning.ScanResultHandler;
 import net.lshift.diffa.sql.StoreConfiguration;
+import net.lshift.diffa.versioning.plumbing.BufferingScanResultHandler;
 import net.lshift.diffa.versioning.plumbing.EntityIdBucketing;
-import org.apache.avro.file.DataFileStream;
-import org.apache.avro.file.DataFileWriter;
 import org.apache.avro.io.*;
 import org.apache.avro.specific.SpecificDatumReader;
 import org.apache.avro.specific.SpecificDatumWriter;
@@ -172,9 +171,11 @@ public class CassandraVersionStoreIT {
 
     int maxSliceSize = secondRollup.getMaxSliceSize();
 
-    Set<ScanResultEntry> e = scannable.scan(cons, aggs, maxSliceSize);
+    BufferingScanResultHandler handler = new BufferingScanResultHandler();
 
-    System.err.println(e);
+    scannable.scan(cons, aggs, maxSliceSize, handler);
+
+    System.err.println(handler.getEntries());
 
   }
 
@@ -236,18 +237,11 @@ public class CassandraVersionStoreIT {
     Set<ScanConstraint> cons = null;
     Set<ScanAggregation> aggs = ImmutableSet.of(dateAggregation);
 
-    final Set<ScanResultEntry> entries = new HashSet<ScanResultEntry>();
+    BufferingScanResultHandler handler = new BufferingScanResultHandler();
 
-    ScanResultHandler handler = new ScanResultHandler() {
-      @Override
-      public void onEntry(ScanResultEntry entry) {
-        entries.add(entry);
-      }
-    };
+    partitionAwareStore.scan(cons, aggs, maxSliceSize, handler);
 
-    partitionAwareStore.scanStore(cons, aggs, maxSliceSize, handler);
-
-    List<ScanRequest> requests = store.continueInterview(left, cons, aggs, entries);
+    List<ScanRequest> requests = store.continueInterview(left, cons, aggs, handler.getEntries());
 
     assertTrue(requests.isEmpty());
 

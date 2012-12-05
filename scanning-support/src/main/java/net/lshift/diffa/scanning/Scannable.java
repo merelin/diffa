@@ -11,5 +11,5 @@ import java.util.Set;
  */
 public interface Scannable {
 
-  Set<ScanResultEntry> scan(Set<ScanConstraint> constraints, Set<ScanAggregation> aggregations, int maxSliceSize);
+  void scan(Set<ScanConstraint> constraints, Set<ScanAggregation> aggregations, int maxSliceSize, ScanResultHandler handler);
 }

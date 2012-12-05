@@ -1,4 +1,4 @@
-package net.lshift.diffa.sql;
+package net.lshift.diffa.scanning;
 
 import net.lshift.diffa.adapter.scanning.ScanResultEntry;
 

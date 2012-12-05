@@ -40,25 +40,18 @@ public class RestDriver implements Scannable {
   }
 
   @Override
-  public Set<ScanResultEntry> scan(Set<ScanConstraint> constraints, Set<ScanAggregation> aggregations, int maxSliceSize) {
-
-    Response response = null;
+  public void scan(Set<ScanConstraint> constraints, Set<ScanAggregation> aggregations, int maxSliceSize, final ScanResultHandler scanResultHandler) {
 
     FluentStringsMap queryParams = ScanRequestEncoder.packRequest(constraints, aggregations, maxSliceSize);
-
-
 
     Request req =
       new RequestBuilder("GET").setUrl(url).
                                 setQueryParameters(queryParams).
                                 build();
 
-
-
-    final Set<ScanResultEntry> entries = new HashSet<ScanResultEntry>();
     final DatumReader<net.lshift.diffa.scanning.ScanResultEntry> reader = new SpecificDatumReader<net.lshift.diffa.scanning.ScanResultEntry>(net.lshift.diffa.scanning.ScanResultEntry.class);
 
-    AsyncHandler<Response> handler = new AsyncHandler<Response>() {
+    AsyncHandler<Response> asyncHandler = new AsyncHandler<Response>() {
 
       private final Response.ResponseBuilder builder = new Response.ResponseBuilder();
 
@@ -95,7 +88,7 @@ public class RestDriver implements Scannable {
               e.setAttributes(tmp);
             }
 
-            entries.add(e);
+            scanResultHandler.onEntry(e);
 
           } catch (EOFException e) {
             break;
@@ -127,13 +120,13 @@ public class RestDriver implements Scannable {
     try {
       client.prepareRequest(req).
              setRealm(realm).
-             execute(handler).
+             execute(asyncHandler).
              get();
 
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
 
-    return entries;
   }
+
 }

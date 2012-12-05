@@ -1,14 +1,14 @@
 package net.lshift.diffa.versioning;
 
 import com.jolbox.bonecp.BoneCPDataSource;
-import net.lshift.diffa.sql.PartitionAwareStore;
+import net.lshift.diffa.sql.PartitionAwareDriver;
 import net.lshift.diffa.sql.StoreConfiguration;
 import org.apache.commons.lang.RandomStringUtils;
 import org.jooq.impl.*;
 import java.sql.Connection;
 import java.util.*;
 
-public class PartitionAwareThings extends PartitionAwareStore {
+public class PartitionAwareThings extends PartitionAwareDriver {
 
   public PartitionAwareThings(BoneCPDataSource ds, String name, StoreConfiguration config) {
     super(ds, name, config);

@@ -44,7 +44,7 @@
 
     <dependency>
       <groupId>net.lshift.diffa</groupId>
-      <artifactId>adapter-support</artifactId>
+      <artifactId>scanning-support</artifactId>
       <version>${project.version}</version>
     </dependency>
 
