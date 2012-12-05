@@ -8,7 +8,7 @@ import net.lshift.diffa.adapter.scanning.*;
 import net.lshift.diffa.scanning.*;
 import net.lshift.diffa.scanning.http.HttpDriver;
 import net.lshift.diffa.scanning.plumbing.BufferingScanResultHandler;
-import net.lshift.diffa.sql.PartitioningMetadata;
+import net.lshift.diffa.sql.PartitionMetadata;
 import net.lshift.diffa.versioning.plumbing.EntityIdBucketing;
 import org.apache.avro.io.*;
 import org.apache.avro.specific.SpecificDatumReader;
@@ -210,7 +210,7 @@ public class CassandraVersionStoreIT {
       throw new RuntimeException(e);
     }
 
-    PartitioningMetadata conf = new PartitioningMetadata("THINGS");
+    PartitionMetadata conf = new PartitionMetadata("THINGS");
     conf.withId("ID", SQLDataType.VARCHAR).
          withVersion("VERSION", SQLDataType.VARCHAR).
          partitionBy("ENTRY_DATE", SQLDataType.DATE);

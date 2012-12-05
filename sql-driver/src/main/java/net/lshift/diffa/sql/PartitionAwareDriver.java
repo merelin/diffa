@@ -21,9 +21,9 @@ import static org.jooq.impl.Factory.*;
 
 public class PartitionAwareDriver extends AbstractDatabaseAware implements Scannable {
 
-  private PartitioningMetadata config;
+  private PartitionMetadata config;
 
-  public PartitionAwareDriver(DataSource ds, PartitioningMetadata config) {
+  public PartitionAwareDriver(DataSource ds, PartitionMetadata config) {
     super(ds);
     this.config = config;
   }

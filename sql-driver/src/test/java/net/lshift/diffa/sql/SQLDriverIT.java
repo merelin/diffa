@@ -43,7 +43,7 @@ public class SQLDriverIT extends AbstractDatabaseAware {
     connection.commit();
     closeConnection(connection, true);
 
-    PartitioningMetadata metadata = new PartitioningMetadata("THINGS");
+    PartitionMetadata metadata = new PartitionMetadata("THINGS");
     metadata.withId("ID", SQLDataType.VARCHAR).
              withVersion("VERSION", SQLDataType.VARCHAR).
              partitionBy("ENTRY_DATE", SQLDataType.DATE);
