@@ -1,7 +1,6 @@
 package net.lshift.diffa.sql;
 
 import com.google.common.collect.ImmutableMap;
-import com.jolbox.bonecp.BoneCPDataSource;
 import net.lshift.diffa.adapter.scanning.ScanAggregation;
 import net.lshift.diffa.adapter.scanning.ScanConstraint;
 import net.lshift.diffa.adapter.scanning.ScanResultEntry;
@@ -12,6 +11,7 @@ import org.jooq.*;
 import org.jooq.impl.Factory;
 import org.jooq.impl.SQLDataType;
 
+import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.Date;
 import java.sql.SQLException;
@@ -20,17 +20,13 @@ import java.util.Set;
 
 import static org.jooq.impl.Factory.*;
 
-public class PartitionAwareDriver implements Scannable {
-
-  private BoneCPDataSource ds;
+public class PartitionAwareDriver extends AbstractDatabaseAware implements Scannable {
 
   private StoreConfiguration config;
 
-  public PartitionAwareDriver(BoneCPDataSource ds, String name, StoreConfiguration config) {
-
+  public PartitionAwareDriver(DataSource ds, StoreConfiguration config) {
+    super(ds);
     this.config = config;
-    this.ds = ds;
-
   }
 
   @Override
@@ -134,35 +130,6 @@ public class PartitionAwareDriver implements Scannable {
     closeConnection(connection);
   }
 
-  protected Factory getFactory(Connection c) {
-    return new Factory(c, SQLDialect.HSQLDB);
-  }
-
   // TODO This stuff shouldn't really get invoked inline, we should have some kind of wrapping function ....
 
-  protected void closeConnection(Connection connection) {
-    closeConnection(connection, false);
-  }
-
-  protected void closeConnection(Connection connection, boolean shouldCommit) {
-    try {
-      if (shouldCommit) {
-        connection.commit();
-      }
-      connection.close();
-    } catch (SQLException e) {
-      throw new RuntimeException(e);
-    }
-  }
-
-  protected Connection getConnection() {
-    Connection c;
-
-    try {
-      c = ds.getConnection();
-    } catch (SQLException e) {
-      throw new RuntimeException(e);
-    }
-    return c;
-  }
 }

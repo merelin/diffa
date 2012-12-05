@@ -7,8 +7,8 @@ import com.jolbox.bonecp.BoneCPDataSource;
 import net.lshift.diffa.adapter.scanning.*;
 import net.lshift.diffa.scanning.*;
 import net.lshift.diffa.scanning.http.HttpDriver;
+import net.lshift.diffa.scanning.plumbing.BufferingScanResultHandler;
 import net.lshift.diffa.sql.StoreConfiguration;
-import net.lshift.diffa.versioning.plumbing.BufferingScanResultHandler;
 import net.lshift.diffa.versioning.plumbing.EntityIdBucketing;
 import org.apache.avro.io.*;
 import org.apache.avro.specific.SpecificDatumReader;
@@ -32,20 +32,21 @@ public class CassandraVersionStoreIT {
 
   static Logger log = LoggerFactory.getLogger(CassandraVersionStoreIT.class);
 
+
   @Test
   public void u() throws Exception {
 
     ByteArrayOutputStream os = new ByteArrayOutputStream();
 
 
-    DatumWriter<net.lshift.diffa.scanning.ScanResultEntry> writer = new SpecificDatumWriter<net.lshift.diffa.scanning.ScanResultEntry>(net.lshift.diffa.scanning.ScanResultEntry.class);
+    DatumWriter<net.lshift.diffa.adapter.avro.ScanResultEntry> writer = new SpecificDatumWriter<net.lshift.diffa.adapter.avro.ScanResultEntry>(net.lshift.diffa.adapter.avro.ScanResultEntry.class);
 
     //DataFileWriter <net.lshift.diffa.scanning.ScanResultEntry> dataFileWriter = new DataFileWriter <net.lshift.diffa.scanning.ScanResultEntry>(writer);
     //dataFileWriter.create(net.lshift.diffa.scanning.ScanResultEntry.SCHEMA$, os);
 
-    writer.setSchema(net.lshift.diffa.scanning.ScanResultEntry.SCHEMA$);
+    writer.setSchema(net.lshift.diffa.adapter.avro.ScanResultEntry.SCHEMA$);
 
-    net.lshift.diffa.scanning.ScanResultEntry e = new net.lshift.diffa.scanning.ScanResultEntry();
+    net.lshift.diffa.adapter.avro.ScanResultEntry e = new net.lshift.diffa.adapter.avro.ScanResultEntry();
     //e.setId("foo");
     e.setVersion("bar");
     //e.setLastUpdated(System.currentTimeMillis());
@@ -62,13 +63,13 @@ public class CassandraVersionStoreIT {
 
 
 
-    final DatumReader<net.lshift.diffa.scanning.ScanResultEntry> reader = new SpecificDatumReader<net.lshift.diffa.scanning.ScanResultEntry>(net.lshift.diffa.scanning.ScanResultEntry.class);
+    final DatumReader<net.lshift.diffa.adapter.avro.ScanResultEntry> reader = new SpecificDatumReader<net.lshift.diffa.adapter.avro.ScanResultEntry>(net.lshift.diffa.adapter.avro.ScanResultEntry.class);
 
     ByteArrayInputStream is = new ByteArrayInputStream(os.toByteArray());
     Decoder d = DecoderFactory.get().binaryDecoder(is, null);
 
-    net.lshift.diffa.scanning.ScanResultEntry e4 = reader.read(null, d);
-    net.lshift.diffa.scanning.ScanResultEntry e5 = reader.read(null, d);
+    net.lshift.diffa.adapter.avro.ScanResultEntry e4 = reader.read(null, d);
+    net.lshift.diffa.adapter.avro.ScanResultEntry e5 = reader.read(null, d);
 
     System.err.println(e4);
     System.err.println(e5);
@@ -83,6 +84,7 @@ public class CassandraVersionStoreIT {
 
 
   }
+
 
   @Test
   public void differingEndpointsShouldProduceDelta() throws Exception {
@@ -213,7 +215,7 @@ public class CassandraVersionStoreIT {
          withVersion("VERSION", SQLDataType.VARCHAR).
          partitionBy("ENTRY_DATE", SQLDataType.DATE);
 
-    PartitionAwareThings partitionAwareStore = new PartitionAwareThings(ds, left + "", conf);
+    PartitionAwareThings partitionAwareStore = new PartitionAwareThings(ds, conf);
 
     String attributeName = "bizDate";
 

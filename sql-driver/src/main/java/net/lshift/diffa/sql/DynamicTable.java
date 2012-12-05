@@ -1,6 +1,7 @@
 package net.lshift.diffa.sql;
 
 import org.jooq.DataType;
+import org.jooq.impl.SchemaImpl;
 import org.jooq.impl.TableImpl;
 
 /**
@@ -9,7 +10,7 @@ import org.jooq.impl.TableImpl;
 public class DynamicTable extends TableImpl {
 
   public DynamicTable(String name) {
-    super(name);
+    super(name, new SchemaImpl("PUBLIC") {});
   }
 
   /**

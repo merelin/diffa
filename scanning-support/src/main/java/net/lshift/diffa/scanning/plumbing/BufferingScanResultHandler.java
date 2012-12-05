@@ -1,4 +1,4 @@
-package net.lshift.diffa.versioning.plumbing;
+package net.lshift.diffa.scanning.plumbing;
 
 import net.lshift.diffa.adapter.scanning.ScanResultEntry;
 import net.lshift.diffa.scanning.ScanResultHandler;

@@ -13,22 +13,22 @@ public class StoreConfiguration {
   private String partitionBy;
 
   public StoreConfiguration(String tableName) {
-    this.table = new DynamicTable(tableName);
+    this.table = new DynamicTable(tableName.toUpperCase());
   }
 
   public <T> StoreConfiguration withId(String fieldName, DataType<T> type) {
-    idFieldName = fieldName;
-    return withField(fieldName, type);
+    idFieldName = fieldName.toUpperCase();
+    return withField(idFieldName, type);
   }
 
   public <T> StoreConfiguration withVersion(String fieldName, DataType<T> type) {
-    versionFieldName = fieldName;
-    return withField(fieldName, type);
+    versionFieldName = fieldName.toUpperCase();
+    return withField(versionFieldName, type);
   }
 
   public <T> StoreConfiguration partitionBy(String fieldName, DataType<T> type) {
-    partitionBy = fieldName;
-    return withField(fieldName, type);
+    partitionBy = fieldName.toUpperCase();
+    return withField(partitionBy, type);
   }
 
   public Table<Record> getTable() {

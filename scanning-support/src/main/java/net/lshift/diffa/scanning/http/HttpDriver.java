@@ -43,7 +43,7 @@ public class HttpDriver implements Scannable {
                                 setQueryParameters(queryParams).
                                 build();
 
-    final DatumReader<net.lshift.diffa.scanning.ScanResultEntry> reader = new SpecificDatumReader<net.lshift.diffa.scanning.ScanResultEntry>(net.lshift.diffa.scanning.ScanResultEntry.class);
+    final DatumReader<net.lshift.diffa.adapter.avro.ScanResultEntry> reader = new SpecificDatumReader<net.lshift.diffa.adapter.avro.ScanResultEntry>(net.lshift.diffa.adapter.avro.ScanResultEntry.class);
 
     AsyncHandler<Response> asyncHandler = new AsyncHandler<Response>() {
 
@@ -62,7 +62,7 @@ public class HttpDriver implements Scannable {
         while (true) {
           try {
 
-            net.lshift.diffa.scanning.ScanResultEntry entry = reader.read(null, decoder);
+            net.lshift.diffa.adapter.avro.ScanResultEntry entry = reader.read(null, decoder);
             ScanResultEntry e = new ScanResultEntry();
 
             if (entry.getId() != null) {

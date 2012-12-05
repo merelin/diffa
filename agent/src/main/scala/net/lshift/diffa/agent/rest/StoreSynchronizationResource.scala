@@ -1,7 +1,7 @@
 package net.lshift.diffa.agent.rest
 
 import scala.collection.JavaConversions._
-import javax.ws.rs.{WebApplicationException, Produces, Path, GET}
+import javax.ws.rs.{Produces, Path, GET}
 import javax.ws.rs.core.{StreamingOutput, Response, Context}
 import javax.servlet.http.HttpServletRequest
 import net.lshift.diffa.adapter.scanning.{SliceSizeParser, ScanResultEntry, AggregationBuilder, ConstraintsBuilder}
@@ -12,8 +12,8 @@ import net.lshift.diffa.kernel.differencing.DomainDifferenceStore
 import java.io.{BufferedOutputStream, OutputStream}
 import org.apache.avro.io.EncoderFactory
 import org.apache.avro.specific.SpecificDatumWriter
-import net.lshift.diffa.scanning.{ScanResultEntry => GeneratedScanResultEntry, Scannable, ScanResultHandler}
-import org.apache.avro.file.DataFileWriter
+import net.lshift.diffa.scanning.ScanResultHandler
+import net.lshift.diffa.adapter.avro.{ScanResultEntry => GeneratedScanResultEntry}
 
 
 @Path("/store")

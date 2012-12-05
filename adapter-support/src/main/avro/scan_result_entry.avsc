@@ -1,6 +1,6 @@
 [
   {"type": "record",
-   "namespace": "net.lshift.diffa.scanning",
+   "namespace": "net.lshift.diffa.adapter.avro",
    "name": "ScanResultEntry",
    "fields": [
        {"name": "id", "type": [ "string", "null"]},

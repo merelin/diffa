@@ -25,7 +25,6 @@ import experimental.theories.{Theories, DataPoint, Theory}
 import runner.RunWith
 import net.lshift.diffa.kernel.differencing.JooqDomainDifferenceStoreTest.TileScenario
 import org.joda.time.{DateTime, Interval, DateTimeZone}
-import org.hibernate.dialect.Dialect
 import net.lshift.diffa.schema.environment.TestDatabaseEnvironments
 import net.lshift.diffa.kernel.StoreReferenceContainer
 import net.lshift.hibernate.migrations.dialects.DialectExtensionSelector
@@ -35,6 +34,9 @@ import collection.mutable.ListBuffer
 import scala.collection.JavaConversions._
 import net.lshift.diffa.kernel.frontend.{RepairActionDef, EscalationDef, EndpointDef, PairDef}
 import org.apache.commons.lang.RandomStringUtils
+import net.lshift.diffa.scanning.ScanResultHandler
+import net.lshift.diffa.adapter.scanning.ScanResultEntry
+
 
 /**
  * Test cases for the JooqDomainDifferenceStore.
@@ -781,6 +783,18 @@ class JooqDomainDifferenceStoreTest {
         assertTrue("Cause must be an SQLIntegrityConstraintViolationException",
           e.getCause.isInstanceOf[SQLIntegrityConstraintViolationException])
     }
+  }
+
+  @Test
+  def shouldRenderMerkleTree() {
+
+    val handler = new ScanResultHandler {
+      def onEntry(entry: ScanResultEntry) {
+        println(entry)
+      }
+    }
+
+    domainDiffStore.scan(null,null,100, handler)
   }
 
   @Test

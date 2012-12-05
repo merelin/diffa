@@ -10,8 +10,8 @@ import java.util.*;
 
 public class PartitionAwareThings extends PartitionAwareDriver {
 
-  public PartitionAwareThings(BoneCPDataSource ds, String name, StoreConfiguration config) {
-    super(ds, name, config);
+  public PartitionAwareThings(BoneCPDataSource ds, StoreConfiguration config) {
+    super(ds, config);
   }
 
   public PartitionableThing createRandomThing(Map<String, ?> attributes) {
