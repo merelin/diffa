@@ -17,7 +17,9 @@ package net.lshift.diffa.adapter.scanning;
 
 import javax.servlet.http.HttpServletRequest;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Helper for building aggregations from a web request.
@@ -37,6 +39,11 @@ public class AggregationBuilder {
    */
   public List<ScanAggregation> toList() {
     return result;
+  }
+
+  // TODO Potentially the underlying should be a set?
+  public Set<ScanAggregation> toSet() {
+    return new HashSet<ScanAggregation>(result);
   }
 
   /**

@@ -1,4 +1,4 @@
-package net.lshift.diffa.scanning;
+package net.lshift.diffa.scanning.http;
 
 import com.ning.http.client.FluentStringsMap;
 import net.lshift.diffa.adapter.scanning.GranularityAggregation;

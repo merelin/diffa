@@ -1,35 +1,29 @@
-package net.lshift.diffa.scanning;
+package net.lshift.diffa.scanning.http;
 
 import com.ning.http.client.*;
 import net.lshift.diffa.adapter.scanning.ScanAggregation;
 import net.lshift.diffa.adapter.scanning.ScanConstraint;
 import net.lshift.diffa.adapter.scanning.ScanResultEntry;
-import org.apache.avro.file.DataFileReader;
-import org.apache.avro.file.DataFileStream;
+import net.lshift.diffa.scanning.ScanResultHandler;
+import net.lshift.diffa.scanning.Scannable;
 import org.apache.avro.io.DatumReader;
 import org.apache.avro.io.Decoder;
 import org.apache.avro.io.DecoderFactory;
-import org.apache.avro.io.EncoderFactory;
 import org.apache.avro.specific.SpecificDatumReader;
 import org.joda.time.DateTime;
 
-import java.io.ByteArrayInputStream;
 import java.io.EOFException;
-import java.io.IOException;
-import java.io.InputStream;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.Future;
 
-public class RestDriver implements Scannable {
+public class HttpDriver implements Scannable {
 
   private AsyncHttpClient client = new AsyncHttpClient();
   private String url;
   private Realm realm;
 
-  public RestDriver(String url, String user, String password) {
+  public HttpDriver(String url, String user, String password) {
     this.url = url;
     this.realm = new Realm.RealmBuilder()
                           .setPrincipal(user)

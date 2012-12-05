@@ -40,6 +40,8 @@ import net.lshift.diffa.kernel.events.VersionID
 import net.lshift.diffa.kernel.lifecycle.PairLifecycleAware
 import net.lshift.diffa.adapter.scanning.{ScanResultEntry, ScanAggregation, ScanConstraint}
 import java.io.{BufferedOutputStream, OutputStream}
+import net.lshift.diffa.scanning.{ScanResultHandler, Scannable}
+import java.util
 
 /**
  * Hibernate backed Domain Cache provider.
@@ -580,7 +582,8 @@ class JooqDomainDifferenceStore(db: DatabaseFacade,
     t.truncate(PENDING_DIFFS).execute()
   }
 
-  def scan(constraints:Seq[ScanConstraint], aggregations:Seq[ScanAggregation], maxSliceSize:Int, handler: ScanResultHandler) {
+  // TODO Test
+  def scan(constraints: java.util.Set[ScanConstraint], aggregations: java.util.Set[ScanAggregation], maxSliceSize: Int, handler: ScanResultHandler) = {
     db.execute(t => {
       val cursor = t.select().from(SPACES).fetchLazy()
       while (cursor.hasNext) {

@@ -5,9 +5,8 @@ import com.googlecode.flyway.core.Flyway;
 import com.jolbox.bonecp.BoneCPConfig;
 import com.jolbox.bonecp.BoneCPDataSource;
 import net.lshift.diffa.adapter.scanning.*;
-import net.lshift.diffa.adapter.scanning.ScanResultEntry;
 import net.lshift.diffa.scanning.*;
-import net.lshift.diffa.scanning.ScanResultHandler;
+import net.lshift.diffa.scanning.http.HttpDriver;
 import net.lshift.diffa.sql.StoreConfiguration;
 import net.lshift.diffa.versioning.plumbing.BufferingScanResultHandler;
 import net.lshift.diffa.versioning.plumbing.EntityIdBucketing;
@@ -160,7 +159,7 @@ public class CassandraVersionStoreIT {
     // TODO This could be more comprehensive, i.e. it asserts nothing about the RHS of the diff
 
     String agent = "http://localhost:19093/diffa-agent/store/scan/foo";
-    Scannable scannable = new RestDriver(agent, "guest", "guest");
+    Scannable scannable = new HttpDriver(agent, "guest", "guest");
 
 
     Set<ScanConstraint> cons = new HashSet<ScanConstraint>();

@@ -38,6 +38,11 @@ public class ConstraintsBuilder {
     return result;
   }
 
+  // TODO Potentially the underlying should be a set?
+  public Set<ScanConstraint> toSet() {
+    return new HashSet<ScanConstraint>(result);
+  }
+
   /**
    * Attempt to add a date range constraint for the given attribute. The constraint will be added if
    * one or both of [attrName]-start, [attrName]-end are present in the request.

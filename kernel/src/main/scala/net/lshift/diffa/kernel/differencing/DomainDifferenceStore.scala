@@ -22,12 +22,13 @@ import net.lshift.diffa.kernel.config.PairRef
 import reflect.BeanProperty
 import net.lshift.diffa.adapter.scanning.{ScanResultEntry, ScanAggregation, ScanConstraint}
 import java.io.OutputStream
+import net.lshift.diffa.scanning.Scannable
 
 /**
  * The domain cache provides facilities for storing difference events that occur, and managing the states of these
  * events. A domain cache instance should exist for each domain that has been created in the system.
  */
-trait DomainDifferenceStore {
+trait DomainDifferenceStore extends Scannable {
   /**
    * Indicates that the given domain has been removed, and that any differences stored against it should be removed.
    */
@@ -164,14 +165,6 @@ trait DomainDifferenceStore {
    */
   def purgeOrphanedEvents : Int
 
-  /**
-   * Builds a Merkle tree over the diffs store for the given query.
-   */
-  def scan(constraints:Seq[ScanConstraint], aggregations:Seq[ScanAggregation], maxSliceSize:Int, handler: ScanResultHandler)
-}
-
-trait ScanResultHandler {
-  def onEntry(result:ScanResultEntry)
 }
 
 case class TileGroup(

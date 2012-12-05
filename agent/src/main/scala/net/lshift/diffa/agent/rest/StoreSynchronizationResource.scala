@@ -8,11 +8,11 @@ import net.lshift.diffa.adapter.scanning.{SliceSizeParser, ScanResultEntry, Aggr
 import org.springframework.stereotype.Component
 import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.beans.factory.annotation.Autowired
-import net.lshift.diffa.kernel.differencing.{ScanResultHandler, DomainDifferenceStore}
+import net.lshift.diffa.kernel.differencing.DomainDifferenceStore
 import java.io.{BufferedOutputStream, OutputStream}
 import org.apache.avro.io.EncoderFactory
 import org.apache.avro.specific.SpecificDatumWriter
-import net.lshift.diffa.scanning.{ScanResultEntry => GeneratedScanResultEntry}
+import net.lshift.diffa.scanning.{ScanResultEntry => GeneratedScanResultEntry, Scannable, ScanResultHandler}
 import org.apache.avro.file.DataFileWriter
 
 
@@ -33,11 +33,11 @@ class StoreSynchronizationResource {
 
     val constraintsBuilder = new ConstraintsBuilder(request)
     constraintsBuilder.maybeAddStringPrefixConstraint("name")
-    val constraints = constraintsBuilder.toList
+    val constraints = constraintsBuilder.toSet
 
     val aggregationsBuilder = new AggregationBuilder(request)
     aggregationsBuilder.maybeAddStringPrefixAggregation("entityId")
-    val aggregations = aggregationsBuilder.toList
+    val aggregations = aggregationsBuilder.toSet
 
     val sliceParser = new SliceSizeParser(request)
     val maxSliceSize = sliceParser.getMaxSliceSize
@@ -84,10 +84,6 @@ class StoreSynchronizationResource {
 
       }
     }
-
-
-
-
 
     Response.ok(stream).build()
 
