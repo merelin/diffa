@@ -2,9 +2,7 @@ package net.lshift.diffa.sql;
 
 import org.jooq.*;
 
-import static org.jooq.impl.Factory.*;
-
-public class StoreConfiguration {
+public class PartitioningMetadata {
 
   private DynamicTable table;
 
@@ -12,21 +10,21 @@ public class StoreConfiguration {
   private String versionFieldName;
   private String partitionBy;
 
-  public StoreConfiguration(String tableName) {
+  public PartitioningMetadata(String tableName) {
     this.table = new DynamicTable(tableName.toUpperCase());
   }
 
-  public <T> StoreConfiguration withId(String fieldName, DataType<T> type) {
+  public <T> PartitioningMetadata withId(String fieldName, DataType<T> type) {
     idFieldName = fieldName.toUpperCase();
     return withField(idFieldName, type);
   }
 
-  public <T> StoreConfiguration withVersion(String fieldName, DataType<T> type) {
+  public <T> PartitioningMetadata withVersion(String fieldName, DataType<T> type) {
     versionFieldName = fieldName.toUpperCase();
     return withField(versionFieldName, type);
   }
 
-  public <T> StoreConfiguration partitionBy(String fieldName, DataType<T> type) {
+  public <T> PartitioningMetadata partitionBy(String fieldName, DataType<T> type) {
     partitionBy = fieldName.toUpperCase();
     return withField(partitionBy, type);
   }
@@ -56,7 +54,7 @@ public class StoreConfiguration {
     return table.getField(fieldName);
   }
 
-  private <T> StoreConfiguration withField(String fieldName, DataType<T> type) {
+  private <T> PartitioningMetadata withField(String fieldName, DataType<T> type) {
     this.table.addField(fieldName, type);
     return this;
   }

@@ -14,7 +14,6 @@ import org.jooq.impl.SQLDataType;
 import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.Date;
-import java.sql.SQLException;
 import java.util.Map;
 import java.util.Set;
 
@@ -22,9 +21,9 @@ import static org.jooq.impl.Factory.*;
 
 public class PartitionAwareDriver extends AbstractDatabaseAware implements Scannable {
 
-  private StoreConfiguration config;
+  private PartitioningMetadata config;
 
-  public PartitionAwareDriver(DataSource ds, StoreConfiguration config) {
+  public PartitionAwareDriver(DataSource ds, PartitioningMetadata config) {
     super(ds);
     this.config = config;
   }
@@ -95,20 +94,23 @@ public class PartitionAwareDriver extends AbstractDatabaseAware implements Scann
             ).
             groupBy(day, bucket);
 
-    SelectHavingStep dailyBuckets =
+    SelectLimitStep dailyBuckets =
         db.select(day, function("md5", String.class, groupConcat(digest).orderBy(bucket.asc()).separator("")).as(digest.getName())).
             from(slicedBuckets).
-            groupBy(day);
+            groupBy(day).
+            orderBy(day);
 
-    SelectHavingStep monthlyBuckets =
+    SelectLimitStep monthlyBuckets =
         db.select(truncMonth.as(month.getName()), function("md5", String.class, groupConcat(digest).orderBy(day.asc()).separator("")).as(digest.getName())).
             from(dailyBuckets).
-            groupBy(truncMonth);
+            groupBy(truncMonth).
+            orderBy(month);
 
-    SelectHavingStep yearlyBuckets =
+    SelectLimitStep yearlyBuckets =
         db.select(truncYear.as(year.getName()), function("md5", String.class, groupConcat(digest).orderBy(month.asc()).separator("")).as(digest.getName())).
             from(monthlyBuckets).
-            groupBy(truncYear);
+            groupBy(truncYear).
+            orderBy(year);
 
     Cursor<Record> cursor = yearlyBuckets.fetchLazy();
 

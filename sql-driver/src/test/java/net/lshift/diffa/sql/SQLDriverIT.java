@@ -5,11 +5,7 @@ import com.google.common.collect.ImmutableSet;
 import net.lshift.diffa.adapter.scanning.*;
 import net.lshift.diffa.scanning.plumbing.BufferingScanResultHandler;
 import org.apache.commons.codec.digest.DigestUtils;
-import org.apache.commons.lang3.RandomStringUtils;
 import org.joda.time.DateTime;
-import org.joda.time.Duration;
-import org.joda.time.Interval;
-import org.joda.time.LocalDate;
 import org.jooq.impl.Factory;
 import org.jooq.impl.SQLDataType;
 import org.junit.Test;
@@ -17,7 +13,7 @@ import static org.junit.Assert.*;
 
 import java.sql.Connection;
 import java.sql.Date;
-import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.Set;
 
 public class SQLDriverIT extends AbstractDatabaseAware {
@@ -47,12 +43,12 @@ public class SQLDriverIT extends AbstractDatabaseAware {
     connection.commit();
     closeConnection(connection, true);
 
-    StoreConfiguration conf = new StoreConfiguration("THINGS");
-    conf.withId("ID", SQLDataType.VARCHAR).
-         withVersion("VERSION", SQLDataType.VARCHAR).
-         partitionBy("ENTRY_DATE", SQLDataType.DATE);
+    PartitioningMetadata metadata = new PartitioningMetadata("THINGS");
+    metadata.withId("ID", SQLDataType.VARCHAR).
+             withVersion("VERSION", SQLDataType.VARCHAR).
+             partitionBy("ENTRY_DATE", SQLDataType.DATE);
 
-    PartitionAwareDriver driver = new PartitionAwareDriver(ds, conf);
+    PartitionAwareDriver driver = new PartitionAwareDriver(ds, metadata);
 
     ScanAggregation dateAggregation = new DateAggregation("some_date", DateGranularityEnum.Yearly);
 
@@ -67,9 +63,9 @@ public class SQLDriverIT extends AbstractDatabaseAware {
      * rather than forwards engineering the expected from some kind of logic ......
      */
 
-    Set<ScanResultEntry> expectedResults = new HashSet<ScanResultEntry>();
-    expectedResults.add(ScanResultEntry.forAggregate("6b4ee3a8dcf9e71af301b5722406e52f", ImmutableMap.of("bizDate", "2006")));
+    Set<ScanResultEntry> expectedResults = new LinkedHashSet<ScanResultEntry>();
     expectedResults.add(ScanResultEntry.forAggregate("696a51b5982b8521625d39631c1175bb", ImmutableMap.of("bizDate", "2005")));
+    expectedResults.add(ScanResultEntry.forAggregate("6b4ee3a8dcf9e71af301b5722406e52f", ImmutableMap.of("bizDate", "2006")));
     expectedResults.add(ScanResultEntry.forAggregate("c7b7eb798fcf835ace16f469c6919e1c", ImmutableMap.of("bizDate", "2007")));
     expectedResults.add(ScanResultEntry.forAggregate("0906f8b73c3e2ff365ff235b3cb020b7", ImmutableMap.of("bizDate", "2008")));
 

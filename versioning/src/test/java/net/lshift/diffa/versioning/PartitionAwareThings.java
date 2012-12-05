@@ -2,7 +2,7 @@ package net.lshift.diffa.versioning;
 
 import com.jolbox.bonecp.BoneCPDataSource;
 import net.lshift.diffa.sql.PartitionAwareDriver;
-import net.lshift.diffa.sql.StoreConfiguration;
+import net.lshift.diffa.sql.PartitioningMetadata;
 import org.apache.commons.lang.RandomStringUtils;
 import org.jooq.impl.*;
 import java.sql.Connection;
@@ -10,7 +10,7 @@ import java.util.*;
 
 public class PartitionAwareThings extends PartitionAwareDriver {
 
-  public PartitionAwareThings(BoneCPDataSource ds, StoreConfiguration config) {
+  public PartitionAwareThings(BoneCPDataSource ds, PartitioningMetadata config) {
     super(ds, config);
   }
 
