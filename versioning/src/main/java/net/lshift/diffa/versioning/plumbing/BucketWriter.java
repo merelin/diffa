@@ -1,6 +1,6 @@
 package net.lshift.diffa.versioning.plumbing;
 
-import net.lshift.diffa.versioning.MerkleNode;
+import net.lshift.diffa.versioning.partitioning.MerkleNode;
 
 public interface BucketWriter {
 

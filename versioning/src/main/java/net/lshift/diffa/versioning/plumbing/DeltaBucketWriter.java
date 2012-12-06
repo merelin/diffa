@@ -4,7 +4,7 @@ import me.prettyprint.cassandra.serializers.StringSerializer;
 import me.prettyprint.hector.api.beans.DynamicComposite;
 import net.lshift.diffa.versioning.BatchMutator;
 import net.lshift.diffa.versioning.EntityDifference;
-import net.lshift.diffa.versioning.MerkleNode;
+import net.lshift.diffa.versioning.partitioning.MerkleNode;
 
 public class DeltaBucketWriter extends AbstractBucketWriter {
 

@@ -7,7 +7,7 @@ public class PairProjection {
   private int maxSliceSize = 100;
 
   public PairProjection(Long left, Long right) {
-    this(left, right, null);
+    this(left, right, "");
   }
 
   public PairProjection(Long left, Long right, String parent) {

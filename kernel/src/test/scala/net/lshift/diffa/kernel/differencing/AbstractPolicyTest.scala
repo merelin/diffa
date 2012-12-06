@@ -35,6 +35,7 @@ import net.lshift.diffa.adapter.scanning._
 import net.lshift.diffa.kernel.diag.DiagnosticsManager
 import net.lshift.diffa.kernel.config.system.SystemConfigStore
 import net.lshift.diffa.kernel.frontend.DomainPairDef
+import net.lshift.diffa.config.{RangeCategoryDescriptor, AggregatingCategoryDescriptor}
 
 /**
  * Base class for the various policy tests.

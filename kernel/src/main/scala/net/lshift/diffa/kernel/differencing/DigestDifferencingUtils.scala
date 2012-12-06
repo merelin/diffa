@@ -18,9 +18,9 @@ package net.lshift.diffa.kernel.differencing
 
 import collection.mutable.{ListBuffer, HashMap}
 import net.lshift.diffa.kernel.participants._
-import net.lshift.diffa.kernel.config.AggregatingCategoryDescriptor
 import scala.collection.JavaConversions._
 import net.lshift.diffa.adapter.scanning.{ScanConstraint, ScanResultEntry}
+import net.lshift.diffa.config.AggregatingCategoryDescriptor
 
 /**
  * Utility methods for differencing sequences of digests.

@@ -21,10 +21,11 @@ import org.junit.Assert._
 import scala.collection.JavaConversions._
 import org.springframework.mock.web.MockHttpServletRequest
 import net.lshift.diffa.adapter.scanning._
-import net.lshift.diffa.kernel.config._
-import net.lshift.diffa.kernel.frontend.EndpointViewDef
 import org.joda.time.{DateTimeZone, DateTime}
 import org.joda.time.format.ISODateTimeFormat
+import net.lshift.diffa.config._
+import scala.Some
+import net.lshift.diffa.kernel.config.EndpointView
 
 class CategoryUtilTest {
   val baseStringCategory = new SetCategoryDescriptor(Set("a", "b"))

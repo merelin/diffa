@@ -17,10 +17,11 @@ package net.lshift.diffa.kernel.differencing
 
 import org.junit.Test
 import org.junit.Assert._
-import net.lshift.diffa.kernel.config.{SetCategoryDescriptor, RangeCategoryDescriptor, PrefixCategoryDescriptor}
+import net.lshift.diffa.config.{SetCategoryDescriptor, AggregatingCategoryDescriptor, PrefixCategoryDescriptor, RangeCategoryDescriptor}
 import scala.collection.JavaConversions._
 import net.lshift.diffa.adapter.scanning._
 import org.joda.time.{DateTimeZone, LocalDate, DateTime}
+import net.lshift.diffa.config.{SetCategoryDescriptor, PrefixCategoryDescriptor, RangeCategoryDescriptor}
 
 class AttributesUtilTest {
   val categories = Map(

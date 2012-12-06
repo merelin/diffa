@@ -34,6 +34,8 @@ import org.apache.commons.lang.RandomStringUtils
 import system.PolicyKey
 import org.junit.experimental.theories.{DataPoint, Theory, Theories}
 import org.junit.runner.RunWith
+import net.lshift.diffa.config.{ConfigValidationException, PrefixCategoryDescriptor, SetCategoryDescriptor, RangeCategoryDescriptor}
+import net.lshift.diffa.adapter.scanning.UnicodeCollation
 
 @RunWith(classOf[Theories])
 class JooqDomainConfigStoreTest {
@@ -339,9 +341,9 @@ class JooqDomainConfigStoreTest {
   @Test
   def testEndpointCollationIsPersisted = {
     systemConfigStore.createOrUpdateDomain(domainName)
-    domainConfigStore.createOrUpdateEndpoint(space.id, upstream1.copy(collation = UnicodeCollationOrdering.name))
+    domainConfigStore.createOrUpdateEndpoint(space.id, upstream1.copy(collation = UnicodeCollation.get.getName))
     val retrieved = domainConfigStore.getEndpointDef(space.id, upstream1.name)
-    assertEquals(UnicodeCollationOrdering.name, retrieved.collation)
+    assertEquals(UnicodeCollation.get.getName, retrieved.collation)
   }
 
   @Test

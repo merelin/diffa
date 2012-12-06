@@ -20,7 +20,13 @@ import net.lshift.diffa.kernel.config._
 import scala.collection.JavaConversions._
 import collection.immutable.Map
 import net.lshift.diffa.adapter.scanning._
-import net.lshift.diffa.kernel.participants.{IntegerCategoryFunction, ByNameCategoryFunction, StringPrefixCategoryFunction, CategoryFunction}
+import net.lshift.diffa.kernel.participants.CategoryFunction
+import net.lshift.diffa.config._
+import net.lshift.diffa.kernel.participants.StringPrefixCategoryFunction
+import scala.Some
+import net.lshift.diffa.kernel.participants.ByNameCategoryFunction
+import net.lshift.diffa.kernel.participants.IntegerCategoryFunction
+import net.lshift.diffa.kernel.config.EndpointView
 
 /**
  * Utility for transforming categories into

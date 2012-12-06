@@ -23,6 +23,7 @@ import net.lshift.diffa.kernel.config._
 import org.junit.experimental.theories.{Theories, Theory, DataPoint}
 import org.junit.runner.RunWith
 import DiffaConfigValidatorConverter._
+import net.lshift.diffa.config.{ConfigValidationException, RangeCategoryDescriptor, PrefixCategoryDescriptor, SetCategoryDescriptor}
 
 @RunWith(classOf[Theories])
 class ConfigValidationTest extends DefValidationTestBase {

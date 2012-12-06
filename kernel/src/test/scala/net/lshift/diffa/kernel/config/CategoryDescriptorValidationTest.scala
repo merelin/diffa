@@ -18,6 +18,7 @@ package net.lshift.diffa.kernel.config
 import org.junit.Test
 import net.lshift.diffa.kernel.frontend.DefValidationTestBase
 import java.util.HashSet
+import net.lshift.diffa.config.{PrefixCategoryDescriptor, SetCategoryDescriptor, RangeCategoryDescriptor}
 
 class CategoryDescriptorValidationTest extends DefValidationTestBase {
   @Test

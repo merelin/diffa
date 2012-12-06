@@ -24,9 +24,9 @@ import net.lshift.diffa.kernel.util.FullDateTimes._
 import net.lshift.diffa.kernel.participants._
 import collection.mutable.HashMap
 import org.joda.time.DateTime
-import net.lshift.diffa.kernel.config.RangeCategoryDescriptor
 import scala.collection.JavaConversions._
 import net.lshift.diffa.adapter.scanning.{TimeRangeConstraint, ScanResultEntry}
+import net.lshift.diffa.config.RangeCategoryDescriptor
 
 /**
  * Test cases for the DigestDifferencingUtils object.

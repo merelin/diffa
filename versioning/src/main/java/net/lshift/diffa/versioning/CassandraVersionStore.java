@@ -21,6 +21,9 @@ import me.prettyprint.hector.api.beans.HColumn;
 import me.prettyprint.hector.api.factory.HFactory;
 import me.prettyprint.hector.api.query.SliceQuery;
 import net.lshift.diffa.adapter.scanning.*;
+import net.lshift.diffa.versioning.partitioning.MerkleNode;
+import net.lshift.diffa.versioning.partitioning.MerkleUtils;
+import net.lshift.diffa.versioning.partitioning.PartitionedEvent;
 import net.lshift.diffa.versioning.plumbing.BucketWriter;
 import net.lshift.diffa.versioning.plumbing.DeltaBucketWriter;
 import net.lshift.diffa.versioning.plumbing.OutrightBucketWriter;
@@ -200,26 +203,8 @@ public class CassandraVersionStore implements VersionStore {
 
   }
 
-  public SortedMap<String,BucketDigest> getEntityIdDigests(Long endpoint) {
-    return getEntityIdDigests(endpoint, null);
-  }
-
-  public SortedMap<String,BucketDigest> getEntityIdDigests(Long endpoint, String bucketName) {
-    return getGenericDigests(endpoint, bucketName, entityIdDigestsTemplate, ENTITY_ID_HIERARCHY_CF, ENTITY_ID_DIGESTS_CF, ENTITY_ID_BUCKETS_CF, UNLIMITED_SLICE_SIZE);
-  }
-
-  public SortedMap<String,BucketDigest> getEntityIdDigests(Long endpoint, String bucketName, boolean isLeaf) {
-    return getGenericDigests(endpoint, bucketName, isLeaf, entityIdDigestsTemplate, ENTITY_ID_HIERARCHY_CF, ENTITY_ID_DIGESTS_CF, ENTITY_ID_BUCKETS_CF, UNLIMITED_SLICE_SIZE);
-  }
-
-
   public void setMaxSliceSize(Long endpoint, int size) {
     sliceSizes.put(endpoint, size);
-  }
-
-  public void delta(PairProjection view) {
-    String bucket = "";
-    deltify(view.getLeft(), view.getRight(), bucket);
   }
 
   public TreeLevelRollup getDeltaDigest(PairProjection view) {
@@ -227,7 +212,6 @@ public class CassandraVersionStore implements VersionStore {
     String bucket = (view.getParent() == null) ? "" : view.getParent();
 
     String context = KEY_JOINER.join(view.getLeft(), view.getRight());
-    String key = KEY_JOINER.join(context, bucket);
 
     TreeLevelRollup rollup = getChildDigests(context, bucket, pairDigestsTemplate, PAIR_HIERARCHY_CF, PAIR_DIGESTS_CF, PAIR_BUCKETS_CF, view.getMaxSliceSize());
     return unqualify(view.getLeft(), view.getRight(), rollup);
@@ -342,10 +326,10 @@ public class CassandraVersionStore implements VersionStore {
     }
   }
 
-  private void deltify(Long left, Long right, String bucket) {
-    TreeLevelDifference treeLevelDifference = getDifference(left, right, bucket);
+  public void deltify(PairProjection view) {
+    TreeLevelDifference treeLevelDifference = getDifference(view.getLeft(), view.getRight(), view.getParent());
     BatchMutator mutator = new BasicBatchMutator(keyspace);
-    establishDifferingSides(left, right, treeLevelDifference, mutator);
+    establishDifferingSides(view.getLeft(), view.getRight(), treeLevelDifference, mutator);
     mutator.execute();
   }
 

@@ -39,6 +39,7 @@ import net.lshift.diffa.kernel.util.{CategoryChange, UpstreamEndpoint}
 import net.lshift.diffa.kernel.config._
 import org.junit.{Ignore, Before, Test}
 import net.lshift.diffa.kernel.frontend.DomainPairDef
+import net.lshift.diffa.config.{SetCategoryDescriptor, AggregatingCategoryDescriptor, PrefixCategoryDescriptor, RangeCategoryDescriptor}
 
 /**
  * Test cases for the Hibernate backed VersionCorrelationStore.
@@ -752,8 +753,8 @@ object LuceneVersionCorrelationStoreTest {
     maybeSystemConfigOption(VersionCorrelationStore.schemaVersionKey)).
     andStubReturn(Some(VersionCorrelationStore.currentSchemaVersion.toString))
 
-  Map(pair -> AsciiCollationOrdering.name,
-    pairWithUnicodeOrder -> UnicodeCollationOrdering.name).foreach {
+  Map(pair -> AsciiCollation.get().getName,
+    pairWithUnicodeOrder -> UnicodeCollation.get().getName).foreach {
     case (pair, collation) =>
     EasyMock.expect(dummyDomainConfigStore.getPairDef(pair)
     ).andStubReturn(

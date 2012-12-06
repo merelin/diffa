@@ -39,6 +39,7 @@ import net.lshift.diffa.kernel.config.system.SystemConfigStore
 import net.lshift.diffa.kernel.util.{DownstreamEndpoint, UpstreamEndpoint, NonCancellingFeedbackHandle}
 import org.joda.time.{DateTime, LocalDate}
 import net.lshift.diffa.kernel.frontend.DomainPairDef
+import net.lshift.diffa.config.{SetCategoryDescriptor, AggregatingCategoryDescriptor, PrefixCategoryDescriptor, RangeCategoryDescriptor}
 
 /**
  * Framework and scenario definitions for data-driven policy tests.

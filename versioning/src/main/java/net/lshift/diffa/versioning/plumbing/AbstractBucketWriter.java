@@ -1,7 +1,7 @@
 package net.lshift.diffa.versioning.plumbing;
 
 import net.lshift.diffa.versioning.BatchMutator;
-import net.lshift.diffa.versioning.MerkleNode;
+import net.lshift.diffa.versioning.partitioning.MerkleNode;
 
 public abstract class AbstractBucketWriter implements BucketWriter {
 

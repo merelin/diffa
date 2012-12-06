@@ -21,6 +21,7 @@ import org.slf4j.LoggerFactory
 import net.lshift.diffa.kernel.differencing.{DateAttribute, StringAttribute, DateTimeAttribute, IntegerAttribute}
 import net.lshift.diffa.adapter.scanning.{IntegerRangeConstraint, TimeRangeConstraint, DateRangeConstraint}
 import org.joda.time.DateTimeZone
+import net.lshift.diffa.config.RangeCategoryDescriptor
 
 /**
  * This is a simple registry that can hydrate category values based on a descriptor

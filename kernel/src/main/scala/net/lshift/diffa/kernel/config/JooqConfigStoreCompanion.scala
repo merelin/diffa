@@ -53,6 +53,17 @@ import net.lshift.diffa.kernel.util.AlertCodes._
 import org.jooq.{Field, Record, Result}
 import java.lang.{Long => LONG}
 import net.lshift.diffa.schema.tables.SpacePaths._
+import net.lshift.diffa.config._
+import net.lshift.diffa.kernel.frontend.DomainPairDef
+import net.lshift.diffa.kernel.frontend.EndpointDef
+import net.lshift.diffa.kernel.frontend.RepairActionDef
+import scala.Some
+import net.lshift.diffa.kernel.frontend.EndpointViewDef
+import net.lshift.diffa.kernel.frontend.PairReportDef
+import net.lshift.diffa.kernel.frontend.EscalationDef
+import net.lshift.diffa.kernel.config.PairRef
+import net.lshift.diffa.kernel.frontend.DomainEndpointDef
+import net.lshift.diffa.kernel.frontend.PairViewDef
 
 /**
  * This object is a workaround for the fact that Scala is so slow

@@ -1,5 +1,7 @@
 package net.lshift.diffa.versioning;
 
+import net.lshift.diffa.versioning.partitioning.MerkleNode;
+import net.lshift.diffa.versioning.partitioning.MerkleUtils;
 import org.apache.commons.lang.RandomStringUtils;
 import org.junit.Test;
 import org.junit.experimental.theories.DataPoint;

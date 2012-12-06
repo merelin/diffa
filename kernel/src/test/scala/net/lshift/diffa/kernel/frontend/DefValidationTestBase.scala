@@ -1,7 +1,7 @@
 package net.lshift.diffa.kernel.frontend
 
 import org.junit.Assert._
-import net.lshift.diffa.kernel.config.ConfigValidationException
+import net.lshift.diffa.config.ConfigValidationException
 
 /**
  * Common type and validation utilities for testing the validation constraints

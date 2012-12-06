@@ -592,23 +592,8 @@ class JooqDomainDifferenceStore(db: DatabaseFacade,
     t.truncate(PENDING_DIFFS).execute()
   }
 
-  // TODO Test
-  def scan(constraints: java.util.Set[ScanConstraint], aggregations: java.util.Set[ScanAggregation], maxSliceSize: Int, handler: ScanResultHandler) = {
-
+  def scan(constraints: java.util.Set[ScanConstraint], aggregations: java.util.Set[ScanAggregation], maxSliceSize: Int, handler: ScanResultHandler) {
     scanDriver.scan(constraints, aggregations, maxSliceSize, handler)
-
-    /*
-    db.execute(t => {
-      val cursor = t.select().from(SPACES).fetchLazy()
-      while (cursor.hasNext) {
-        // TODO Don't know whether the chunk size needs tweaking here rather than fetching one at a time
-        val record = cursor.fetchOne()
-        val id = record.getValue(SPACES.ID)
-        val entry = ScanResultEntry.forAggregate(id.toString, Map("foo" -> "bar"))
-        handler.onEntry(entry)
-      }
-    })
-    */
   }
 
   private def orphanExtentForPair(t:Factory, pair:PairRef) = {

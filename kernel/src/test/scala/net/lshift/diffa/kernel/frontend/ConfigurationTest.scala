@@ -33,6 +33,7 @@ import net.lshift.diffa.schema.environment.TestDatabaseEnvironments
 import org.junit.{AfterClass, Test, Before}
 import net.lshift.diffa.kernel.config.system.PolicyKey
 import org.apache.commons.lang.RandomStringUtils
+import net.lshift.diffa.config.{PrefixCategoryDescriptor, RangeCategoryDescriptor, SetCategoryDescriptor, ConfigValidationException}
 
 /**
  * Test cases for the Configuration frontend.

@@ -26,9 +26,10 @@ import org.joda.time.DateTime
 import net.lshift.diffa.kernel.events.{DownstreamPairChangeEvent, VersionID, UpstreamPairChangeEvent, PairChangeEvent}
 import net.lshift.diffa.kernel.differencing.StringAttribute
 import scala.collection.JavaConversions._
-import net.lshift.diffa.kernel.config.{Space, SetCategoryDescriptor, Domain, PairRef}
+import net.lshift.diffa.kernel.config.{Space, Domain, PairRef}
 import net.lshift.diffa.schema.environment.TestDatabaseEnvironments
 import org.apache.commons.lang.RandomStringUtils
+import net.lshift.diffa.config.SetCategoryDescriptor
 
 class ChangesTest {
   private val storeReferences = ChangesTest.storeReferences

@@ -16,7 +16,6 @@
 
 package net.lshift.diffa.kernel.escalation
 
-import net.lshift.diffa.kernel.events.VersionID
 import org.joda.time.DateTime
 import net.lshift.diffa.kernel.config.EscalationEvent._
 import net.lshift.diffa.kernel.config.EscalationActionType._
@@ -35,7 +34,8 @@ import net.lshift.diffa.kernel.frontend.EscalationDef
 import net.lshift.diffa.kernel.config.system.SystemConfigStore
 import org.josql.filters.DefaultObjectFilter
 import org.josql.QueryParseException
-import net.lshift.diffa.kernel.config.{BreakerHelper, ConfigValidationException, PairRef, DomainConfigStore}
+import net.lshift.diffa.kernel.config.{BreakerHelper, PairRef, DomainConfigStore}
+import net.lshift.diffa.config.ConfigValidationException
 
 /**
  * This deals with escalating mismatches based on configurable escalation policies.

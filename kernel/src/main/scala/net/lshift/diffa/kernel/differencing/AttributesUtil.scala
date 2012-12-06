@@ -21,6 +21,7 @@ import net.lshift.diffa.kernel.config._
 import net.lshift.diffa.adapter.scanning._
 import scala.Option._
 import scala.collection.JavaConversions._
+import net.lshift.diffa.config.{SetCategoryDescriptor, RangeCategoryDescriptor, PrefixCategoryDescriptor, CategoryDescriptor}
 
 /**
  * Utility for working with attribute maps.

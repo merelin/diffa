@@ -34,8 +34,6 @@ import collection.mutable.ListBuffer
 import scala.collection.JavaConversions._
 import net.lshift.diffa.kernel.frontend.{RepairActionDef, EscalationDef, EndpointDef, PairDef}
 import org.apache.commons.lang.RandomStringUtils
-import net.lshift.diffa.scanning.ScanResultHandler
-import net.lshift.diffa.adapter.scanning.ScanResultEntry
 import net.lshift.diffa.scanning.plumbing.BufferingScanResultHandler
 
 

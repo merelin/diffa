@@ -24,12 +24,9 @@ class StoreSynchronizationResource {
   @Autowired var diffStore:DomainDifferenceStore = null
 
   @GET
-  @Path("/scan/{extent}")
+  @Path("/scan")
   @Produces(Array("application/json"))
   def scanPairs(@Context request:HttpServletRequest) = {
-
-    //def generateVersion(domain:String) = ScannableUtils.generateDigest(domain)
-
 
     val constraintsBuilder = new ConstraintsBuilder(request)
     constraintsBuilder.maybeAddStringPrefixConstraint("name")

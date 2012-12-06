@@ -18,6 +18,7 @@ package net.lshift.diffa.kernel.config
 
 import net.lshift.diffa.kernel.participants._
 import net.lshift.diffa.adapter.scanning.{DateGranularityEnum, AggregationBuilder, ConstraintsBuilder}
+import net.lshift.diffa.config.RangeCategoryDescriptor
 
 /**
  * Simple registry to be allow to dispatching on RangeCategoryDescriptors by their data type.
