@@ -201,6 +201,12 @@
       <version>${project.version}</version>
     </dependency>
 
+    <dependency>
+      <groupId>net.lshift.diffa</groupId>
+      <artifactId>diffa-snowflake</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
     <!-- Used to support testing LDAP support -->
     <dependency>
       <groupId>org.apache.directory.server</groupId>
