@@ -160,10 +160,6 @@
       <plugin>
         <artifactId>maven-surefire-plugin</artifactId>
         <configuration>
-          <!--<excludes>-->
-            <!--<exclude>**/*$*/**</exclude>-->
-            <!--<exclude>**/itest/**</exclude>-->
-          <!--</excludes>-->
           <includes>
             <include>**/IdProviderSpec.class</include>
           </includes>
