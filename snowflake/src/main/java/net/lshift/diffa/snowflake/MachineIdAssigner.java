@@ -46,11 +46,11 @@ public class MachineIdAssigner {
 	private static final int ERR_IDENTIFIER_IN_USE = -1;
 	private static final int ERR_ZK_FAILURE = -2;
 
-	public static MachineIdAssigner localDefault() {
+	public static MachineIdAssigner localDefault() throws Exception {
 		return getInstance(DEFAULT_CLUSTER);
 	}
 
-	public static MachineIdAssigner getInstance(String cluster) {
+	public static MachineIdAssigner getInstance(String cluster) throws Exception {
 		return withSessionTimeout(cluster, DEFAULT_SESSION_TIMEOUT);
 	}
 
@@ -67,13 +67,13 @@ public class MachineIdAssigner {
 	 *            after this many milliseconds.
 	 * @return a MachineIdAssigner which can assign unique identifiers.
 	 */
-	public static MachineIdAssigner withSessionTimeout(String cluster, int timeoutMs) {
+	public static MachineIdAssigner withSessionTimeout(String cluster, int timeoutMs) throws Exception {
 		return new MachineIdAssigner(cluster, timeoutMs);
 	}
 
 	CuratorFramework curator;
 
-	MachineIdAssigner(String zkCluster, int sessionTimeoutMs) {
+	MachineIdAssigner(String zkCluster, int sessionTimeoutMs) throws Exception {
 		curator = CuratorFrameworkFactory.newClient(zkCluster, sessionTimeoutMs, connectionTimeoutMs, retryPolicy);
 		curator.start();
 	}

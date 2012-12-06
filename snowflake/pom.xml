@@ -42,17 +42,17 @@
     <dependency>
       <groupId>com.netflix.curator</groupId>
       <artifactId>curator-client</artifactId>
-      <version>1.2.3</version>
+      <version>${curator.version}</version>
     </dependency>
     <dependency>
       <groupId>com.netflix.curator</groupId>
       <artifactId>curator-recipes</artifactId>
-      <version>1.2.3</version>
+      <version>${curator.version}</version>
     </dependency>
     <dependency>
       <groupId>com.netflix.curator</groupId>
       <artifactId>curator-framework</artifactId>
-      <version>1.2.3</version>
+      <version>${curator.version}</version>
     </dependency>
     <dependency>
       <groupId>org.apache.zookeeper</groupId>
@@ -105,7 +105,7 @@
               <url>http://www.mirrorservice.org/sites/ftp.apache.org/zookeeper/zookeeper-3.4.5/zookeeper-3.4.5.tar.gz</url>
               <unpack>true</unpack>
               <outputDirectory>/tmp/zookeeper</outputDirectory>
-              <!--<md5>f64fef86c0bf2e5e0484d19425b22dcb</md5>-->
+              <md5>f64fef86c0bf2e5e0484d19425b22dcb</md5>
             </configuration>
           </execution>
         </executions>
@@ -165,7 +165,7 @@
             <!--<exclude>**/itest/**</exclude>-->
           <!--</excludes>-->
           <includes>
-            <include>**/IdBrokerSpec.class</include>
+            <include>**/IdProviderSpec.class</include>
           </includes>
         </configuration>
         <executions>
