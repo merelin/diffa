@@ -7,20 +7,24 @@ import org.jboss.resteasy.spi.ResteasyDeployment;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class RailYard {
+import java.io.IOException;
+import java.net.ServerSocket;
+import java.net.Socket;
+
+public class RailYard implements Runnable {
 
   static Logger log = LoggerFactory.getLogger(RailYard.class);
 
   public static final int DEFAULT_PORT = 7655;
 
-  public static void main(String[] args) {
-
+  @Override
+  public void run() {
     ResteasyDeployment deployment = new ResteasyDeployment();
 
     deployment.setResourceClasses(
-      ImmutableList.of(
-        ChangesResource.class.getName()
-      )
+        ImmutableList.of(
+            ChangesResource.class.getName()
+        )
     );
 
     deployment.setProviderClasses(
@@ -29,16 +33,23 @@ public class RailYard {
         )
     );
 
-    //deployment.ge
 
     NettyJaxrsServer server = new NettyJaxrsServer();
     server.setDeployment(deployment);
     server.setPort(DEFAULT_PORT);
     server.start();
 
-
-
     log.info("Started Railyard server on port " + DEFAULT_PORT);
+  }
+
+
+  public static void main(String[] args) throws Exception{
+
+    RailYard railYard = new RailYard();
+    Thread railYardThread = new Thread(railYard);
+    railYardThread.setDaemon(true);
+    railYardThread.start();
+
   }
 
 }

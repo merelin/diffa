@@ -64,15 +64,52 @@
     </dependency>
 
     <dependency>
+      <groupId>junit</groupId>
+      <artifactId>junit</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
       <groupId>org.jboss.resteasy</groupId>
       <artifactId>resteasy-netty</artifactId>
       <version>${resteasy.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>com.ning</groupId>
+      <artifactId>async-http-client</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.hectorclient</groupId>
+      <artifactId>hector-core</artifactId>
+      <scope>test</scope>
     </dependency>
 
   </dependencies>
 
   <build>
     <plugins>
+
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>exec-maven-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>start-railyard-server</id>
+            <phase>pre-integration-test</phase>
+            <goals>
+              <goal>java</goal>
+            </goals>
+          </execution>
+        </executions>
+        <configuration>
+          <mainClass>net.lshift.diffa.railyard.RailYard</mainClass>
+          <classpathScope>test</classpathScope>
+        </configuration>
+      </plugin>
+
       <plugin>
         <artifactId>maven-surefire-plugin</artifactId>
         <version>2.12.4</version>
