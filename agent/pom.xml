@@ -242,9 +242,6 @@
     <plugins>
       <plugin>
         <groupId>org.codehaus.mojo</groupId>
-      </plugin>
-      <plugin>
-        <groupId>org.codehaus.mojo</groupId>
         <artifactId>exec-maven-plugin</artifactId>
         <goals><goal>exec</goal></goals>
         <executions>
