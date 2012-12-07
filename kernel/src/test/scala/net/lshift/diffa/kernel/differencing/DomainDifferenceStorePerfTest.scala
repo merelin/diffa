@@ -83,6 +83,10 @@ class DomainDifferenceStorePerfTest {
     }
   }
 
+  // Just creating an index isn't likely to achieve anything on many DBMSs. The CBO will only use an index if it
+  // believes that the index will yield a benefit over a full table scan.  For example, if it has no stats available
+  // to it, or if its stats are from an era when there was little data in the underlying table, then the index will
+  // not be used.
   @Test
   @Ignore("detectedAt index doesn't appear to be correcting this")
   def differenceQueryShouldRemainConstantForSameNumberOfDifferences() {
