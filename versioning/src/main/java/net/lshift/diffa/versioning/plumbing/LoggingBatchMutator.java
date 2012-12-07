@@ -1,4 +1,4 @@
-package net.lshift.diffa.versioning;
+package net.lshift.diffa.versioning.plumbing;
 
 import com.google.common.base.Function;
 import com.google.common.collect.ImmutableList;
@@ -6,6 +6,7 @@ import com.google.common.collect.ImmutableListMultimap;
 import com.google.common.collect.Multimaps;
 import me.prettyprint.hector.api.Keyspace;
 import me.prettyprint.hector.api.beans.HColumn;
+import net.lshift.diffa.versioning.BasicBatchMutator;
 import org.apache.commons.lang.StringUtils;
 import org.joda.time.DateTime;
 import org.slf4j.Logger;

@@ -1,4 +1,4 @@
-package net.lshift.diffa.versioning;
+package net.lshift.diffa.versioning.plumbing;
 
 
 import org.apache.commons.codec.binary.Hex;

@@ -1,6 +1,6 @@
 package net.lshift.diffa.versioning;
 
-import net.lshift.diffa.versioning.partitioning.PartitionedEvent;
+import net.lshift.diffa.versioning.events.PartitionedEvent;
 
 public interface TestablePartitionedEvent extends PartitionedEvent {
 

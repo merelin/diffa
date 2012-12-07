@@ -2,9 +2,9 @@ package net.lshift.diffa.versioning;
 
 import com.google.common.base.Function;
 import com.google.common.collect.Maps;
+import net.lshift.diffa.versioning.events.PartitionedEvent;
 import net.lshift.diffa.versioning.partitioning.MerkleNode;
 import net.lshift.diffa.versioning.partitioning.MerkleUtils;
-import net.lshift.diffa.versioning.partitioning.PartitionedEvent;
 import org.joda.time.DateTime;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;

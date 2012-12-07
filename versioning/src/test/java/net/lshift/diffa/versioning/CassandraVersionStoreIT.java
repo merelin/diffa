@@ -9,10 +9,11 @@ import net.lshift.diffa.scanning.*;
 import net.lshift.diffa.scanning.http.HttpDriver;
 import net.lshift.diffa.scanning.plumbing.BufferingScanResultHandler;
 import net.lshift.diffa.sql.PartitionMetadata;
+import net.lshift.diffa.versioning.events.PartitionedEvent;
+import net.lshift.diffa.versioning.events.TombstoneEvent;
 import net.lshift.diffa.versioning.partitioning.AbstractPartitionedEvent;
 import net.lshift.diffa.versioning.partitioning.MerkleNode;
 import net.lshift.diffa.versioning.partitioning.MerkleUtils;
-import net.lshift.diffa.versioning.partitioning.PartitionedEvent;
 import net.lshift.diffa.versioning.plumbing.EntityIdBucketing;
 import org.apache.avro.io.*;
 import org.apache.avro.specific.SpecificDatumReader;
@@ -139,7 +140,7 @@ public class CassandraVersionStoreIT {
     final TestablePartitionedEvent randomLeftEvent = leftEvents.get(random.nextInt(itemsInSync));
     randomLeftEvent.setVersion(RandomStringUtils.randomAlphanumeric(10));
 
-    store.addEvent(left, randomLeftEvent);
+    store.onEvent(left, randomLeftEvent);
 
     store.deltify(view);
     TreeLevelRollup secondRollup = store.getDeltaDigest(view);
@@ -232,7 +233,7 @@ public class CassandraVersionStoreIT {
     for (int i = 0; i < itemsInSync; i++) {
       DateTime randomDate = median.minusDays(random.nextInt(365 * 10));
       PartitionedEvent event = partitionAwareStore.createRandomThing(ImmutableMap.of(attributeName, randomDate));
-      store.addEvent(left, event);
+      store.onEvent(left, event);
     }
 
     // Begin the interview process
@@ -308,7 +309,7 @@ public class CassandraVersionStoreIT {
     final TestablePartitionedEvent randomUpstreamEvent = upstreamEvents.get(random.nextInt(itemsInSync));
     randomUpstreamEvent.setVersion(RandomStringUtils.randomAlphanumeric(10));
 
-    store.addEvent(upstream, randomUpstreamEvent);
+    store.onEvent(upstream, randomUpstreamEvent);
     /*
     log.info("Tree query after upstream mutation only (dirty cache)");
 
@@ -326,10 +327,17 @@ public class CassandraVersionStoreIT {
       firstTopLevelUpstreamDigest.equals(secondTopLevelUpstreamDigest)
     );
     */
-    String idToDelete = randomUpstreamEvent.getId();
+    final String idToDelete = randomUpstreamEvent.getId();
 
-    store.deleteEvent(upstream, idToDelete);
-    store.deleteEvent(downstream, idToDelete);
+    TombstoneEvent tombstone = new TombstoneEvent() {
+      @Override
+      public String getId() {
+        return idToDelete;
+      }
+    };
+
+    store.onEvent(upstream, tombstone);
+    store.onEvent(downstream, tombstone);
 
     /*
     log.info("Tree query after upstream and downstream deletions (dirty cache)");
@@ -427,7 +435,7 @@ public class CassandraVersionStoreIT {
     @Override
     public void run() {
       for (PartitionedEvent event : events) {
-        store.addEvent(endpoint, event);
+        store.onEvent(endpoint, event);
       }
     }
   }

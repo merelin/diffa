@@ -21,12 +21,12 @@ import me.prettyprint.hector.api.beans.HColumn;
 import me.prettyprint.hector.api.factory.HFactory;
 import me.prettyprint.hector.api.query.SliceQuery;
 import net.lshift.diffa.adapter.scanning.*;
-import net.lshift.diffa.versioning.partitioning.MerkleNode;
-import net.lshift.diffa.versioning.partitioning.MerkleUtils;
-import net.lshift.diffa.versioning.partitioning.PartitionedEvent;
-import net.lshift.diffa.versioning.plumbing.BucketWriter;
-import net.lshift.diffa.versioning.plumbing.DeltaBucketWriter;
-import net.lshift.diffa.versioning.plumbing.OutrightBucketWriter;
+import net.lshift.diffa.versioning.events.ChangeEvent;
+import net.lshift.diffa.versioning.events.PartitionedEvent;
+import net.lshift.diffa.versioning.events.TombstoneEvent;
+import net.lshift.diffa.versioning.events.UnpartitionedEvent;
+import net.lshift.diffa.versioning.partitioning.*;
+import net.lshift.diffa.versioning.plumbing.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -114,94 +114,25 @@ public class CassandraVersionStore implements VersionStore {
 
   private Map<Long,Integer> sliceSizes = new ConcurrentHashMap<Long,Integer>();
 
-  public void addEvent(Long endpoint, PartitionedEvent event) {
+  public void onEvent(Long endpoint, ChangeEvent event) {
 
-    StopWatch stopWatch = stopWatchFactory.getStopWatch();
+    if (event instanceof UnpartitionedEvent) {
 
-    final String id = buildIdentifier(endpoint, event.getId());
-    final String parentPath = endpoint.toString();
+      UnpartitionedEvent unpartitionedEvent = (UnpartitionedEvent) event;
+      addEvent(endpoint, unpartitionedEvent);
 
-    BatchMutator mutator = new BasicBatchMutator(keyspace);
-
-    mutator.insertColumn(id, ENTITY_VERSIONS_CF, VERSION_KEY, event.getVersion() );
-
-    if (event.getLastUpdated() != null) {
-      mutator.insertDateColumn(id, ENTITY_VERSIONS_CF, LAST_UPDATE_KEY, event.getLastUpdated());
     }
+    else if (event instanceof TombstoneEvent) {
 
-    String entityIdPartition = event.getIdHierarchy().getDescendencyPath();
-    mutator.insertColumn(id, ENTITY_VERSIONS_CF,  PARTITION_KEY, entityIdPartition);
+      deleteEvent(endpoint, event.getId());
 
-    // Update the dirty entities for a subsequent re-sync to avoid
-    // having to traverse buckets in order to pair-off changes between two
-    // endpoints.
-    String dirtyKey = buildIdentifier(endpoint, entityIdPartition);
-    mutator.invalidateColumn(dirtyKey, DIRTY_ENTITIES_CF, event.getId());
-
-    MerkleNode entityIdRootNode = new MerkleNode("", event.getIdHierarchy());
-
-    List<String> viewsToUpdate = eventSubscribers(endpoint, event);
-
-    for(String view : viewsToUpdate) {
-      // TODO Work out how to include the view
-      BucketWriter writer = new OutrightBucketWriter(mutator, ENTITY_ID_BUCKETS_CF);
-      recordLineage(parentPath, entityIdRootNode, mutator, entityIdDigestsTemplate, writer, ENTITY_ID_HIERARCHY_CF, ENTITY_ID_DIGESTS_CF);
+    } else {
+      throw new InvalidEventException(event, "Version store cannot handle this type of event");
     }
-
-    Map<String, String> attributes = event.getAttributes();
-    if (attributes != null && !attributes.isEmpty()) {
-
-      for(Map.Entry<String,String> entry : attributes.entrySet()) {
-        mutator.insertColumn(id, USER_DEFINED_ATTRIBUTES_CF, entry.getKey(), entry.getValue());
-      }
-
-      String userDefinedPartition = event.getAttributeHierarchy().getDescendencyPath();
-      mutator.insertColumn(id, USER_DEFINED_ATTRIBUTES_CF, PARTITION_KEY, userDefinedPartition);
-
-      MerkleNode userDefinedRootNode = new MerkleNode("", event.getAttributeHierarchy());
-      BucketWriter writer = new OutrightBucketWriter(mutator, USER_DEFINED_BUCKETS_CF);
-      recordLineage(parentPath, userDefinedRootNode, mutator, userDefinedDigestsTemplate, writer, USER_DEFINED_HIERARCHY_CF, USER_DEFINED_DIGESTS_CF);
-    }
-
-    mutator.execute();
-
-    stopWatch.stop(String.format("addEvent: endpoint = %s / event = %s", endpoint, event.getId()));
 
   }
 
-  public void deleteEvent(Long endpoint, String id) {
 
-    StopWatch stopWatch = stopWatchFactory.getStopWatch();
-
-    // Assume that the hierarchy definitions are going to get compacted on the the next read
-    // so that this function does as little work as possible
-
-    BatchMutator mutator = new BasicBatchMutator(keyspace);
-
-    final String key = buildIdentifier(endpoint, id);
-    final String parentPath = endpoint.toString();
-
-    // Remove the hierarchies related to this event
-
-    invalidateHierarchy(id, mutator, key, parentPath, entityVersionsTemplate, ENTITY_ID_DIGESTS_CF, ENTITY_ID_BUCKETS_CF);
-    invalidateHierarchy(id, mutator, key, parentPath, userDefinedAttributesTemplate, USER_DEFINED_DIGESTS_CF, USER_DEFINED_BUCKETS_CF);
-
-    // Delete the raw data pertaining to this event
-
-    mutator.deleteRow(key, ENTITY_VERSIONS_CF);
-    mutator.deleteRow(key, ENTITY_ID_BUCKETS_CF);
-    mutator.deleteRow(key, USER_DEFINED_ATTRIBUTES_CF);
-
-    // Mark the entity as dirty so that subsequent compactions had emit match events based on this
-    MerkleNode dirtyNode = MerkleUtils.buildEntityIdNode(id, null);
-    final String dirtyKey = buildIdentifier(endpoint, dirtyNode.getDescendencyPath());
-    mutator.invalidateColumn(dirtyKey, DIRTY_ENTITIES_CF, id);
-
-    mutator.execute();
-
-    stopWatch.stop(String.format("deleteEvent: endpoint = %s / event = %s", endpoint, id));
-
-  }
 
   public void setMaxSliceSize(Long endpoint, int size) {
     sliceSizes.put(endpoint, size);
@@ -302,10 +233,108 @@ public class CassandraVersionStore implements VersionStore {
   // Internal plumbing
   //////////////////////////////////////////////////////
 
+  private void addEvent(Long endpoint, UnpartitionedEvent event) {
+
+    StopWatch stopWatch = stopWatchFactory.getStopWatch();
+
+    final String id = buildIdentifier(endpoint, event.getId());
+    final String parentPath = endpoint.toString();
+
+    BatchMutator mutator = new BasicBatchMutator(keyspace);
+
+    mutator.insertColumn(id, ENTITY_VERSIONS_CF, VERSION_KEY, event.getVersion() );
+
+    if (event.getLastUpdated() != null) {
+      mutator.insertDateColumn(id, ENTITY_VERSIONS_CF, LAST_UPDATE_KEY, event.getLastUpdated());
+    }
+
+    String entityIdPartition = event.getIdHierarchy().getDescendencyPath();
+    mutator.insertColumn(id, ENTITY_VERSIONS_CF,  PARTITION_KEY, entityIdPartition);
+
+    // Update the dirty entities for a subsequent re-sync to avoid
+    // having to traverse buckets in order to pair-off changes between two
+    // endpoints.
+    String dirtyKey = buildIdentifier(endpoint, entityIdPartition);
+    mutator.invalidateColumn(dirtyKey, DIRTY_ENTITIES_CF, event.getId());
+
+    MerkleNode entityIdRootNode = new MerkleNode("", event.getIdHierarchy());
+
+    List<String> viewsToUpdate = eventSubscribers(endpoint, event);
+
+    for(String view : viewsToUpdate) {
+      // TODO Work out how to include the view
+      BucketWriter writer = new OutrightBucketWriter(mutator, ENTITY_ID_BUCKETS_CF);
+      recordLineage(parentPath, entityIdRootNode, mutator, entityIdDigestsTemplate, writer, ENTITY_ID_HIERARCHY_CF, ENTITY_ID_DIGESTS_CF);
+    }
+
+    if (event instanceof PartitionedEvent) {
+
+      PartitionedEvent partitionedEvent = (PartitionedEvent) event;
+
+      Map<String, String> attributes = partitionedEvent.getAttributes();
+      if (attributes != null && !attributes.isEmpty()) {
+
+        for(Map.Entry<String,String> entry : attributes.entrySet()) {
+          mutator.insertColumn(id, USER_DEFINED_ATTRIBUTES_CF, entry.getKey(), entry.getValue());
+        }
+
+        String userDefinedPartition = partitionedEvent.getAttributeHierarchy().getDescendencyPath();
+        mutator.insertColumn(id, USER_DEFINED_ATTRIBUTES_CF, PARTITION_KEY, userDefinedPartition);
+
+        MerkleNode userDefinedRootNode = new MerkleNode("", partitionedEvent.getAttributeHierarchy());
+        BucketWriter writer = new OutrightBucketWriter(mutator, USER_DEFINED_BUCKETS_CF);
+        recordLineage(parentPath, userDefinedRootNode, mutator, userDefinedDigestsTemplate, writer, USER_DEFINED_HIERARCHY_CF, USER_DEFINED_DIGESTS_CF);
+      }
+      else {
+        throw new InvalidEventException(event, "Event is of type PartitionedEvent, but attributes are empty");
+      }
+
+    }
+
+    mutator.execute();
+
+    stopWatch.stop(String.format("addEvent: endpoint = %s / event = %s", endpoint, event.getId()));
+
+  }
+
+  private void deleteEvent(Long endpoint, String id) {
+
+    StopWatch stopWatch = stopWatchFactory.getStopWatch();
+
+    // Assume that the hierarchy definitions are going to get compacted on the the next read
+    // so that this function does as little work as possible
+
+    BatchMutator mutator = new BasicBatchMutator(keyspace);
+
+    final String key = buildIdentifier(endpoint, id);
+    final String parentPath = endpoint.toString();
+
+    // Remove the hierarchies related to this event
+
+    invalidateHierarchy(id, mutator, key, parentPath, entityVersionsTemplate, ENTITY_ID_DIGESTS_CF, ENTITY_ID_BUCKETS_CF);
+    invalidateHierarchy(id, mutator, key, parentPath, userDefinedAttributesTemplate, USER_DEFINED_DIGESTS_CF, USER_DEFINED_BUCKETS_CF);
+
+    // Delete the raw data pertaining to this event
+
+    mutator.deleteRow(key, ENTITY_VERSIONS_CF);
+    mutator.deleteRow(key, ENTITY_ID_BUCKETS_CF);
+    mutator.deleteRow(key, USER_DEFINED_ATTRIBUTES_CF);
+
+    // Mark the entity as dirty so that subsequent compactions had emit match events based on this
+    MerkleNode dirtyNode = MerkleUtils.buildEntityIdNode(id, null);
+    final String dirtyKey = buildIdentifier(endpoint, dirtyNode.getDescendencyPath());
+    mutator.invalidateColumn(dirtyKey, DIRTY_ENTITIES_CF, id);
+
+    mutator.execute();
+
+    stopWatch.stop(String.format("deleteEvent: endpoint = %s / event = %s", endpoint, id));
+
+  }
+
   /**
    * This returns the list of views that requires an entity based tree (i.e. for each pair.)
    */
-  private List<String> eventSubscribers(Long endpoint, PartitionedEvent event) {
+  private List<String> eventSubscribers(Long endpoint, UnpartitionedEvent event) {
     List<String> views = new ArrayList<String>();
 
     // TODO Hack - make sure that the caller indexes at least once (for now) in the for loop that this is called

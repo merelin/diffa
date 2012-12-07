@@ -1,8 +1,9 @@
-package net.lshift.diffa.versioning;
+package net.lshift.diffa.versioning.plumbing;
 
 import com.google.common.base.Joiner;
 import com.google.common.collect.Sets;
 import net.lshift.diffa.adapter.scanning.ScanResultEntry;
+import net.lshift.diffa.versioning.BucketDigest;
 
 import java.util.*;
 

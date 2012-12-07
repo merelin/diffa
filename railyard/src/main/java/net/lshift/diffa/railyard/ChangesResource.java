@@ -1,8 +1,7 @@
 package net.lshift.diffa.railyard;
 
-import net.lshift.diffa.adapter.changes.ChangeEvent;
 import net.lshift.diffa.versioning.CassandraVersionStore;
-import net.lshift.diffa.versioning.partitioning.PartitionedEvent;
+import net.lshift.diffa.versioning.events.*;
 import net.lshift.diffa.versioning.VersionStore;
 import org.codehaus.jackson.JsonFactory;
 import org.codehaus.jackson.JsonNode;
@@ -12,6 +11,9 @@ import org.codehaus.jackson.map.MappingJsonFactory;
 import org.jboss.resteasy.spi.BadRequestException;
 import org.jboss.resteasy.spi.HttpRequest;
 import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
+import org.joda.time.format.DateTimeFormatter;
+import org.joda.time.format.ISODateTimeFormat;
 
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
@@ -19,12 +21,12 @@ import javax.ws.rs.PathParam;
 import javax.ws.rs.core.Context;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
+import java.util.*;
 
-@Path("/changes")
+@Path("/{space}/changes")
 public class ChangesResource {
+
+  static DateTimeFormatter formatter = ISODateTimeFormat.dateTime();
 
 
   // Thread safe factory
@@ -37,7 +39,9 @@ public class ChangesResource {
 
   @POST
   @Path("/{endpoint}")
-  public void onChange(@PathParam("endpoint") Long endpoint, @Context HttpRequest request) throws IOException {
+  public void onChange(@PathParam("endpoint") String endpointName, @Context HttpRequest request) throws IOException {
+
+    Long endpoint = System.currentTimeMillis();
 
     InputStream is = request.getInputStream();
     JsonParser parser = factory.createJsonParser(is);
@@ -46,16 +50,14 @@ public class ChangesResource {
 
     if (current == JsonToken.START_OBJECT) {
 
-      ChangeEvent event = parseEvent(parser);
-      handleChangeEvent(endpoint, event);
+      propagateEvent(endpoint, parser, versionStore);
 
     }
     else if (current == JsonToken.START_ARRAY) {
 
       while ((parser.nextToken()) != JsonToken.END_ARRAY) {
 
-        ChangeEvent event = parseEvent(parser);
-        handleChangeEvent(endpoint, event);
+        propagateEvent(endpoint, parser, versionStore);
 
       }
     }
@@ -64,56 +66,62 @@ public class ChangesResource {
     }
   }
 
-  private void handleChangeEvent(Long endpoint, ChangeEvent event) {
-    if (event.getVersion() == null) {
-      versionStore.deleteEvent(endpoint, event.getId());
-    } else {
-      PartitionedEvent partitionedEvent = partitionEvent(event);
-      versionStore.addEvent(endpoint, partitionedEvent);
-    }
-  }
 
-  private static PartitionedEvent partitionEvent(ChangeEvent event) {
-    PartitionedEvent partitionedEvent =
-    return null;
-  }
-
-  private static ChangeEvent parseEvent(JsonParser parser) throws IOException {
-
-    ChangeEvent event = new ChangeEvent();
+  public static void propagateEvent(Long endpoint, JsonParser parser, ChangeEventHandler eventHandler) throws IOException {
 
     JsonNode node = parser.readValueAsTree();
 
-    checkMandatoryAttribute(node, "id");
-    event.setId(node.get("id").getTextValue());
+    final String id = extractMandatoryAttribute(node, "id");
+    final String version = extractMandatoryAttribute(node, "version");
 
-    if (node.has("version")) {
-      event.setVersion(node.get("version").getTextValue());
+    if (version == null || version.isEmpty()) {
+      eventHandler.onEvent(endpoint, new DefaultTombstoneEvent(id));
     }
+    else {
+      String lastUpdateText = extractOptionalAttribute(node, "lastUpdate");
+      DateTime lastUpdate = (lastUpdateText == null) ?
+          new DateTime(DateTimeZone.UTC) : formatter.parseDateTime(lastUpdateText);
 
-    // TODO This is hardcoded
-    event.setLastUpdated(new DateTime());
+      if (node.has("attributes")) {
 
-    if (node.has("attributes")) {
+        Map<String,String> attributes = new HashMap<String, String>();
 
-      Map<String,String> attributes = new HashMap<String, String>();
-      event.setAttributes(attributes);
+        Iterator<Map.Entry<String, JsonNode>> fields = node.get("attributes").getFields();
+        while (fields.hasNext()) {
+          Map.Entry<String, JsonNode> entry = fields.next();
+          attributes.put(entry.getKey(), entry.getValue().getTextValue());
+        }
 
-      Iterator<Map.Entry<String, JsonNode>> fields = node.get("attributes").getFields();
-      while (fields.hasNext()) {
-        Map.Entry<String, JsonNode> entry = fields.next();
-        attributes.put(entry.getKey(), entry.getValue().getTextValue());
+        PartitionedEvent event = new DefaultPartitionedEvent(id, version, lastUpdate, attributes);
+        eventHandler.onEvent(endpoint, event);
+
+      }
+      else {
+        UnpartitionedEvent event = new DefaultUnpartitionedEvent(id, version, lastUpdate);
+        eventHandler.onEvent(endpoint, event);
       }
 
     }
 
-
-    return event;
   }
 
-  private static void checkMandatoryAttribute(JsonNode node, String attribute) {
+  private static String extractMandatoryAttribute(JsonNode node, String attribute) {
     if (!node.has(attribute)) {
       throw new BadRequestException("Missing mandatory attribute: " + attribute);
     }
+    else {
+      return node.get(attribute).getTextValue();
+    }
   }
+
+  private static String extractOptionalAttribute(JsonNode node, String attribute) {
+    JsonNode value = node.get(attribute);
+    if (value == null) {
+      return null;
+    }
+    else {
+      return value.getTextValue();
+    }
+  }
+
 }

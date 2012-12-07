@@ -1,4 +1,4 @@
-package net.lshift.diffa.versioning;
+package net.lshift.diffa.versioning.plumbing;
 
 
 public class BucketNotFoundException extends RuntimeException {

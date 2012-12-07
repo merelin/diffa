@@ -4,15 +4,15 @@ import net.lshift.diffa.adapter.scanning.ScanAggregation;
 import net.lshift.diffa.adapter.scanning.ScanConstraint;
 import net.lshift.diffa.adapter.scanning.ScanRequest;
 import net.lshift.diffa.adapter.scanning.ScanResultEntry;
-import net.lshift.diffa.versioning.partitioning.PartitionedEvent;
+import net.lshift.diffa.versioning.events.ChangeEvent;
+import net.lshift.diffa.versioning.events.ChangeEventHandler;
+import net.lshift.diffa.versioning.events.PartitionedEvent;
+import net.lshift.diffa.versioning.events.UnpartitionedEvent;
 
 import java.util.List;
 import java.util.Set;
 
-public interface VersionStore {
-
-  void addEvent(Long endpoint, PartitionedEvent event);
-  void deleteEvent(Long endpoint, String id);
+public interface VersionStore extends ChangeEventHandler {
 
   /**
    * Kick off the deltafication - this is a mutitative call into the version store to materialize differences between endpoints

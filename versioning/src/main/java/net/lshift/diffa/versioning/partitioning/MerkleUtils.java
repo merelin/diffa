@@ -1,14 +1,12 @@
 package net.lshift.diffa.versioning.partitioning;
 
 import net.lshift.diffa.adapter.scanning.ScanAggregation;
-import net.lshift.diffa.adapter.scanning.ScanConstraint;
-import net.lshift.diffa.versioning.Digester;
-import org.jboss.netty.handler.codec.spdy.SpdySettingsFrame;
+import net.lshift.diffa.versioning.plumbing.Digester;
 import org.joda.time.DateTime;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 
-import java.util.Set;
+import java.util.Map;
 import java.util.SortedMap;
 
 public class MerkleUtils {
@@ -49,7 +47,14 @@ public class MerkleUtils {
   }
 
   // TODO requires a test
-  public static MerkleNode buildUserDefinedNode(Set<ScanAggregation> aggregations) {
+  public static MerkleNode buildUserDefinedNode(SortedMap<String,ScanAggregation> aggregations, Map<String,String> values) {
+
+    for(Map.Entry<String,ScanAggregation> entry : aggregations.entrySet()) {
+      String value = values.get(entry.getKey());
+      ScanAggregation aggregation = entry.getValue();
+      String bucketName = aggregation.bucket(value);
+    }
+
     return null;
   }
 

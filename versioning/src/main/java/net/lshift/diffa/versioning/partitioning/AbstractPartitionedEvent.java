@@ -1,5 +1,6 @@
 package net.lshift.diffa.versioning.partitioning;
 
+import net.lshift.diffa.versioning.events.PartitionedEvent;
 import org.joda.time.DateTime;
 
 import java.util.HashMap;
