@@ -99,12 +99,12 @@
         <executions>
           <execution>
             <id>install-zookeeper</id>
-            <phase>generate-test-resources</phase>
+            <phase>pre-integration-test</phase>
             <goals><goal>wget</goal></goals>
             <configuration>
-              <url>http://www.mirrorservice.org/sites/ftp.apache.org/zookeeper/zookeeper-3.4.5/zookeeper-3.4.5.tar.gz</url>
+              <url>${zookeeper.url.root}/zookeeper/zookeeper-${zookeeper.version}/zookeeper-${zookeeper.version}.tar.gz</url>
               <unpack>true</unpack>
-              <outputDirectory>/tmp/zookeeper</outputDirectory>
+              <outputDirectory>/tmp</outputDirectory>
               <md5>f64fef86c0bf2e5e0484d19425b22dcb</md5>
             </configuration>
           </execution>
@@ -112,18 +112,16 @@
       </plugin>
       <plugin>
         <artifactId>maven-resources-plugin</artifactId>
-        <version>2.6</version>
         <executions>
           <execution>
-            <id>copy-zookeeper-configuration</id>
-            <phase>process-test-resources</phase>
+            <id>copy-zookeeper-config</id>
             <goals><goal>copy-resources</goal></goals>
+            <phase>pre-integration-test</phase>
             <configuration>
-              <outputDirectory>/tmp/zookeeper/zookeeper-3.4.5/conf</outputDirectory>
+              <outputDirectory>${zookeeper.install.dir}/conf</outputDirectory>
               <resources>
                 <resource>
                   <directory>src/test/resources</directory>
-                  <include>zoo.cfg</include>
                 </resource>
               </resources>
             </configuration>
@@ -133,16 +131,15 @@
       <plugin>
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>exec-maven-plugin</artifactId>
-        <version>1.2.1</version>
         <executions>
           <execution>
             <id>start-zookeeper-server</id>
             <phase>pre-integration-test</phase>
             <goals><goal>exec</goal></goals>
             <configuration>
-              <executable>bin/zkServer.sh</executable>
+              <executable>${zookeeper.exec.bin}</executable>
               <commandlineArgs>start</commandlineArgs>
-              <workingDirectory>/tmp/zookeeper/zookeeper-3.4.5</workingDirectory>
+              <workingDirectory>${zookeeper.install.dir}</workingDirectory>
             </configuration>
           </execution>
           <execution>
@@ -150,9 +147,9 @@
             <phase>post-integration-test</phase>
             <goals><goal>exec</goal></goals>
             <configuration>
-              <executable>bin/zkServer.sh</executable>
+              <executable>${zookeeper.exec.bin}</executable>
               <commandlineArgs>stop</commandlineArgs>
-              <workingDirectory>/tmp/zookeeper/zookeeper-3.4.5</workingDirectory>
+              <workingDirectory>${zookeeper.install.dir}</workingDirectory>
             </configuration>
           </execution>
         </executions>
@@ -187,9 +184,6 @@
       <plugin>
         <groupId>org.scala-tools</groupId>
         <artifactId>maven-scala-plugin</artifactId>
-        <configuration>
-          <scalaVersion>${scala.version}</scalaVersion>
-        </configuration>
       </plugin>
     </plugins>
   </reporting>
