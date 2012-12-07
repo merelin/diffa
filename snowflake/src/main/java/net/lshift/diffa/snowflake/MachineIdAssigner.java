@@ -107,6 +107,7 @@ public class MachineIdAssigner {
    * Simulate process termination by pulling the curator out from underneath this assigner.
    * This is only public until MachineIdAssignerSpec is moved into the same package as this.
    */
+  @Deprecated
 	public void releaseAll() {
 		curator.close();
 	}
