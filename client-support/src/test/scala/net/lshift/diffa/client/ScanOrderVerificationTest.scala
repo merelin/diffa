@@ -56,8 +56,8 @@ object ScanOrderVerificationTest {
 
   case class Example(ordering: Collation, collationName: String, correctOrdering: Seq[String], invalidOrdering: Seq[String])
 
-  @DataPoint def ascii = Example(AsciiCollationOrdering, "ascii", Seq("B", "a", "c"), Seq("a", "B", "C"))
-  @DataPoint def unicode = Example(UnicodeCollationOrdering, "unicode", Seq("a", "B", "c"), Seq("a", "B", "a"))
+  @DataPoint def ascii = Example(AsciiCollation.get(), "ascii", Seq("B", "a", "c"), Seq("a", "B", "C"))
+  @DataPoint def unicode = Example(UnicodeCollation.get(), "unicode", Seq("a", "B", "c"), Seq("a", "B", "a"))
 
   def withResponseEntities[T](entityIds: Seq[String])(thunk: => T): T = {
     val oldValue = scanningParticipant.response

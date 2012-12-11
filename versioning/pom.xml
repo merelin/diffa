@@ -30,6 +30,12 @@
 
     <dependency>
       <groupId>net.lshift.diffa</groupId>
+      <artifactId>change-events</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>net.lshift.diffa</groupId>
       <artifactId>adapter-support</artifactId>
       <version>${project.version}</version>
     </dependency>

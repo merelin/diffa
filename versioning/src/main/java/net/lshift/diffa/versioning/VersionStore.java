@@ -4,10 +4,7 @@ import net.lshift.diffa.adapter.scanning.ScanAggregation;
 import net.lshift.diffa.adapter.scanning.ScanConstraint;
 import net.lshift.diffa.adapter.scanning.ScanRequest;
 import net.lshift.diffa.adapter.scanning.ScanResultEntry;
-import net.lshift.diffa.versioning.events.ChangeEvent;
-import net.lshift.diffa.versioning.events.ChangeEventHandler;
-import net.lshift.diffa.versioning.events.PartitionedEvent;
-import net.lshift.diffa.versioning.events.UnpartitionedEvent;
+import net.lshift.diffa.events.ChangeEventHandler;
 
 import java.util.List;
 import java.util.Set;

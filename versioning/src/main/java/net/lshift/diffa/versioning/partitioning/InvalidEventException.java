@@ -1,6 +1,6 @@
 package net.lshift.diffa.versioning.partitioning;
 
-import net.lshift.diffa.versioning.events.ChangeEvent;
+import net.lshift.diffa.events.ChangeEvent;
 
 public class InvalidEventException extends RuntimeException {
 

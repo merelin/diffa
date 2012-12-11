@@ -1,13 +1,17 @@
 package net.lshift.diffa.railyard;
 
-import net.lshift.diffa.versioning.CassandraVersionStore;
-import net.lshift.diffa.versioning.events.*;
+import com.google.inject.Inject;
+import net.lshift.diffa.events.ChangeEventHandler;
+import net.lshift.diffa.events.DefaultTombstoneEvent;
 import net.lshift.diffa.versioning.VersionStore;
+import net.lshift.diffa.versioning.events.DefaultPartitionedEvent;
+import net.lshift.diffa.versioning.events.DefaultUnpartitionedEvent;
+import net.lshift.diffa.versioning.events.PartitionedEvent;
+import net.lshift.diffa.versioning.events.UnpartitionedEvent;
 import org.codehaus.jackson.JsonFactory;
 import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.JsonParser;
 import org.codehaus.jackson.JsonToken;
-import org.codehaus.jackson.map.MappingJsonFactory;
 import org.jboss.resteasy.spi.BadRequestException;
 import org.jboss.resteasy.spi.HttpRequest;
 import org.joda.time.DateTime;
@@ -28,18 +32,13 @@ public class ChangesResource {
 
   static DateTimeFormatter formatter = ISODateTimeFormat.dateTime();
 
-
-  // Thread safe factory
-  private static JsonFactory factory = new MappingJsonFactory();
-
-  // Thread safe versionStore (for now, or at least until this is no longer true)
-  private static VersionStore versionStore = new CassandraVersionStore();
-
-
+  @Inject private JsonFactory factory;
+  @Inject private VersionStore versionStore;
 
   @POST
   @Path("/{endpoint}")
   public void onChange(@PathParam("endpoint") String endpointName, @Context HttpRequest request) throws IOException {
+
 
     Long endpoint = System.currentTimeMillis();
 

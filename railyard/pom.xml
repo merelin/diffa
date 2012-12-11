@@ -15,7 +15,6 @@
 
   <properties>
     <buildVersion>${project.version}</buildVersion>    <!-- Can be overridden via -D -->
-    <resteasy.version>2.3.5.Final</resteasy.version>
 
     <jdbcDriverClass>org.hsqldb.jdbc.JDBCDriver</jdbcDriverClass>
     <jdbcUrl>jdbc:hsqldb:target/temp;hsqldb.lock_file=false</jdbcUrl>
@@ -25,6 +24,12 @@
   </properties>
 
   <dependencies>
+
+    <dependency>
+      <groupId>com.google.inject</groupId>
+      <artifactId>guice</artifactId>
+      <version>3.0</version>
+    </dependency>
 
     <dependency>
       <groupId>ch.qos.logback</groupId>
@@ -38,7 +43,20 @@
 
     <dependency>
       <groupId>net.lshift.diffa</groupId>
+      <artifactId>diffa-railyard-client</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>net.lshift.diffa</groupId>
       <artifactId>adapter-support</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>net.lshift.diffa</groupId>
+      <artifactId>daemon</artifactId>
       <version>${project.version}</version>
     </dependency>
 
@@ -72,19 +90,11 @@
     <dependency>
       <groupId>org.jboss.resteasy</groupId>
       <artifactId>resteasy-netty</artifactId>
-      <version>${resteasy.version}</version>
-    </dependency>
-
-    <dependency>
-      <groupId>com.ning</groupId>
-      <artifactId>async-http-client</artifactId>
-      <scope>test</scope>
     </dependency>
 
     <dependency>
       <groupId>org.hectorclient</groupId>
       <artifactId>hector-core</artifactId>
-      <scope>test</scope>
     </dependency>
 
   </dependencies>
@@ -105,7 +115,7 @@
           </execution>
         </executions>
         <configuration>
-          <mainClass>net.lshift.diffa.railyard.RailYard</mainClass>
+          <mainClass>net.lshift.diffa.railyard.RailYardEngine</mainClass>
           <classpathScope>test</classpathScope>
         </configuration>
       </plugin>

@@ -1,4 +1,4 @@
-package net.lshift.diffa.versioning.events;
+package net.lshift.diffa.events;
 
 public interface ChangeEventHandler {
   void onEvent(Long endpoint, ChangeEvent event);

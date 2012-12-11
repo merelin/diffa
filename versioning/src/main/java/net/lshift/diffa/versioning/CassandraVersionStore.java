@@ -18,12 +18,13 @@ import me.prettyprint.hector.api.Cluster;
 import me.prettyprint.hector.api.Keyspace;
 import me.prettyprint.hector.api.beans.DynamicComposite;
 import me.prettyprint.hector.api.beans.HColumn;
+import me.prettyprint.hector.api.exceptions.HectorException;
 import me.prettyprint.hector.api.factory.HFactory;
 import me.prettyprint.hector.api.query.SliceQuery;
 import net.lshift.diffa.adapter.scanning.*;
-import net.lshift.diffa.versioning.events.ChangeEvent;
+import net.lshift.diffa.events.ChangeEvent;
+import net.lshift.diffa.events.TombstoneEvent;
 import net.lshift.diffa.versioning.events.PartitionedEvent;
-import net.lshift.diffa.versioning.events.TombstoneEvent;
 import net.lshift.diffa.versioning.events.UnpartitionedEvent;
 import net.lshift.diffa.versioning.partitioning.*;
 import net.lshift.diffa.versioning.plumbing.*;
@@ -116,21 +117,29 @@ public class CassandraVersionStore implements VersionStore {
 
   public void onEvent(Long endpoint, ChangeEvent event) {
 
-    if (event instanceof UnpartitionedEvent) {
+    try {
 
-      UnpartitionedEvent unpartitionedEvent = (UnpartitionedEvent) event;
-      addEvent(endpoint, unpartitionedEvent);
+      if (event instanceof UnpartitionedEvent) {
 
-    }
-    else if (event instanceof TombstoneEvent) {
+        UnpartitionedEvent unpartitionedEvent = (UnpartitionedEvent) event;
+        addEvent(endpoint, unpartitionedEvent);
 
-      deleteEvent(endpoint, event.getId());
+      }
+      else if (event instanceof TombstoneEvent) {
 
-    } else {
-      throw new InvalidEventException(event, "Version store cannot handle this type of event");
+        deleteEvent(endpoint, event.getId());
+
+      } else {
+        throw new InvalidEventException(event, "Version store cannot handle this type of event");
+      }
+
+    } catch (HectorException he) {
+      String reason = getReason(he);
+      throw new VersionStoreException(reason);
     }
 
   }
+
 
 
 
@@ -144,7 +153,18 @@ public class CassandraVersionStore implements VersionStore {
 
     String context = KEY_JOINER.join(view.getLeft(), view.getRight());
 
-    TreeLevelRollup rollup = getChildDigests(context, bucket, pairDigestsTemplate, PAIR_HIERARCHY_CF, PAIR_DIGESTS_CF, PAIR_BUCKETS_CF, view.getMaxSliceSize());
+    TreeLevelRollup rollup = null;
+
+    try {
+
+      rollup = getChildDigests(context, bucket, pairDigestsTemplate, PAIR_HIERARCHY_CF, PAIR_DIGESTS_CF, PAIR_BUCKETS_CF, view.getMaxSliceSize());
+
+    } catch (HectorException he) {
+      String reason = getReason(he);
+      throw new VersionStoreException(reason);
+
+    }
+
     return unqualify(view.getLeft(), view.getRight(), rollup);
   }
 
@@ -156,16 +176,25 @@ public class CassandraVersionStore implements VersionStore {
     bucketQuery.setColumnFamily(PAIR_BUCKETS_CF);
     bucketQuery.setKey(key);
 
-    ColumnSliceIterator<String,String,DynamicComposite> iterator = new ColumnSliceIterator<String,String,DynamicComposite>(bucketQuery, "", "",false);
+    try {
 
-    while(iterator.hasNext()) {
-      HColumn<String,DynamicComposite> column = iterator.next();
-      String entityId = column.getName();
-      DynamicComposite composite = column.getValue();
-      String left = composite.get(0).toString();
-      String right = composite.get(1).toString();
-      EntityDifference diff = new EntityDifference(entityId, left, right);
-      diffs.add(diff);
+      ColumnSliceIterator<String,String,DynamicComposite> iterator = new ColumnSliceIterator<String,String,DynamicComposite>(bucketQuery, "", "",false);
+
+      while(iterator.hasNext()) {
+        HColumn<String,DynamicComposite> column = iterator.next();
+        String entityId = column.getName();
+        DynamicComposite composite = column.getValue();
+        String left = composite.get(0).toString();
+        String right = composite.get(1).toString();
+        EntityDifference diff = new EntityDifference(entityId, left, right);
+        diffs.add(diff);
+      }
+
+    } catch (HectorException he) {
+
+      String reason = getReason(he);
+      throw new VersionStoreException(reason);
+
     }
 
     return diffs;
@@ -178,52 +207,56 @@ public class CassandraVersionStore implements VersionStore {
       Set<ScanResultEntry> entries) {
 
 
-    if (entries == null || entries.isEmpty()) {
+    try {
+      if (entries == null || entries.isEmpty()) {
 
-      throw new RuntimeException("Think about how to handle this ... ");
+        throw new RuntimeException("Think about how to handle this ... ");
 
-    } else {
+      } else {
 
-      if (aggregations != null) {
+        if (aggregations != null) {
 
-        for (ScanAggregation sa : aggregations) {
-          if (sa instanceof DateAggregation) {
-            DateAggregation dateAggregation = (DateAggregation) sa;
-            DateGranularityEnum g = dateAggregation.getGranularity();
+          for (ScanAggregation sa : aggregations) {
+            if (sa instanceof DateAggregation) {
+              DateAggregation dateAggregation = (DateAggregation) sa;
+              DateGranularityEnum g = dateAggregation.getGranularity();
 
-            if (g == DateGranularityEnum.Yearly) {
+              if (g == DateGranularityEnum.Yearly) {
 
-              int maxSliceSize = getSliceSize(endpoint);
-              final String context = endpoint + "";
-              String key = "";
-              TreeLevelRollup qualified = getChildDigests(context, key, userDefinedDigestsTemplate, USER_DEFINED_HIERARCHY_CF, USER_DEFINED_DIGESTS_CF, USER_DEFINED_BUCKETS_CF, maxSliceSize);
-              TreeLevelRollup unqualified = unqualify(endpoint, qualified);
+                int maxSliceSize = getSliceSize(endpoint);
+                final String context = endpoint + "";
+                String key = "";
+                TreeLevelRollup qualified = getChildDigests(context, key, userDefinedDigestsTemplate, USER_DEFINED_HIERARCHY_CF, USER_DEFINED_DIGESTS_CF, USER_DEFINED_BUCKETS_CF, maxSliceSize);
+                TreeLevelRollup unqualified = unqualify(endpoint, qualified);
 
-              Map<String,BucketDigest> remote = DifferencingUtils.convertAggregates(entries);
+                Map<String,BucketDigest> remote = DifferencingUtils.convertAggregates(entries);
 
-              MapDifference<String,BucketDigest> d = Maps.difference(remote,unqualified.getMembers());
+                MapDifference<String,BucketDigest> d = Maps.difference(remote,unqualified.getMembers());
 
-              if (d.areEqual()) {
-                return new ArrayList<ScanRequest>();
-              }
+                if (d.areEqual()) {
+                  return new ArrayList<ScanRequest>();
+                }
 
-              else {
-                List<ScanRequest> r = new ArrayList<ScanRequest>();
+                else {
+                  List<ScanRequest> r = new ArrayList<ScanRequest>();
 
-                ScanRequest re = new ScanRequest(constraints, aggregations);
+                  ScanRequest re = new ScanRequest(constraints, aggregations);
 
-                r.add(re);
+                  r.add(re);
 
-                return r;
+                  return r;
+                }
               }
             }
           }
+
         }
 
       }
-
+    } catch (HectorException he) {
+      String reason = getReason(he);
+      throw new VersionStoreException(reason);
     }
-
 
 
     return null;
@@ -232,6 +265,10 @@ public class CassandraVersionStore implements VersionStore {
   //////////////////////////////////////////////////////
   // Internal plumbing
   //////////////////////////////////////////////////////
+
+  private String getReason(HectorException he) {
+    return he.getMessage();
+  }
 
   private void addEvent(Long endpoint, UnpartitionedEvent event) {
 
