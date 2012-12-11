@@ -207,6 +207,12 @@
       <artifactId>spring-test</artifactId>
       <scope>test</scope>
     </dependency>
+    <dependency>
+      <groupId>org.scalatest</groupId>
+      <artifactId>scalatest_2.9.2</artifactId>
+      <version>${scalatest.version}</version>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 
   <build>
