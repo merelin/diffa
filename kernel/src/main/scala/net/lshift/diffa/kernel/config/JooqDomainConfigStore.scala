@@ -143,6 +143,7 @@ class JooqDomainConfigStore(jooq:JooqDatabaseFacade,
       t.insertInto(ENDPOINTS).
           set(ENDPOINTS.SPACE, space:LONG).
           set(ENDPOINTS.NAME, endpointDef.name).
+          set(ENDPOINTS.ID, endpointDef.id).
           set(ENDPOINTS.COLLATION_TYPE, endpointDef.collation).
           set(ENDPOINTS.CONTENT_RETRIEVAL_URL, endpointDef.contentRetrievalUrl).
           set(ENDPOINTS.SCAN_URL, endpointDef.scanUrl).
