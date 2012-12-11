@@ -62,6 +62,7 @@ case class PolicyMember(
  */
 case class EndpointDef (
   @BeanProperty var name: String = null,
+  @BeanProperty var id: Long = -1L,
   @BeanProperty var scanUrl: String = null,
   @BeanProperty var contentRetrievalUrl: String = null,
   @BeanProperty var versionGenerationUrl: String = null,
@@ -131,6 +132,7 @@ case class EndpointDef (
  * get replaced with this more useful definition.
  */
 case class DomainEndpointDef(
+  @BeanProperty var id: Long = -1L,
   @BeanProperty var space: Long = -1L,
   @BeanProperty var domain: String = null,
   @BeanProperty var name: String = null,
@@ -152,6 +154,7 @@ case class DomainEndpointDef(
   }
 
   @Deprecated def withoutDomain() = EndpointDef(
+    id = id,
     name = name,
     scanUrl = scanUrl,
     contentRetrievalUrl = contentRetrievalUrl,
