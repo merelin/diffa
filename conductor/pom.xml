@@ -74,12 +74,12 @@
   <build>
     <plugins>
 
-      <!--plugin>
+      <plugin>
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>exec-maven-plugin</artifactId>
         <executions>
           <execution>
-            <id>start-railyard-server</id>
+            <id>start-conductor</id>
             <phase>pre-integration-test</phase>
             <goals>
               <goal>java</goal>
@@ -87,10 +87,10 @@
           </execution>
         </executions>
         <configuration>
-          <mainClass>net.lshift.diffa.railyard.RailYardEngine</mainClass>
+          <mainClass>net.lshift.diffa.conductor.ConductorDaemon</mainClass>
           <classpathScope>test</classpathScope>
         </configuration>
-      </plugin-->
+      </plugin>
 
       <plugin>
         <artifactId>maven-surefire-plugin</artifactId>

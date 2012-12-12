@@ -5,5 +5,5 @@ public interface Conductor {
   /**
    * For want of a better word ....
    */
-  void begin();
+  void begin(String space, String endpoint);
 }

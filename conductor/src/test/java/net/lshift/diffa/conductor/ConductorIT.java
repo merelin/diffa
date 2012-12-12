@@ -10,7 +10,7 @@ public class ConductorIT {
   public void shouldConductInterview() throws Exception {
 
     Conductor conductor = new ConductorClient(url);
-    //conductor.begin();
+    conductor.begin("space", "endpoint");
 
   }
 }

@@ -18,17 +18,19 @@ public class ConductorClient implements Conductor {
   }
 
   @Override
-  public void begin() {
+  public void begin(String space, String endpoint) {
+
+    String url = baseUrl + String.format("/%s/interview/%s", space, endpoint);
 
     Request request
-        = new RequestBuilder("GET").
-          setUrl(baseUrl).
+        = new RequestBuilder("POST").
+          setUrl(url).
           build();
 
     try {
 
       Response response = client.prepareRequest(request).execute().get();
-      verifyResponse(response, 200);
+      verifyResponse(response, 204);
 
     } catch (Exception e) {
       throw new RuntimeException(e);
