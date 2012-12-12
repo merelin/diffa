@@ -81,7 +81,7 @@ class EscalationManager(val config:DomainConfigStore,
           })
         } else {
           log.debug("{} Not processing escalation on {} as breaker has been tripped",
-            formatAlertCode(pair, BREAKER_TRIPPED), d.objId)
+            Seq(formatAlertCode(pair, BREAKER_TRIPPED), d.objId))
         }
 
       case other =>

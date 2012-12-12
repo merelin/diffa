@@ -11,16 +11,16 @@ import net.lshift.diffa.railyard.RailYardClient;
 import java.util.ArrayList;
 import java.util.List;
 
-public class Conductor extends SimpleDaemon {
+public class ConductorDaemon extends SimpleDaemon {
 
   public static final int DEFAULT_PORT = 5150;
 
-  public Conductor(String[] commandLineArgs) {
+  public ConductorDaemon(String[] commandLineArgs) {
     super(commandLineArgs);
   }
 
   public static void main(String[] args) throws Exception {
-    new Conductor(args);
+    new ConductorDaemon(args);
  }
 
   @Override

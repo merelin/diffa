@@ -31,6 +31,16 @@ import net.lshift.diffa.kernel.config._
 import net.lshift.diffa.kernel.frontend._
 import java.util
 import net.lshift.diffa.kernel.util.CategoryUtil
+import net.lshift.diffa.config._
+import net.lshift.diffa.kernel.frontend.EndpointDef
+import net.lshift.diffa.kernel.frontend.RepairActionDef
+import net.lshift.diffa.kernel.frontend.PairDef
+import net.lshift.diffa.kernel.frontend.EndpointViewDef
+import net.lshift.diffa.kernel.frontend.PairReportDef
+import net.lshift.diffa.kernel.frontend.PolicyMember
+import net.lshift.diffa.kernel.frontend.EscalationDef
+import net.lshift.diffa.kernel.frontend.DiffaConfig
+import net.lshift.diffa.kernel.frontend.PairViewDef
 
 /**
  * Provider for encoding and decoding diffa configuration blocks.

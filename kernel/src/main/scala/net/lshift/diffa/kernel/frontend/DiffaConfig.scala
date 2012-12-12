@@ -21,9 +21,9 @@ import org.quartz.CronExpression
 import java.util.HashMap
 import scala.collection.JavaConversions._
 import net.lshift.diffa.kernel.util.{DownstreamEndpoint, UpstreamEndpoint, EndpointSide}
-import net.lshift.diffa.adapter.scanning.{UnorderedCollation, AsciiCollation, Collation}
 import net.lshift.diffa.kernel.escalation.EscalationManager
 import net.lshift.diffa.config.{ConfigValidationException, CategoryDescriptor, AggregatingCategoryDescriptor}
+import net.lshift.diffa.adapter.scanning.{Collation, UnorderedCollation, AsciiCollation}
 
 /**
  * Describes a complete Diffa configuration in the context of a domain - this means that all of the objects

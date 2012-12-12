@@ -79,7 +79,7 @@ abstract class AbstractActorSupervisor
     if (oldActor != null) {
       oldActor().map(actorSystem.stop(_))
       logger.info("{} Stopping existing actor for key: {}",
-        formatAlertCode(pair, ACTOR_STOPPED), pair.identifier)
+        Seq(formatAlertCode(pair, ACTOR_STOPPED), pair.identifier))
     }
   }
 

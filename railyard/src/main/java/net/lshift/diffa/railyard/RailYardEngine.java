@@ -1,8 +1,11 @@
 package net.lshift.diffa.railyard;
 
+import joptsimple.OptionSet;
 import net.lshift.diffa.conductor.SimpleDaemon;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.List;
 
 public class RailYardEngine extends SimpleDaemon {
 
@@ -10,14 +13,23 @@ public class RailYardEngine extends SimpleDaemon {
 
   public static final int DEFAULT_PORT = 7655;
 
-  @Override
-  protected int getPort() {
-    return DEFAULT_PORT;
+  public RailYardEngine(String[] args) {
+    super(args);
   }
 
   @Override
-  protected String getName() {
+  protected List<Object> getResources() {
+    return null;  //To change body of implemented methods use File | Settings | File Templates.
+  }
+
+  @Override
+  protected String getName(OptionSet options) {
     return "Railyard engine";
+  }
+
+  @Override
+  protected int getPort(OptionSet options) {
+    return DEFAULT_PORT;
   }
 
   /*

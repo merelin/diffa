@@ -27,6 +27,7 @@
     <module>daemon</module>
     <module>configuration</module>
     <module>conductor</module>
+    <module>conductor-client</module>
     <module>change-events</module>
     <module>railyard</module>
     <module>railyard-client</module>
