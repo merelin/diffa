@@ -19,7 +19,7 @@ package net.lshift.diffa.kernel.differencing
 import reflect.BeanProperty
 import scala.collection.JavaConversions._
 import org.joda.time.{DateTime, Interval}
-import net.lshift.diffa.kernel.config.{JooqConfigStoreCompanion}
+import net.lshift.diffa.kernel.config.{ExternalHttpCredentials, JooqConfigStoreCompanion, PairRef}
 import net.lshift.diffa.kernel.util.cache.{KeyPredicate, CachedMap, CacheProvider}
 import net.lshift.diffa.kernel.util.sequence.SequenceProvider
 import net.lshift.diffa.kernel.util.AlertCodes._
@@ -35,7 +35,6 @@ import org.jooq._
 import java.lang.{Long => LONG}
 import java.sql.Timestamp
 import net.lshift.diffa.kernel.naming.{CacheName, SequenceName}
-import net.lshift.diffa.kernel.config.PairRef
 import net.lshift.diffa.kernel.events.VersionID
 import net.lshift.diffa.kernel.lifecycle.PairLifecycleAware
 
@@ -366,7 +365,11 @@ class JooqDomainDifferenceStore(db: DatabaseFacade,
           and(DIFFS.IS_MATCH.equal(false)).
           and(DIFFS.IGNORED.equal(false)).
         fetch().
-        map(r => recordToReportedDifferenceEventAsDifferenceEvent(r))
+        map(new RecordMapper[Record, DifferenceEvent] {
+          def map(r:Record) : DifferenceEvent = {
+            recordToReportedDifferenceEventAsDifferenceEvent(r)
+          }
+        })
     }
   }
 
@@ -421,7 +424,12 @@ class JooqDomainDifferenceStore(db: DatabaseFacade,
         // TODO why shouldn't the query be ordered this way when ignored events are excluded?
           query.orderBy(DIFFS.SEQ_ID.asc()).limit(length).offset(offset).fetch()
 
-      results.map(recordToReportedDifferenceEventAsDifferenceEvent)
+      results.
+        map(new RecordMapper[Record, DifferenceEvent] {
+          def map(r:Record) : DifferenceEvent = {
+            recordToReportedDifferenceEventAsDifferenceEvent(r)
+          }
+        })
     }
   }
 
@@ -641,7 +649,7 @@ class JooqDomainDifferenceStore(db: DatabaseFacade,
       from(PENDING_DIFFS).
       groupBy(PENDING_DIFFS.SPACE).
       fetch().
-      foreach(record => {
+      foreach( (record:Record) => {
         val space = record.getValue(PENDING_DIFFS.SPACE)
         val key = pendingEventSequenceKey(space)
         val persistentValue = record.getValueAsBigInteger("max_seq_id").longValue()
