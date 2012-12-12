@@ -4,7 +4,7 @@
 
   <groupId>net.lshift.diffa</groupId>
   <artifactId>diffa-parent</artifactId>
-  <version>1.6.2-SNAPSHOT</version>
+  <version>1.7.0-SNAPSHOT</version>
 
   <name>LShift Diffa Parent POM</name>
 
@@ -40,6 +40,10 @@
   <properties>
     <buildVersion>${project.version}</buildVersion>    <!-- Can be overridden via -D -->
     <diffa.build.number>${project.version}</diffa.build.number> <!-- Must be overridden on CI server via -D -->
+    <webapp.file>jetty-env.xml</webapp.file>
+    <zookeeper.url.root>http://www.mirrorservice.org/sites/ftp.apache.org</zookeeper.url.root>
+    <zookeeper.install.dir>/tmp/zookeeper-${zookeeper.version}</zookeeper.install.dir>
+    <zookeeper.exec.bin>bin/zkServer.sh</zookeeper.exec.bin>
 
     <scala.version>2.9.2</scala.version>
     <scala.plugin.version>2.14.1</scala.plugin.version>
@@ -61,13 +65,12 @@
     <jodatime.version>2.0</jodatime.version>
     <jadira.version>1.9</jadira.version>
     <javamail.file.transport.version>1.0</javamail.file.transport.version>
-    <jooq.version>2.5.1</jooq.version>
     <slf4j.version>1.7.2</slf4j.version>
+    <jooq.version>2.6.0</jooq.version>
     <logback.version>1.0.0</logback.version>
     <akka.version>2.0.1</akka.version>
     <quartz.version>2.1.3</quartz.version>
     <wroj.version>1.4.4</wroj.version>
-    <hazelcast.version>2.3.1</hazelcast.version>
     <avro.version>1.7.2</avro.version>
     <cassandra.version>1.1.7</cassandra.version>
     <hector.version>1.1-2</hector.version>
@@ -77,6 +80,10 @@
     <netty.version>3.5.11.Final</netty.version>
     <guice.version>3.0</guice.version>
     <resteasy.version>2.3.5.Final</resteasy.version>
+    <curator.version>1.2.3</curator.version>
+    <hazelcast.version>2.4</hazelcast.version>
+    <guava.version>11.0.1</guava.version>
+    <zookeeper.version>3.4.5</zookeeper.version>
   </properties>
 
   <scm>
@@ -507,7 +514,7 @@
     <dependency>
       <groupId>net.lshift</groupId>
       <artifactId>db-migrations</artifactId>
-      <version>1.6.2-SNAPSHOT</version>
+      <version>1.7.0-SNAPSHOT</version>
     </dependency>
 
     <dependency>
@@ -671,11 +678,14 @@
             <stopKey>foo</stopKey>
             <stopPort>19094</stopPort>
             <jettyConfig>${basedir}/src/test/conf/jetty.xml</jettyConfig>
-            <webAppXml>${basedir}/src/test/conf/jetty-env.xml</webAppXml>
+
+            <webAppXml>${basedir}/src/test/conf/${webapp.file}</webAppXml>
+
             <webAppConfig>
               <contextPath>/diffa-agent</contextPath>
             </webAppConfig>
           </configuration>
+
           <executions>
             <execution>
               <id>start-jetty</id>
@@ -696,12 +706,13 @@
               </goals>
             </execution>
           </executions>
+
         </plugin>
 
         <plugin>
           <groupId>org.codehaus.mojo</groupId>
           <artifactId>exec-maven-plugin</artifactId>
-          <version>1.1.1</version>
+          <version>1.2.1</version>
         </plugin>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>

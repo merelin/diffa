@@ -5,7 +5,7 @@
   <parent>
     <groupId>net.lshift.diffa</groupId>
     <artifactId>diffa-parent</artifactId>
-    <version>1.6.2-SNAPSHOT</version>
+    <version>1.7.0-SNAPSHOT</version>
   </parent>
 
   <artifactId>diffa-kernel</artifactId>
@@ -175,8 +175,9 @@
       <artifactId>commons-io</artifactId>
     </dependency>
     <dependency>
-      <groupId>net.lshift</groupId>
+      <groupId>net.lshift.diffa</groupId>
       <artifactId>db-migrations</artifactId>
+      <version>${project.version}</version>
     </dependency>
     <dependency>
       <groupId>com.ibm.icu</groupId>

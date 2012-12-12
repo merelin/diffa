@@ -21,7 +21,7 @@
   <New id="ServerLog" class="java.io.PrintStream">
     <Arg>
       <New class="org.eclipse.jetty.util.RolloverFileOutputStream">
-        <Arg><SystemProperty name="jetty.home" default="."/>/logs/jetty-yyyy_mm_dd.log</Arg>
+        <Arg><SystemProperty name="diffa.home" default="."/>/logs/jetty-yyyy_mm_dd.log</Arg>
         <Arg type="boolean">false</Arg>
         <Arg type="int">90</Arg>
         <Arg>
@@ -100,19 +100,11 @@
     </Call>
   </Get>
 
-  <!-- =========================================================== -->
-  <!-- Initialize the two web apps to run inside ths instance      -->
-  <!-- of Jetty:                                                   -->
-  <!-- 1. The Diffa agent                                          -->
-  <!-- 2. Teh demo participants application                        -->
-  <!-- =========================================================== -->
-
-  <!-- 1. Boot the agent -->
   <New class="org.eclipse.jetty.webapp.WebAppContext">
     <Arg>
       <Ref id="Contexts"/>
     </Arg>
-    <Arg>webapps/root</Arg>
+    <Arg><SystemProperty name="diffa.home" default="."/>/webapps/root</Arg>
     <Arg>/</Arg>
     <Set name="ConfigurationClasses">
       <Array type="java.lang.String">
@@ -144,6 +136,8 @@
             </New>
           </Arg>
           <Set name="driverClass">org.hsqldb.jdbc.JDBCDriver</Set>
+          <Set name="username">sa</Set>
+          <Set name="password"></Set>
         </New>
       </Arg>
     </New>
@@ -171,44 +165,7 @@
       </Arg>
     </New>
 
-
   </New>
 
-  <!-- 2. Boot the demo adapter -->
-  <New class="org.eclipse.jetty.webapp.WebAppContext">
-    <Arg>
-      <Ref id="Contexts"/>
-    </Arg>
-    <Arg>webapps/participant-demo</Arg>
-    <Arg>/participant-demo</Arg>
-
-    <Set name="ConfigurationClasses">
-      <Array type="java.lang.String">
-        <Item>org.eclipse.jetty.webapp.WebInfConfiguration</Item>
-        <Item>org.eclipse.jetty.webapp.WebXmlConfiguration</Item>
-        <Item>org.eclipse.jetty.webapp.MetaInfConfiguration</Item>
-        <Item>org.eclipse.jetty.webapp.FragmentConfiguration</Item>
-        <Item>org.eclipse.jetty.plus.webapp.EnvConfiguration</Item>
-        <Item>org.eclipse.jetty.plus.webapp.PlusConfiguration</Item>
-        <Item>org.eclipse.jetty.webapp.JettyWebXmlConfiguration</Item>
-        <Item>org.eclipse.jetty.webapp.TagLibConfiguration</Item>
-      </Array>
-    </Set>
-
-    <New class="org.eclipse.jetty.plus.jndi.EnvEntry">
-      <Arg>demoProperties</Arg>
-      <Arg>
-        <New class="java.util.Properties">
-          <Call name="load">
-            <Arg>
-              <New class="java.io.FileReader">
-                <Arg type="java.lang.String">etc/demo.properties</Arg>
-              </New>
-            </Arg>
-          </Call>
-        </New>
-      </Arg>
-    </New>
-  </New>
 </Configure>
 
