@@ -17,7 +17,7 @@
 ## Library Upgrades
 
 * Upgraded to JOOQ 2.6.0
-* Upgraded to Hazelcast 2.2
+* Upgraded to Hazelcast 2.4
 * New Netflix Curator 1.2.3 dependency
 * Upgraded from Google Collections (obsolete) to Guava 11.0.1
 
