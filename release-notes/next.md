@@ -23,4 +23,4 @@
 
 ## Upgrading
 
-Please note that Diffa will not automatically upgrade itself to this version from release 1.6.
+Please note that Diffa will not automatically upgrade itself from any version below 1.7.
