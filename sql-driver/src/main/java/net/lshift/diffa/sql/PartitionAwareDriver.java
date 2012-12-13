@@ -1,6 +1,7 @@
 package net.lshift.diffa.sql;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.inject.Inject;
 import net.lshift.diffa.adapter.scanning.ScanAggregation;
 import net.lshift.diffa.adapter.scanning.ScanConstraint;
 import net.lshift.diffa.adapter.scanning.ScanResultEntry;
@@ -28,6 +29,7 @@ public class PartitionAwareDriver extends AbstractDatabaseAware implements Scann
 
   private PartitionMetadata config;
 
+  @Inject
   public PartitionAwareDriver(DataSource ds, PartitionMetadata config) {
     super(ds);
     this.config = config;
@@ -163,6 +165,8 @@ public class PartitionAwareDriver extends AbstractDatabaseAware implements Scann
       handler.onEntry(entry);
 
     }
+
+    handler.onCompletion();
 
 
     closeConnection(connection);

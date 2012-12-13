@@ -28,6 +28,9 @@ public class BufferingScanResultHandler implements ScanResultHandler {
     entries.add(entry);
   }
 
+  @Override
+  public void onCompletion() {}
+
   public Set<ScanResultEntry> getEntries() {
     return entries;
   }

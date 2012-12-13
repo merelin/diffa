@@ -7,7 +7,10 @@ import com.google.inject.name.Names;
 import joptsimple.OptionSet;
 import net.lshift.diffa.railyard.RailYard;
 import net.lshift.diffa.railyard.RailYardClient;
+import net.lshift.diffa.scanning.Scannable;
+import net.lshift.diffa.sql.PartitionAwareDriver;
 
+import javax.sql.DataSource;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -29,6 +32,7 @@ public class ConductorDaemon extends SimpleDaemon {
       @Override
       protected void configure() {
         bind(RailYard.class).to(RailYardClient.class);
+        //bind(Scannable.class).to(PartitionAwareDriver.class);
         bind(String.class).annotatedWith(Names.named("railYardUrl")).toInstance("http://localhost:7655");
       }
     });

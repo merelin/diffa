@@ -52,6 +52,16 @@ public class RailYardClient implements RailYard {
 
   }
 
+  @Override
+  public Question getNextQuestion(String space, String endpoint) {
+    return null;
+  }
+
+  @Override
+  public Question getNextQuestion(String space, String endpoint, Question lastQuestion, Iterable<Answer> answers) {
+    return null;
+  }
+
   private void verifyResponse(Response response, int code) {
     if (response.getStatusCode() != code) {
       switch (response.getStatusCode()) {

@@ -31,6 +31,17 @@
       <version>${project.version}</version>
     </dependency>
 
+    <!--
+      Ideally the symbols we are referencing in this project here should be extracted out into a separate module,
+      but I'm not quite sure what that should look like right now and what it should contain, so for now,
+      we''ll just pull the whole thing in.
+    -->
+    <dependency>
+      <groupId>net.lshift.diffa</groupId>
+      <artifactId>adapter-support</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
     <dependency>
       <groupId>com.google.inject</groupId>
       <artifactId>guice</artifactId>

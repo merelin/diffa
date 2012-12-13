@@ -75,6 +75,8 @@ class StoreSynchronizationResource {
             writer.write(generated, encoder)
             encoder.flush()
           }
+
+          def onCompletion() {}
         }
 
         diffStore.scan(constraints, aggregations, maxSliceSize, handler)

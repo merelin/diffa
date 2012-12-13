@@ -6,4 +6,5 @@ public interface ScanResultHandler {
 
   void onEntry(ScanResultEntry entry);
 
+  void onCompletion();
 }

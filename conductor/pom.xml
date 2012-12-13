@@ -16,6 +16,8 @@
     <guice.version>3.0</guice.version>
     <resteasy.version>2.3.5.Final</resteasy.version>
     <junit.version>4.10</junit.version>
+    <hsqldb.version>2.2.8</hsqldb.version>
+    <flyway.version>2.0.3</flyway.version>
   </properties>
 
   <dependencies>
@@ -46,6 +48,18 @@
 
     <dependency>
       <groupId>net.lshift.diffa</groupId>
+      <artifactId>scanning-support</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>net.lshift.diffa</groupId>
+      <artifactId>sql-driver</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>net.lshift.diffa</groupId>
       <artifactId>diffa-railyard-client</artifactId>
       <version>${project.version}</version>
     </dependency>
@@ -63,11 +77,38 @@
     </dependency>
 
     <dependency>
+      <groupId>org.jboss.resteasy</groupId>
+      <artifactId>resteasy-jackson-provider</artifactId>
+      <version>${resteasy.version}</version>
+    </dependency>
+
+    <dependency>
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>
       <version>${junit.version}</version>
       <scope>test</scope>
     </dependency>
+
+    <dependency>
+      <groupId>org.hsqldb</groupId>
+      <artifactId>hsqldb</artifactId>
+      <version>${hsqldb.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>com.googlecode.flyway</groupId>
+      <artifactId>flyway-core</artifactId>
+      <version>${flyway.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>net.lshift.diffa</groupId>
+      <artifactId>diffa-versioning</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
+
 
   </dependencies>
 
