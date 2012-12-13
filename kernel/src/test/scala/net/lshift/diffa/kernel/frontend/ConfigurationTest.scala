@@ -30,7 +30,7 @@ import net.lshift.diffa.kernel.actors.{PairPolicyClient, ActivePairManager}
 import net.lshift.diffa.kernel.util.MissingObjectException
 import net.lshift.diffa.kernel.StoreReferenceContainer
 import net.lshift.diffa.schema.environment.TestDatabaseEnvironments
-import org.junit.{AfterClass, Test, Before}
+import org.junit.{After, AfterClass, Test, Before}
 import net.lshift.diffa.kernel.config.system.PolicyKey
 import org.apache.commons.lang.RandomStringUtils
 
@@ -74,16 +74,20 @@ class ConfigurationTest {
   var space:Space = null
 
   @Before
-  def clearConfig = {
+  def prepare() {
+    cleanup()
+    space = systemConfigStore.createOrUpdateSpace(domainName)
+  }
+
+  @After
+  def cleanup() {
     try {
       if (space != null) {
         systemConfigStore.deleteSpace(space.id)
       }
+    } catch {
+      case e: MissingObjectException => // ignore non-existent space, since the point of this call was to delete it anyway
     }
-    catch {
-      case e:MissingObjectException => // ignore non-existent domain, since the point of this call was to delete it anyway
-    }
-    space = systemConfigStore.createOrUpdateSpace(domainName)
   }
 
   @Test
@@ -144,13 +148,13 @@ class ConfigurationTest {
     systemConfigStore.createOrUpdateUser(user1)
     systemConfigStore.createOrUpdateUser(user2)
 
-    val ep1 = DomainEndpointDef(space = space.id, name = "upstream1", scanUrl = "http://localhost:1234",
+    val ep1 = DomainEndpointDef(space = space.id, id = 1L, name = "upstream1", scanUrl = "http://localhost:1234",
                 inboundUrl = "http://inbound",
                 categories = Map(
                   "a" -> new RangeCategoryDescriptor("datetime", "2009", "2010"),
                   "b" -> new SetCategoryDescriptor(Set("a", "b", "c"))),
                 views = List(EndpointViewDef("v1")))
-    val ep2 = DomainEndpointDef(space = space.id, name = "downstream1", scanUrl = "http://localhost:5432/scan",
+    val ep2 = DomainEndpointDef(space = space.id, id = 2L, name = "downstream1", scanUrl = "http://localhost:5432/scan",
           categories = Map(
             "c" -> new PrefixCategoryDescriptor(1, 5, 1),
             "d" -> new PrefixCategoryDescriptor(1, 6, 1)
@@ -203,17 +207,17 @@ class ConfigurationTest {
   @Test
   def shouldUpdateConfigurationInNonEmptySystem() {
     // Apply the configuration used in the empty state test
-    shouldApplyConfigurationToEmptySystem
+    shouldApplyConfigurationToEmptySystem()
     resetAll
 
       // upstream1 is kept but changed
-    val ep1 = DomainEndpointDef(space = space.id, name = "upstream1", scanUrl = "http://localhost:6543/scan",
+    val ep1 = DomainEndpointDef(space = space.id, id = 3, name = "upstream1", scanUrl = "http://localhost:6543/scan",
           inboundUrl = "http://inbound",
           categories = Map(
             "a" -> new RangeCategoryDescriptor("datetime", "2009", "2010"),
             "b" -> new SetCategoryDescriptor(Set("a", "b", "c"))))
       // downstream1 is gone, downstream2 is added
-    val ep2 = DomainEndpointDef(space = space.id, name = "downstream2", scanUrl = "http://localhost:54321/scan",
+    val ep2 = DomainEndpointDef(space = space.id, id = 4, name = "downstream2", scanUrl = "http://localhost:54321/scan",
           categories = Map(
             "c" -> new PrefixCategoryDescriptor(1, 5, 1),
             "d" -> new PrefixCategoryDescriptor(1, 6, 1)
@@ -265,11 +269,11 @@ class ConfigurationTest {
     expect(pairPolicyClient.difference(PairRef(name = "ad", space = space.id))).once
 
     expect(endpointListener.onEndpointRemoved(space.id, "downstream1")).once
-    expect(endpointListener.onEndpointAvailable(ep1)).once
+    expect(endpointListener.onEndpointAvailable(ep1.copy(id = 1))).once
     expect(endpointListener.onEndpointAvailable(ep2)).once
     replayAll
 
-    configuration.applyConfiguration(space.id,config)
+    configuration.applyConfiguration(space.id, config)
     val Some(newConfig) = configuration.retrieveConfiguration(space.id)
     assertEquals(config, newConfig)
 
@@ -339,6 +343,8 @@ object ConfigurationTest {
 
   private[ConfigurationTest] val storeReferences =
     StoreReferenceContainer.withCleanDatabaseEnvironment(env)
+
+  private[ConfigurationTest] val endpointNameById = Map[Int, String](1 -> "upstream1", 2 -> "upstream2")
 
   @AfterClass
   def cleanupSchema {

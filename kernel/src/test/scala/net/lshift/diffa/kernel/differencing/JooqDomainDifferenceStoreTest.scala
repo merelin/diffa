@@ -41,6 +41,8 @@ import org.apache.commons.lang.RandomStringUtils
  */
 @RunWith(classOf[Theories])
 class JooqDomainDifferenceStoreTest {
+  import net.lshift.diffa.kernel.IdHelper.nextId
+
   private val storeReferences = JooqDomainDifferenceStoreTest.storeReferences
 
   private val systemConfigStore = storeReferences.systemConfigStore
@@ -57,8 +59,9 @@ class JooqDomainDifferenceStoreTest {
     
     space = systemConfigStore.createOrUpdateSpace(domainName)
         
-    val us = EndpointDef(name = "upstream")
-    val ds = EndpointDef(name = "downstream")
+    val us = EndpointDef(id = nextId, name = "upstream")
+    val ds = EndpointDef(id = nextId, name = "downstream")
+
     domainConfigStore.createOrUpdateEndpoint(space.id, us)
     domainConfigStore.createOrUpdateEndpoint(space.id, ds)
 

@@ -25,6 +25,7 @@ import net.lshift.diffa.kernel.config._
 object FrontendConversions {
 
   def toEndpointDef(e:Endpoint) = EndpointDef(
+    id = e.id,
     name = e.name,
     scanUrl = e.scanUrl,
     contentRetrievalUrl = e.contentRetrievalUrl,
@@ -35,6 +36,7 @@ object FrontendConversions {
     collation = e.collation)
 
   def fromEndpointDef(domain:Domain, e:EndpointDef) = Endpoint(
+    id = e.id,
     name = e.name,
     domain = domain,
     scanUrl = e.scanUrl,

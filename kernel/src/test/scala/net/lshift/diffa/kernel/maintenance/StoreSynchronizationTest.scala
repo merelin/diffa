@@ -42,6 +42,7 @@ import net.lshift.diffa.kernel.frontend.{PairDef, DomainPairDef}
 import org.apache.commons.lang.RandomStringUtils
 
 class StoreSynchronizationTest {
+  import net.lshift.diffa.kernel.IdHelper.nextId
 
   // Real Wiring
   private val storeReferences = StoreSynchronizationTest.storeReferences
@@ -56,10 +57,8 @@ class StoreSynchronizationTest {
   val domainName = RandomStringUtils.randomAlphabetic(10)
   val space = systemConfigStore.createOrUpdateSpace(domainName)
 
-  //val domain = Domain(name=domainName)
-
-  val u = Endpoint(name = "1", scanUrl = "http://foo.com/scan", inboundUrl = "changes")
-  val d = Endpoint(name = "2", scanUrl = "http://bar.com/scan", inboundUrl = "changes")
+  val u = Endpoint(id = nextId, name = "1", scanUrl = "http://foo.com/scan", inboundUrl = "changes")
+  val d = Endpoint(id = nextId, name = "2", scanUrl = "http://bar.com/scan", inboundUrl = "changes")
 
   val pair = DomainPairDef(key = "pair", space = space.id, versionPolicyName = "policy", upstreamName = u.name, downstreamName = d.name)
   val pairRef = pair.asRef

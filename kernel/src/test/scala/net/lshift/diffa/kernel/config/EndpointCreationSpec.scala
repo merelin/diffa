@@ -36,13 +36,20 @@ class EndpointCreationSpec extends FlatSpec with ShouldMatchers {
   val req1 = "When I create an endpoint, it should have a surrogate identifier capable of storing a 64-bit integer"
   val req2 = "When I create many endpoints, their surrogate identifiers should be unique"
   val req3 = "When I create two endpoints, the endpoint created last should have the greater valued identifier"
+  val req4 = "When I create the same endpoint twice, the identifier should not change"
 
   import EndpointCreationSpec.configStore
   "Endpoint Provisioner" should "create an endpoint having a 64-bit surrogate identifier" in {
     val endpoint = "req1-1"
-    val endpointId = CreateEndpointCommand(endpoint).executeWithConfigStore(configStore)
 
-    endpointId.getClass should be (java.lang.Long)
+    CreateEndpointCommand(endpoint).executeWithConfigStore(configStore) should be > 0L
+  }
+
+  "Updating an existing Endpoint" should "not change the endpoint's identifier" in {
+    val endpoint = "req4-1"
+    val firstId = CreateEndpointCommand(endpoint).executeWithConfigStore(configStore)
+
+    CreateEndpointCommand(endpoint).executeWithConfigStore(configStore) should be (firstId)
   }
 }
 
@@ -62,6 +69,6 @@ case class CreateEndpointCommand(endpoint: String) {
   implicit def toEndpointDef(name: String): EndpointDef = EndpointDef(name = name)
 
   def executeWithConfigStore(configStore: DomainConfigStore): Long = {
-    configStore.createOrUpdateEndpoint(spaceId, endpoint).endpointId
+    configStore.createOrUpdateEndpoint(spaceId, endpoint).id
   }
 }

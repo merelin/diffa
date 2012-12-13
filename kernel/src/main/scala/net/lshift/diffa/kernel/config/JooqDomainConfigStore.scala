@@ -140,22 +140,29 @@ class JooqDomainConfigStore(jooq:JooqDatabaseFacade,
   def createOrUpdateEndpoint(space: Long, endpointDef: EndpointDef) : DomainEndpointDef = {
     jooq.execute(t => {
 
-      t.insertInto(ENDPOINTS).
+      val merge = t.mergeInto(ENDPOINTS).
+        usingDual().
+        on(ENDPOINTS.SPACE.equal(space), ENDPOINTS.NAME.equal(endpointDef.name)).
+        whenMatchedThenUpdate().
+          set(ENDPOINTS.COLLATION_TYPE, endpointDef.collation).
+          set(ENDPOINTS.CONTENT_RETRIEVAL_URL, endpointDef.contentRetrievalUrl).
+          set(ENDPOINTS.SCAN_URL, endpointDef.scanUrl).
+          set(ENDPOINTS.VERSION_GENERATION_URL, endpointDef.versionGenerationUrl).
+          set(ENDPOINTS.INBOUND_URL, endpointDef.inboundUrl).
+        whenNotMatchedThenInsert().
           set(ENDPOINTS.SPACE, space:LONG).
           set(ENDPOINTS.NAME, endpointDef.name).
-          set(ENDPOINTS.ID, endpointDef.id).
+          set(ENDPOINTS.ID, endpointDef.id:LONG).
           set(ENDPOINTS.COLLATION_TYPE, endpointDef.collation).
           set(ENDPOINTS.CONTENT_RETRIEVAL_URL, endpointDef.contentRetrievalUrl).
           set(ENDPOINTS.SCAN_URL, endpointDef.scanUrl).
           set(ENDPOINTS.VERSION_GENERATION_URL, endpointDef.versionGenerationUrl).
-          set(ENDPOINTS.INBOUND_URL, endpointDef.inboundUrl).
-        onDuplicateKeyUpdate().
-          set(ENDPOINTS.COLLATION_TYPE, endpointDef.collation).
-          set(ENDPOINTS.CONTENT_RETRIEVAL_URL, endpointDef.contentRetrievalUrl).
-          set(ENDPOINTS.SCAN_URL, endpointDef.scanUrl).
-          set(ENDPOINTS.VERSION_GENERATION_URL, endpointDef.versionGenerationUrl).
-          set(ENDPOINTS.INBOUND_URL, endpointDef.inboundUrl).
-        execute()
+          set(ENDPOINTS.INBOUND_URL, endpointDef.inboundUrl)
+
+      merge.execute()
+
+      endpointDef.id = endpointIdByName(t, endpointDef.name, space).fetchOne(ENDPOINTS.ID).longValue()
+      val endpointId = endpointDef.id:LONG
 
       // Don't attempt to update to update any rows per se, just delete every associated
       // category and re-insert the new definitions, irrespective of
@@ -171,24 +178,21 @@ class JooqDomainConfigStore(jooq:JooqDatabaseFacade,
       if (endpointDef.views.isEmpty) {
 
         t.delete(ENDPOINT_VIEWS).
-          where(ENDPOINT_VIEWS.SPACE.equal(space)).
-            and(ENDPOINT_VIEWS.ENDPOINT.equal(endpointDef.name)).
+            where(ENDPOINT_VIEWS.ENDPOINT.equal(endpointId)).
           execute()
 
       } else {
 
         t.delete(ENDPOINT_VIEWS).
           where(ENDPOINT_VIEWS.NAME.notIn(endpointDef.views.map(v => v.name))).
-            and(ENDPOINT_VIEWS.SPACE.equal(space)).
-            and(ENDPOINT_VIEWS.ENDPOINT.equal(endpointDef.name)).
+            and(ENDPOINT_VIEWS.ENDPOINT.equal(endpointId)).
           execute()
 
       }
 
       endpointDef.views.foreach(v => {
         t.insertInto(ENDPOINT_VIEWS).
-            set(ENDPOINT_VIEWS.SPACE, space:LONG).
-            set(ENDPOINT_VIEWS.ENDPOINT, endpointDef.name).
+            set(ENDPOINT_VIEWS.ENDPOINT, endpointId).
             set(ENDPOINT_VIEWS.NAME, v.name).
           onDuplicateKeyIgnore().
           execute()
@@ -205,6 +209,7 @@ class JooqDomainConfigStore(jooq:JooqDatabaseFacade,
 
     DomainEndpointDef(
       space = space,
+      id = endpointDef.id,
       name = endpointDef.name,
       validateEntityOrder = endpointDef.validateEntityOrder,
       collation = endpointDef.collation,
@@ -218,8 +223,9 @@ class JooqDomainConfigStore(jooq:JooqDatabaseFacade,
   }
 
 
-
   def deleteEndpoint(space:Long, endpoint: String) = {
+    val upstream = ENDPOINTS.as("upstream")
+    val downstream = ENDPOINTS.as("downstream")
 
     jooq.execute(t => {
 
@@ -227,9 +233,11 @@ class JooqDomainConfigStore(jooq:JooqDatabaseFacade,
 
       val results = t.select(PAIRS.SPACE, PAIRS.NAME).
                       from(PAIRS).
+                      leftOuterJoin(upstream).on(upstream.ID.equal(PAIRS.UPSTREAM)).
+                      leftOuterJoin(downstream).on(downstream.ID.equal(PAIRS.DOWNSTREAM)).
                       where(PAIRS.SPACE.equal(space)).
-                        and(PAIRS.UPSTREAM.equal(endpoint).
-                            or(PAIRS.DOWNSTREAM.equal(endpoint))).fetch()
+                        and(upstream.NAME.equal(endpoint).
+                            or(downstream.NAME.equal(endpoint))).fetch()
 
       results.iterator().foreach(r => {
         val ref = PairRef(r.getValue(PAIRS.NAME), r.getValue(PAIRS.SPACE))
@@ -239,8 +247,7 @@ class JooqDomainConfigStore(jooq:JooqDatabaseFacade,
       deleteCategories(t, space, endpoint)
 
       t.delete(ENDPOINT_VIEWS).
-        where(ENDPOINT_VIEWS.SPACE.equal(space)).
-          and(ENDPOINT_VIEWS.ENDPOINT.equal(endpoint)).
+          where(ENDPOINT_VIEWS.ENDPOINT.equal(endpointIdByNameAsField(t, endpoint, space))).
         execute()
 
       var deleted = t.delete(ENDPOINTS).
@@ -289,12 +296,14 @@ class JooqDomainConfigStore(jooq:JooqDatabaseFacade,
     pair.validate()
 
     jooq.execute(t => {
+      val upstream = endpointIdByNameAsField(t, pair.upstreamName, space)
+      val downstream = endpointIdByNameAsField(t, pair.downstreamName, space)
 
       // Attempt to prevent unnecessary sequence churn when updating pairs
       // TODO We should consider splitting out create and update APIs for records that use sequences
       val rows = t.update(PAIRS).
-          set(PAIRS.UPSTREAM, pair.upstreamName).
-          set(PAIRS.DOWNSTREAM, pair.downstreamName).
+          set(PAIRS.UPSTREAM, upstream).
+          set(PAIRS.DOWNSTREAM, downstream).
           set(PAIRS.ALLOW_MANUAL_SCANS, pair.allowManualScans).
           set(PAIRS.MATCHING_TIMEOUT, pair.matchingTimeout.asInstanceOf[Integer]).
           set(PAIRS.SCAN_CRON_SPEC, pair.scanCronSpec).
@@ -312,16 +321,16 @@ class JooqDomainConfigStore(jooq:JooqDatabaseFacade,
             set(PAIRS.SPACE, space:LONG).
             set(PAIRS.NAME, pair.key).
             set(PAIRS.EXTENT, extent:LONG).
-            set(PAIRS.UPSTREAM, pair.upstreamName).
-            set(PAIRS.DOWNSTREAM, pair.downstreamName).
+            set(PAIRS.UPSTREAM, upstream).
+            set(PAIRS.DOWNSTREAM, downstream).
             set(PAIRS.ALLOW_MANUAL_SCANS, pair.allowManualScans).
             set(PAIRS.MATCHING_TIMEOUT, pair.matchingTimeout.asInstanceOf[Integer]).
             set(PAIRS.SCAN_CRON_SPEC, pair.scanCronSpec).
             set(PAIRS.SCAN_CRON_ENABLED, boolean2Boolean(pair.scanCronEnabled)).
             set(PAIRS.VERSION_POLICY_NAME, pair.versionPolicyName).
           onDuplicateKeyUpdate().
-            set(PAIRS.UPSTREAM, pair.upstreamName).
-            set(PAIRS.DOWNSTREAM, pair.downstreamName).
+            set(PAIRS.UPSTREAM, upstream).
+            set(PAIRS.DOWNSTREAM, downstream).
             set(PAIRS.ALLOW_MANUAL_SCANS, pair.allowManualScans).
             set(PAIRS.MATCHING_TIMEOUT, pair.matchingTimeout.asInstanceOf[Integer]).
             set(PAIRS.SCAN_CRON_SPEC, pair.scanCronSpec).
@@ -407,7 +416,7 @@ class JooqDomainConfigStore(jooq:JooqDatabaseFacade,
 
       pair.escalations.foreach(e => {
 
-        // TODO somehow factor out the subselect to avoid repetitions
+        // TODO somehow factor out the sub-select to avoid repetitions
 
         t.insertInto(ESCALATIONS).
             set(ESCALATIONS.NAME, e.name).

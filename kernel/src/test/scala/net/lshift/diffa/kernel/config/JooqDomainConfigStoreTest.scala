@@ -38,6 +38,7 @@ import org.junit.runner.RunWith
 @RunWith(classOf[Theories])
 class JooqDomainConfigStoreTest {
   import JooqDomainConfigStoreTest.{Scenario, randomSpace}
+  import net.lshift.diffa.kernel.IdHelper.nextId
 
   private val log = LoggerFactory.getLogger(getClass)
 
@@ -70,16 +71,16 @@ class JooqDomainConfigStoreTest {
 
   val setView = EndpointViewDef(name = "a-only", categories = Map(dateCategoryName -> new SetCategoryDescriptor(Set("a"))))
 
-  val upstream1 = new EndpointDef(name = "e1", scanUrl = "testScanUrl1",
+  val upstream1 = new EndpointDef(id = nextId, name = "e1", scanUrl = "testScanUrl1",
                                   categories = dateRangeCategoriesMap)
-  val upstream2 = new EndpointDef(name = "e2", scanUrl = "testScanUrl2",
+  val upstream2 = new EndpointDef(id = nextId, name = "e2", scanUrl = "testScanUrl2",
                                   contentRetrievalUrl = "contentRetrieveUrl1",
                                   categories = setCategoriesMap,
                                   views = Seq(setView))
 
-  val downstream1 = new EndpointDef(name = "e3", scanUrl = "testScanUrl3",
+  val downstream1 = new EndpointDef(id = nextId, name = "e3", scanUrl = "testScanUrl3",
                                     categories = intRangeCategoriesMap)
-  val downstream2 = new EndpointDef(name = "e4", scanUrl = "testScanUrl4",
+  val downstream2 = new EndpointDef(id = nextId, name = "e4", scanUrl = "testScanUrl4",
                                     versionGenerationUrl = "generateVersionUrl1",
                                     categories = stringPrefixCategoriesMap)
 
@@ -194,8 +195,8 @@ class JooqDomainConfigStoreTest {
 
     val space2 = systemConfigStore.createOrUpdateSpace(RandomStringUtils.randomAlphanumeric(10))
     
-    domainConfigStore.createOrUpdateEndpoint(space2.id, upstream1)
-    domainConfigStore.createOrUpdateEndpoint(space2.id, downstream1)
+    domainConfigStore.createOrUpdateEndpoint(space2.id, upstream1.copy(id = nextId))
+    domainConfigStore.createOrUpdateEndpoint(space2.id, downstream1.copy(id = nextId))
     domainConfigStore.createOrUpdatePair(space2.id, pair3)
 
     // Load the created pairs, and ensure the data remains unique
@@ -447,8 +448,8 @@ class JooqDomainConfigStoreTest {
   }
 
   private def buildBasicRandomPair(space:Long) : PairDef = {
-    val up = domainConfigStore.createOrUpdateEndpoint(space, EndpointDef(name = RandomStringUtils.randomAlphanumeric(10)))
-    val down = domainConfigStore.createOrUpdateEndpoint(space, EndpointDef(name = RandomStringUtils.randomAlphanumeric(10)))
+    val up = domainConfigStore.createOrUpdateEndpoint(space, EndpointDef(id = nextId, name = RandomStringUtils.randomAlphanumeric(10)))
+    val down = domainConfigStore.createOrUpdateEndpoint(space, EndpointDef(id = nextId, name = RandomStringUtils.randomAlphanumeric(10)))
     val pair = PairDef(
       key = RandomStringUtils.randomAlphanumeric(10),
       upstreamName = up.name,
@@ -538,34 +539,36 @@ class JooqDomainConfigStoreTest {
     }
 
     val up_v0 = EndpointDef(
+      id = nextId,
       name = "upstream",
       scanUrl = "upstream_url"
     )
 
     val down_v0 = EndpointDef(
+      id = nextId,
       name = "downstream",
       scanUrl = "downstream_url"
     )
 
     verifyEndpoints(Seq(down_v0, up_v0))
 
-    val up_v1 = up_v0.copy(scanUrl = "some_other_url")
+    val up_v1 = up_v0.copy(id = nextId, scanUrl = "some_other_url")
     verifyEndpoints(Seq(down_v0, up_v1))
 
-    val up_v2 = up_v1.copy(views = List(EndpointViewDef(name = "view1")))
+    val up_v2 = up_v1.copy(id = nextId, views = List(EndpointViewDef(name = "view1")))
     verifyEndpoints(Seq(down_v0, up_v2))
 
-    val down_v1 = down_v0.copy(categories = Map("foo" -> new RangeCategoryDescriptor("date", null, null, null)))
+    val down_v1 = down_v0.copy(id = nextId, categories = Map("foo" -> new RangeCategoryDescriptor("date", null, null, null)))
     verifyEndpoints(Seq(down_v1, up_v2))
 
-    val down_v2 = down_v1.copy(
+    val down_v2 = down_v1.copy(id = nextId,
       categories = Map(
         "foo" -> new RangeCategoryDescriptor("date", null, null, null),
         "bar" -> new PrefixCategoryDescriptor(1,3,1)
       ))
     verifyEndpoints(Seq(down_v2, up_v2))
 
-    val down_v3 = down_v2.copy(
+    val down_v3 = down_v2.copy(id = nextId,
       categories = Map(
         "foo" -> new RangeCategoryDescriptor("date", null, null, null),
         "bar" -> new PrefixCategoryDescriptor(1,3,1),
@@ -573,7 +576,7 @@ class JooqDomainConfigStoreTest {
       ))
     verifyEndpoints(Seq(down_v3, up_v2))
 
-    val down_v4 = down_v3.copy(
+    val down_v4 = down_v3.copy(id = nextId,
       categories = Map(
         "foo" -> new RangeCategoryDescriptor("date", null, null, null),
         "ibm" -> new RangeCategoryDescriptor("date", "1999-10-10", "1999-10-11", null),
@@ -584,7 +587,7 @@ class JooqDomainConfigStoreTest {
       ))
     verifyEndpoints(Seq(down_v4, up_v2))
 
-    val up_v3 = up_v0.copy(categories = Map(
+    val up_v3 = up_v0.copy(id = nextId, categories = Map(
       "november" -> new RangeCategoryDescriptor("date", null, "2010-11-11", null),
       "zulu"     -> new PrefixCategoryDescriptor(3,6,3)),
       views = List(EndpointViewDef(
@@ -687,27 +690,27 @@ class JooqDomainConfigStoreTest {
 
     val pair = PairDef(key = new UUID().toString, upstreamName = upstream.name, downstreamName = downstream.name)
 
-    val space = systemConfigStore.createOrUpdateSpace(RandomStringUtils.randomAlphanumeric(10))
+    val space2 = systemConfigStore.createOrUpdateSpace(RandomStringUtils.randomAlphanumeric(10))
 
-    domainConfigStore.createOrUpdateEndpoint(space.id, upstream)
-    domainConfigStore.createOrUpdateEndpoint(space.id, downstream)
-    domainConfigStore.createOrUpdatePair(space.id, pair)
+    domainConfigStore.createOrUpdateEndpoint(space2.id, upstream.copy(id = nextId))
+    domainConfigStore.createOrUpdateEndpoint(space2.id, downstream.copy(id = nextId))
+    domainConfigStore.createOrUpdatePair(space2.id, pair)
 
     // It should not be possible to create more than one view with the same name within the same endpoint
 
     val uv3 = uv2.copy()
     val invalidUpstreamViews = Seq(uv1,uv2,uv3)
-    val invalidUpstream = EndpointDef(name = new UUID().toString, categories = parentCategories, views = invalidUpstreamViews)
+    val invalidUpstream = EndpointDef(id = nextId, name = new UUID().toString, categories = parentCategories, views = invalidUpstreamViews)
 
     try {
-      domainConfigStore.createOrUpdateEndpoint(space.id, invalidUpstream)
+      domainConfigStore.createOrUpdateEndpoint(space2.id, invalidUpstream)
       fail("Should have thrown integrity error")
     }
     catch {
       case x:DataAccessException => // expected
     }
     finally {
-      systemConfigStore.deleteSpace(space.id)
+      systemConfigStore.deleteSpace(space2.id)
     }
 
   }
@@ -865,8 +868,8 @@ class JooqDomainConfigStoreTest {
     // declare the domain
     systemConfigStore.createOrUpdateDomain(domainName)
 
-    val up = EndpointDef(name = "some-upstream-endpoint")
-    val down = EndpointDef(name = "some-downstream-endpoint")
+    val up = EndpointDef(id = nextId, name = "some-upstream-endpoint")
+    val down = EndpointDef(id = nextId, name = "some-downstream-endpoint")
     val pair = PairDef(key = "some-pair", upstreamName = up.name, downstreamName = down.name)
 
     val v1 = domainConfigStore.getConfigVersion(space.id)
@@ -902,8 +905,8 @@ class JooqDomainConfigStoreTest {
   def shouldStoreTrippedBreaker() {
     systemConfigStore.createOrUpdateDomain(domainName)
 
-    val e1 = domainConfigStore.createOrUpdateEndpoint(space.id, EndpointDef(name = "some-upstream-endpoint"))
-    val e2 = domainConfigStore.createOrUpdateEndpoint(space.id, EndpointDef(name = "some-downstream-endpoint"))
+    val e1 = domainConfigStore.createOrUpdateEndpoint(space.id, EndpointDef(id = nextId, name = "some-upstream-endpoint"))
+    val e2 = domainConfigStore.createOrUpdateEndpoint(space.id, EndpointDef(id = nextId, name = "some-downstream-endpoint"))
     domainConfigStore.createOrUpdatePair(space.id, PairDef(key = pairKey, upstreamName = e1.name, downstreamName = e2.name))
 
     domainConfigStore.tripBreaker(space.id, pairKey, "escalations:*")
@@ -914,8 +917,8 @@ class JooqDomainConfigStoreTest {
   def shouldKeepTrippedBreakersIsolated() {
     systemConfigStore.createOrUpdateDomain(domainName)
 
-    val e1 = domainConfigStore.createOrUpdateEndpoint(space.id, EndpointDef(name = "some-upstream-endpoint"))
-    val e2 = domainConfigStore.createOrUpdateEndpoint(space.id, EndpointDef(name = "some-downstream-endpoint"))
+    val e1 = domainConfigStore.createOrUpdateEndpoint(space.id, EndpointDef(id = nextId, name = "some-upstream-endpoint"))
+    val e2 = domainConfigStore.createOrUpdateEndpoint(space.id, EndpointDef(id = nextId, name = "some-downstream-endpoint"))
     domainConfigStore.createOrUpdatePair(space.id, PairDef(key = pairKey, upstreamName = e1.name, downstreamName = e2.name))
 
     domainConfigStore.tripBreaker(space.id, pairKey, "escalations:*")
@@ -927,8 +930,8 @@ class JooqDomainConfigStoreTest {
   def shouldSupportClearingABreaker() {
     systemConfigStore.createOrUpdateDomain(domainName)
 
-    val e1 = domainConfigStore.createOrUpdateEndpoint(space.id, EndpointDef(name = "some-upstream-endpoint"))
-    val e2 = domainConfigStore.createOrUpdateEndpoint(space.id, EndpointDef(name = "some-downstream-endpoint"))
+    val e1 = domainConfigStore.createOrUpdateEndpoint(space.id, EndpointDef(id = nextId, name = "some-upstream-endpoint"))
+    val e2 = domainConfigStore.createOrUpdateEndpoint(space.id, EndpointDef(id = nextId, name = "some-downstream-endpoint"))
     domainConfigStore.createOrUpdatePair(space.id, PairDef(key = pairKey, upstreamName = e1.name, downstreamName = e2.name))
 
     domainConfigStore.tripBreaker(space.id, pairKey, "escalations:*")
@@ -957,6 +960,8 @@ class JooqDomainConfigStoreTest {
 }
 
 object JooqDomainConfigStoreTest {
+  import net.lshift.diffa.kernel.IdHelper.nextId
+
   private[JooqDomainConfigStoreTest] val env =
     TestDatabaseEnvironments.uniqueEnvironment("target/domainConfigStore")
 
@@ -965,9 +970,9 @@ object JooqDomainConfigStoreTest {
 
   private def randomName() = RandomStringUtils.randomAlphanumeric(10)
   private[JooqDomainConfigStoreTest] def randomSpace() = randomName()
-  private def randomEndpoint() = EndpointDef(name = randomName())
-  private def endpointWithScanUrl() = EndpointDef(name = randomName())
-  private def endpointWithView() = EndpointDef(name = randomName(), views = List(EndpointViewDef(name = randomName())))
+  private def randomEndpoint() = EndpointDef(id = nextId, name = randomName())
+  private def endpointWithScanUrl() = EndpointDef(id = nextId, name = randomName())
+  private def endpointWithView() = EndpointDef(id = nextId, name = randomName(), views = List(EndpointViewDef(name = randomName())))
   private def randomPair() = (randomEndpoint(), randomEndpoint())
 
   case class Scenario(upstream: EndpointDef, downstream: EndpointDef, newUp: Option[EndpointDef] = None)
