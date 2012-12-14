@@ -69,9 +69,11 @@ class ConfigurationResource(val config:Configuration,
   @Consumes(Array("application/json"))
   @Produces(Array("application/json"))
   @Path("/endpoints/{id}")
+  @Deprecated
   def updateEndpoint(@PathParam("id") id:String, e:EndpointDef) = {
-    config.createOrUpdateEndpoint(space, e.copy(id = idProvider.getId))
-    e
+    val identifiedEndpoint = e.copy(id = idProvider.getId)
+    config.createOrUpdateEndpoint(space, identifiedEndpoint)
+    identifiedEndpoint
   }
 
   @DELETE
