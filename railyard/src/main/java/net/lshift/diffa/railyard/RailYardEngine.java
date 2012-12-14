@@ -1,10 +1,19 @@
 package net.lshift.diffa.railyard;
 
+import com.google.common.collect.ImmutableList;
+import com.google.inject.Guice;
+import com.google.inject.Injector;
 import joptsimple.OptionSet;
 import net.lshift.diffa.conductor.SimpleDaemon;
+import net.lshift.diffa.railyard.plumbing.FailureHandler;
+import net.lshift.diffa.railyard.plumbing.JsonProcessingExceptionMapper;
+import net.lshift.diffa.railyard.plumbing.MethodNotAllowedExceptionMapper;
+import net.lshift.diffa.railyard.plumbing.VersionStoreExceptionMapper;
+import net.lshift.diffa.railyard.wiring.RailYardModule;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class RailYardEngine extends SimpleDaemon {
@@ -17,9 +26,30 @@ public class RailYardEngine extends SimpleDaemon {
     super(args);
   }
 
+  public static void main(String[] args) {
+    new RailYardEngine(args);
+  }
+
   @Override
   protected List<Object> getResources() {
-    return null;  //To change body of implemented methods use File | Settings | File Templates.
+    List<Object> resources = new ArrayList<Object>();
+
+    Injector injector = Guice.createInjector(new RailYardModule());
+    resources.add(injector.getInstance(ChangesResource.class));
+    resources.add(injector.getInstance(InterviewResource.class));
+
+    return resources;
+  }
+
+  @Override
+  protected List<String> getProviderClasses() {
+
+    return ImmutableList.of(
+        JsonProcessingExceptionMapper.class.getName(),
+        VersionStoreExceptionMapper.class.getName(),
+        MethodNotAllowedExceptionMapper.class.getName(),
+        FailureHandler.class.getName()
+    );
   }
 
   @Override

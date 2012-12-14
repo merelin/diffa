@@ -44,6 +44,7 @@ public abstract class SimpleDaemon implements Runnable {
 
     ResteasyDeployment deployment = new ResteasyDeployment();
     deployment.setResources(getResources());
+    deployment.setProviderClasses(getProviderClasses());
 
     final int port = getPort(options);
 
@@ -59,9 +60,8 @@ public abstract class SimpleDaemon implements Runnable {
   }
 
   protected abstract List<Object> getResources();
-
+  protected abstract List<String> getProviderClasses();
   protected abstract String getName(OptionSet options);
-
   protected abstract int getPort(OptionSet options);
 
   private static OptionSet getOptions(String[] args) throws IOException {

@@ -8,9 +8,13 @@ public class SliceSizeParser {
   public final static int DEFAULT_SLICE_SIZE = 100;
   public final static String MAX_SLICE_SIZE_PARAMETER_NAME = "max-slice-size";
 
-  private final HttpServletRequest req;
+  private final HttpRequestParameters req;
 
-  public SliceSizeParser(HttpServletRequest r) {
+  public SliceSizeParser(HttpServletRequest underlying) {
+    this.req = new ServletRequestParametersWrapper(underlying);
+  }
+
+  public SliceSizeParser(HttpRequestParameters r) {
     this.req = r;
   }
 

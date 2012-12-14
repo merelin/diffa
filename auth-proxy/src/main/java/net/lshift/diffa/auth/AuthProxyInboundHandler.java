@@ -63,11 +63,7 @@ public class AuthProxyInboundHandler extends SimpleChannelUpstreamHandler {
   public void messageReceived(ChannelHandlerContext ctx, final MessageEvent e)
       throws Exception {
 
-    HttpRequest request = (HttpRequest) e.getMessage();
-    request.setUri("/s1/changes/jd4");
-
     synchronized (trafficLock) {
-      //outboundChannel.write(msg);
       outboundChannel.write(e.getMessage());
       // If outboundChannel is saturated, do not read until notified in
       // OutboundHandler.channelInterestChanged().

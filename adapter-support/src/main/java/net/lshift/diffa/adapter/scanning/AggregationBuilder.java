@@ -25,12 +25,16 @@ import java.util.Set;
  * Helper for building aggregations from a web request.
  */
 public class AggregationBuilder {
-  private final HttpServletRequest req;
+  private final HttpRequestParameters req;
   private final List<ScanAggregation> result;
 
-  public AggregationBuilder(HttpServletRequest req) {
-    this.req = req;
+  public AggregationBuilder(HttpRequestParameters request) {
+    this.req = request;
     this.result = new ArrayList<ScanAggregation>();
+  }
+
+  public AggregationBuilder(HttpServletRequest underlying) {
+    this(new ServletRequestParametersWrapper(underlying));
   }
 
   /**

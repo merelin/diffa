@@ -24,7 +24,7 @@ public class ConductorDaemon extends SimpleDaemon {
 
   public static void main(String[] args) throws Exception {
     new ConductorDaemon(args);
- }
+  }
 
   @Override
   protected List<Object> getResources() {
@@ -40,6 +40,11 @@ public class ConductorDaemon extends SimpleDaemon {
     List<Object> resources = new ArrayList<Object>();
     resources.add(injector.getInstance(InterviewResource.class));
     return resources;
+  }
+
+  @Override
+  protected List<String> getProviderClasses() {
+    return null;  //To change body of implemented methods use File | Settings | File Templates.
   }
 
   @Override

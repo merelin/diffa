@@ -12,8 +12,11 @@ import org.junit.Test;
 import java.util.*;
 
 import static java.util.Arrays.*;
+import static org.junit.Assert.*;
 
 public class RailYardIT {
+
+  RailYard railYard = new RailYardClient("http://localhost:9999");
 
   @Test
   public void shouldPostChangeEvents() throws Exception {
@@ -24,8 +27,25 @@ public class RailYardIT {
         new DateTime()
     );
 
-    RailYard railYard = new RailYardClient("http://localhost:7655");
     railYard.postChanges("space", "endpoint", asList(event));
+  }
+
+  @Test
+  public void shouldGetNextQuestion() throws Exception {
+
+    Question question = railYard.getNextQuestion("space", "endpoint");
+    assertNotNull(question);
+
+    Question nextQuestion = railYard.getNextQuestion("space", "endpoint", question, new Iterable<Answer>() {
+      @Override
+      public Iterator<Answer> iterator() {
+        List<Answer> answers = new ArrayList<Answer>();
+        return  answers.iterator();
+      }
+    });
+
+    assertNotNull(nextQuestion);
+
   }
 
 }
