@@ -675,7 +675,7 @@ class PairActorTest {
   }
 
   def awaitFeedbackHandleCancellation(feedbackHandle:FeedbackHandle) {
-    val endTime = System.currentTimeMillis() + 2000
+    val endTime = System.currentTimeMillis() + 8000
     while (!feedbackHandle.isCancelled && endTime > System.currentTimeMillis()) {
       Thread.sleep(100)
     }
