@@ -86,7 +86,7 @@ class DomainResource {
   @Autowired var permissionEvaluator:PermissionEvaluator = null
   @Autowired var idProviderFactory: IdProviderFactory = null
 
-  lazy val idProvider = idProviderFactory.getProvider
+  lazy private val idProvider = idProviderFactory.getProvider
 
   private def getCurrentUser(space:String) : String = SecurityContextHolder.getContext.getAuthentication.getPrincipal match {
     case user:UserDetails => user.getUsername
