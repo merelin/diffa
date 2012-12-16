@@ -11,18 +11,20 @@ import javax.ws.rs.core.Request;
 import java.io.IOException;
 import java.net.URI;
 
-@Path("/{endpoint}/interview")
+@Path("/{space}/interview")
 public class InterviewResource {
 
   @GET
+  @Path("/{endpoint}")
   @Produces("application/json")
-  public Question getNextQuestion(@PathParam("endpoint") Long endpoint) {
+  public Question getNextQuestion(@PathParam("space") String space, @PathParam("endpoint") String endpoint) {
     return new SimpleQuestion();
   }
 
   @POST
+  @Path("/{endpoint}")
   @Produces("application/json")
-  public Question getNextQuestion(@PathParam("endpoint") Long endpoint,
+  public Question getNextQuestion(@PathParam("space") String space, @PathParam("endpoint") String endpoint,
                                   @Context final HttpRequest request) throws IOException {
 
     HttpRequestParameters parameters = new RestEasyRequestWrapper(request);

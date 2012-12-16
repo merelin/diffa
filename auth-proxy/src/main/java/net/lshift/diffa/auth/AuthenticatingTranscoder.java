@@ -23,7 +23,6 @@ public class AuthenticatingTranscoder extends SimpleChannelUpstreamHandler {
 
       if (isAuthenticated(space)) {
 
-        rewriteUri(request, System.currentTimeMillis());
         ctx.sendUpstream(e);
 
       }
@@ -51,22 +50,6 @@ public class AuthenticatingTranscoder extends SimpleChannelUpstreamHandler {
 
 
 
-  }
-
-  private void rewriteUri(HttpRequest request, Long endpoint) {
-    String url;
-    String original = request.getUri();
-    int index = original.indexOf("?");
-
-    if (index > 0) {
-      String query = original.substring(index);
-      url = String.format("/%s/interview%s", endpoint, query);
-    }
-    else {
-      url = String.format("/%s/interview", endpoint);
-    }
-
-    request.setUri(url);
   }
 
   private String extractSpace(HttpRequest request) {
