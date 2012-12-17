@@ -71,10 +71,12 @@ import org.jooq.impl.Factory
 import org.jooq._
 import collection.JavaConversions._
 import net.lshift.diffa.kernel.config.JooqConfigStoreCompanion.{ancestorIdTree, deleteRecordsInSpace}
+import net.lshift.diffa.snowflake.IdProvider
 
 class JooqSystemConfigStore(jooq:JooqDatabaseFacade,
                             cacheProvider:CacheProvider,
-                            sequenceProvider:SequenceProvider)
+                            sequenceProvider:SequenceProvider,
+                            idProvider: IdProvider)
     extends SystemConfigStore {
 
   val logger = LoggerFactory.getLogger(getClass)

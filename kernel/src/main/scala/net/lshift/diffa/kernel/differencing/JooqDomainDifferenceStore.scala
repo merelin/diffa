@@ -19,14 +19,14 @@ package net.lshift.diffa.kernel.differencing
 import reflect.BeanProperty
 import scala.collection.JavaConversions._
 import org.joda.time.{DateTime, Interval}
-import net.lshift.diffa.kernel.config.{JooqConfigStoreCompanion}
+import net.lshift.diffa.kernel.config.JooqConfigStoreCompanion
 import net.lshift.diffa.kernel.util.cache.{KeyPredicate, CachedMap, CacheProvider}
 import net.lshift.diffa.kernel.util.sequence.SequenceProvider
 import net.lshift.diffa.kernel.util.AlertCodes._
 import net.lshift.diffa.schema.jooq.DatabaseFacade
 import net.lshift.diffa.schema.jooq.DatabaseFacade.{timestampToDateTime, dateTimeToTimestamp}
 import net.lshift.diffa.schema.Tables._
-import net.lshift.diffa.schema.tables.records.{PendingDiffsRecord}
+import net.lshift.diffa.schema.tables.records.PendingDiffsRecord
 import org.jooq.impl.Factory._
 import net.lshift.diffa.kernel.util.MissingObjectException
 import org.jooq.impl.Factory
@@ -38,13 +38,15 @@ import net.lshift.diffa.kernel.naming.{CacheName, SequenceName}
 import net.lshift.diffa.kernel.config.PairRef
 import net.lshift.diffa.kernel.events.VersionID
 import net.lshift.diffa.kernel.lifecycle.PairLifecycleAware
+import net.lshift.diffa.snowflake.IdProvider
 
 /**
  * Hibernate backed Domain Cache provider.
  */
 class JooqDomainDifferenceStore(db: DatabaseFacade,
                                 cacheProvider:CacheProvider,
-                                sequenceProvider:SequenceProvider)
+                                sequenceProvider:SequenceProvider,
+                                idProvider: IdProvider)
     extends DomainDifferenceStore with PairLifecycleAware {
 
   val logger = LoggerFactory.getLogger(getClass)

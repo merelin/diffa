@@ -23,7 +23,6 @@ import net.lshift.diffa.agent.rest.ResponseUtils._
 import net.lshift.diffa.kernel.frontend._
 import net.lshift.diffa.kernel.frontend.FrontendConversions._
 import net.lshift.diffa.kernel.config.{PairRef, BreakerHelper}
-import net.lshift.diffa.snowflake.IdProvider
 
 /**
  * This is a REST interface to the Configuration abstraction.
@@ -31,7 +30,6 @@ import net.lshift.diffa.snowflake.IdProvider
  */
 class ConfigurationResource(val config:Configuration,
                             val breakers:BreakerHelper,
-                            val idProvider: IdProvider,
                             val space:Long,
                             val currentUser:String,
                             val uri:UriInfo) {
@@ -61,20 +59,10 @@ class ConfigurationResource(val config:Configuration,
   @Path("/endpoints")
   @Consumes(Array("application/json"))
   def createEndpoint(e:EndpointDef) = {
-    config.createOrUpdateEndpoint(space, e.copy(id = idProvider.getId))
+    config.createOrUpdateEndpoint(space, e)
     resourceCreated(e.name, uri)
   }
 
-  @PUT
-  @Consumes(Array("application/json"))
-  @Produces(Array("application/json"))
-  @Path("/endpoints/{id}")
-  @Deprecated
-  def updateEndpoint(@PathParam("id") id:String, e:EndpointDef) = {
-    val identifiedEndpoint = e.copy(id = idProvider.getId)
-    config.createOrUpdateEndpoint(space, identifiedEndpoint)
-    identifiedEndpoint
-  }
 
   @DELETE
   @Path("/endpoints/{id}")

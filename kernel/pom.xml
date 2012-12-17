@@ -45,6 +45,11 @@
       <version>${project.version}</version>
     </dependency>
     <dependency>
+      <groupId>net.lshift.diffa</groupId>
+      <artifactId>diffa-snowflake</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
       <groupId>org.jooq</groupId>
       <artifactId>jooq</artifactId>
     </dependency>
@@ -307,6 +312,9 @@
         <plugin>
           <artifactId>maven-surefire-plugin</artifactId>
           <configuration>
+            <excludes>
+              <exclude>**/PairActorTest.class</exclude>
+            </excludes>
             <systemPropertyVariables>
               <diffa.hibernate.dialect>${diffa.hibernate.dialect}</diffa.hibernate.dialect>
               <diffa.jooq.dialect>HSQLDB</diffa.jooq.dialect>
@@ -337,6 +345,9 @@
         <plugin>
           <artifactId>maven-surefire-plugin</artifactId>
           <configuration>
+            <excludes>
+              <exclude>**/PairActorTest.class</exclude>
+            </excludes>
             <systemPropertyVariables>
               <diffa.hibernate.dialect>${diffa.hibernate.dialect}</diffa.hibernate.dialect>
               <diffa.jooq.dialect>ORACLE</diffa.jooq.dialect>
@@ -367,6 +378,9 @@
         <plugin>
           <artifactId>maven-surefire-plugin</artifactId>
           <configuration>
+            <excludes>
+              <exclude>**/PairActorTest.class</exclude>
+            </excludes>
             <systemPropertyVariables>
               <diffa.hibernate.dialect>${diffa.hibernate.dialect}</diffa.hibernate.dialect>
               <diffa.jooq.dialect>MYSQL</diffa.jooq.dialect>

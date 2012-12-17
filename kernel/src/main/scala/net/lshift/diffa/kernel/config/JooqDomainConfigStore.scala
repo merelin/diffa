@@ -53,10 +53,12 @@ import net.lshift.diffa.kernel.util.sequence.SequenceProvider
 import net.lshift.diffa.kernel.naming.SequenceName
 import java.sql.SQLIntegrityConstraintViolationException
 import org.jooq.exception.DataAccessException
+import net.lshift.diffa.snowflake.IdProvider
 
 class JooqDomainConfigStore(jooq:JooqDatabaseFacade,
                             cacheProvider:CacheProvider,
                             sequenceProvider:SequenceProvider,
+                            idProvider:IdProvider,
                             membershipListener:DomainMembershipAware)
     extends DomainConfigStore
     with DomainLifecycleAware {
@@ -144,7 +146,7 @@ class JooqDomainConfigStore(jooq:JooqDatabaseFacade,
       val insert = t.insertInto(ENDPOINTS).
         set(ENDPOINTS.SPACE, space:LONG).
         set(ENDPOINTS.NAME, endpointDef.name).
-        set(ENDPOINTS.ID, endpointDef.id:LONG).
+        set(ENDPOINTS.ID, idProvider.getId:LONG).
         set(ENDPOINTS.COLLATION_TYPE, endpointDef.collation).
         set(ENDPOINTS.CONTENT_RETRIEVAL_URL, endpointDef.contentRetrievalUrl).
         set(ENDPOINTS.SCAN_URL, endpointDef.scanUrl).
@@ -195,8 +197,7 @@ class JooqDomainConfigStore(jooq:JooqDatabaseFacade,
         }
       }
 
-      endpointDef.id = endpointIdByName(t, endpointDef.name, space).fetchOne(ENDPOINTS.ID).longValue()
-      val endpointId = endpointDef.id:LONG
+      val endpointId = endpointIdByName(t, endpointDef.name, space)
 
       // Don't attempt to update to update any rows per se, just delete every associated
       // category and re-insert the new definitions, irrespective of
@@ -205,34 +206,22 @@ class JooqDomainConfigStore(jooq:JooqDatabaseFacade,
       deleteCategories(t, space, endpointDef.name)
 
       // Insert categories for the endpoint proper
-      insertCategories(t, space, endpointDef)
+      insertCategories(t, space, endpointId, endpointDef)
 
       // Update the view definitions
 
-      if (endpointDef.views.isEmpty) {
-
-        t.delete(ENDPOINT_VIEWS).
-            where(ENDPOINT_VIEWS.ENDPOINT.equal(endpointId)).
-          execute()
-
-      } else {
-
-        t.delete(ENDPOINT_VIEWS).
-          where(ENDPOINT_VIEWS.NAME.notIn(endpointDef.views.map(v => v.name))).
-            and(ENDPOINT_VIEWS.ENDPOINT.equal(endpointId)).
-          execute()
-
-      }
+      t.delete(ENDPOINT_VIEWS).
+          where(ENDPOINT_VIEWS.ENDPOINT.equal(endpointId)).
+        execute()
 
       endpointDef.views.foreach(v => {
         t.insertInto(ENDPOINT_VIEWS).
             set(ENDPOINT_VIEWS.ENDPOINT, endpointId).
             set(ENDPOINT_VIEWS.NAME, v.name).
-          onDuplicateKeyIgnore().
           execute()
 
           // Insert categories for the endpoint view
-        insertCategoriesForView(t, space, endpointDef.name, v)
+        insertCategoriesForView(t, space, endpointDef.name, endpointId, v)
       })
 
       upgradeConfigVersion(t, space)
@@ -243,7 +232,6 @@ class JooqDomainConfigStore(jooq:JooqDatabaseFacade,
 
     DomainEndpointDef(
       space = space,
-      id = endpointDef.id,
       name = endpointDef.name,
       validateEntityOrder = endpointDef.validateEntityOrder,
       collation = endpointDef.collation,
@@ -255,7 +243,6 @@ class JooqDomainConfigStore(jooq:JooqDatabaseFacade,
       views = endpointDef.views
     )
   }
-
 
   def deleteEndpoint(space:Long, endpoint: String) = {
     val upstream = ENDPOINTS.as("upstream")
@@ -284,7 +271,7 @@ class JooqDomainConfigStore(jooq:JooqDatabaseFacade,
           where(ENDPOINT_VIEWS.ENDPOINT.equal(endpointIdByNameAsField(t, endpoint, space))).
         execute()
 
-      var deleted = t.delete(ENDPOINTS).
+      val deleted = t.delete(ENDPOINTS).
                       where(ENDPOINTS.SPACE.equal(space)).
                         and(ENDPOINTS.NAME.equal(endpoint)).
                       execute()

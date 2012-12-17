@@ -124,7 +124,6 @@ case class Space (
 }
 
 case class Endpoint(
-  @BeanProperty var id: java.lang.Long = null,
   @BeanProperty var name: String = null,
   @BeanProperty var domain: Domain = null,
   @BeanProperty var scanUrl: String = null,

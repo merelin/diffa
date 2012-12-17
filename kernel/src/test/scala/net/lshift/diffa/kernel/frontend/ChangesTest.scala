@@ -76,8 +76,6 @@ class ChangesTest {
 }
 
 object ChangesTest {
-  import net.lshift.diffa.kernel.IdHelper.nextId
-
   var space:Space = null
   var pairRef:PairRef = null
 
@@ -92,9 +90,9 @@ object ChangesTest {
 
     pairRef = PairRef(space = space.id , name = "p1")
 
-    storeReferences.domainConfigStore.createOrUpdateEndpoint(space.id, EndpointDef(id = nextId, name = "e1"))
+    storeReferences.domainConfigStore.createOrUpdateEndpoint(space.id, EndpointDef(name = "e1"))
     storeReferences.domainConfigStore.createOrUpdateEndpoint(space.id,
-      EndpointDef(id = nextId, name = "e2", categories = Map("s" -> new SetCategoryDescriptor(Set("a", "b")))))
+      EndpointDef(name = "e2", categories = Map("s" -> new SetCategoryDescriptor(Set("a", "b")))))
     storeReferences.domainConfigStore.createOrUpdatePair(space.id, PairDef(key = "p1", upstreamName = "e1", downstreamName = "e2"))
   }
 

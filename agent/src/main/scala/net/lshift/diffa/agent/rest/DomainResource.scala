@@ -38,7 +38,6 @@ import net.lshift.diffa.kernel.config.{BreakerHelper, DomainConfigStore, DomainC
 import org.springframework.security.access.PermissionEvaluator
 import net.lshift.diffa.agent.rest.PermissionUtils._
 import net.lshift.diffa.agent.auth.{SpaceTarget, Privileges, SpacePrivilege}
-import net.lshift.diffa.snowflake.{IdProviderFactory, IdProvider}
 
 /**
  * The policy is that we will publish spaces as the replacement term for domains
@@ -84,9 +83,6 @@ class DomainResource {
   @Autowired var diffStore:DomainDifferenceStore = null
   @Autowired var breakers:BreakerHelper = null
   @Autowired var permissionEvaluator:PermissionEvaluator = null
-  @Autowired var idProviderFactory: IdProviderFactory = null
-
-  lazy private val idProvider = idProviderFactory.getProvider
 
   private def getCurrentUser(space:String) : String = SecurityContextHolder.getContext.getAuthentication.getPrincipal match {
     case user:UserDetails => user.getUsername
@@ -153,7 +149,7 @@ class DomainResource {
   @Path("/{space:.+}/config")
   def getConfigResource(@Context uri:UriInfo,
                         @PathParam("space") space:String) =
-    withSpace(space, Privileges.CONFIGURE, (id:Long) => new ConfigurationResource(config, breakers, idProvider, id, getCurrentUser(space), uri))
+    withSpace(space, Privileges.CONFIGURE, (id:Long) => new ConfigurationResource(config, breakers, id, getCurrentUser(space), uri))
 
   @Path("/{space:.+}/credentials")
   def getCredentialsResource(@Context uri:UriInfo,

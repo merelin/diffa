@@ -14,17 +14,17 @@
  * limitations under the License.
  */
 
-package net.lshift.diffa.snowflake;
+package net.lshift.diffa.kernel.util;
 
-public class IdProviderFactory {
-  private final IdentityGenerator machineIdGenerator = RandomIdentityGenerator.unseeded();
-  private final MachineIdAssigner machineIdAssigner;
+import net.lshift.diffa.snowflake.MachineIdAssigner;
+import net.lshift.diffa.snowflake.RandomIdentityGenerator;
+import net.lshift.diffa.snowflake.SnowflakeIdProvider;
 
-  public IdProviderFactory(String clusterDescriptor) throws Exception {
-    machineIdAssigner = MachineIdAssigner.getInstance(clusterDescriptor);
-  }
-
-  public IdProvider getProvider() {
-    return new SnowflakeIdProvider(machineIdAssigner.assign(machineIdGenerator));
+/**
+ * An IdProvider that uses ZooKeeper to co-ordinate node identifiers which are generated randomly.
+ */
+public class DiffaIdProvider extends SnowflakeIdProvider {
+  public DiffaIdProvider(String zookeeperCluster) throws Exception {
+    super(MachineIdAssigner.getInstance(zookeeperCluster).assign(RandomIdentityGenerator.unseeded()));
   }
 }

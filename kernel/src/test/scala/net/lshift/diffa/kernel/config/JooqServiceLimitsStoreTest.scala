@@ -36,8 +36,8 @@ class JooqServiceLimitsStoreTest {
     space = systemConfigStore.createOrUpdateSpace(RandomStringUtils.randomAlphanumeric(10))
     pairRef = PairRef(name = "diffa-test-pair", space = space.id)
     
-    val upstream = EndpointDef(id = 1, name = "upstream")
-    val downstream = EndpointDef(id = 2, name = "downstream")
+    val upstream = EndpointDef(name = "upstream")
+    val downstream = EndpointDef(name = "downstream")
     val pair = PairDef(
       key = pairRef.name,
       versionPolicyName = "same",

@@ -25,8 +25,6 @@ import org.apache.commons.lang.RandomStringUtils
 import net.lshift.diffa.kernel.config.system.PolicyKey
 
 class JooqUserPreferencesStoreTest {
-  import net.lshift.diffa.kernel.IdHelper.nextId
-
   private var storeReferences = JooqUserPreferencesStoreTest.storeReferences
 
   val preferencesStore = storeReferences.userPreferencesStore
@@ -36,8 +34,8 @@ class JooqUserPreferencesStoreTest {
   val domain = RandomStringUtils.randomAlphanumeric(10)
   val space = systemConfigStore.createOrUpdateSpace(domain)
 
-  val upstream = EndpointDef(id = nextId, name = "up")
-  val downstream = EndpointDef(id = nextId, name = "down")
+  val upstream = EndpointDef(name = "up")
+  val downstream = EndpointDef(name = "down")
   val pair1 = DomainPairDef(key = "p1", space = space.id, upstreamName = "up", downstreamName = "down")
   val pair2 = DomainPairDef(key = "p2", space = space.id, upstreamName = "up", downstreamName = "down")
   val pair3 = DomainPairDef(key = "p3", space = space.id, upstreamName = "up", downstreamName = "down")

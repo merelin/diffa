@@ -14,16 +14,18 @@
  * limitations under the License.
  */
 
-package net.lshift.diffa.kernel
+package net.lshift.diffa.kernel.actors
+
+import net.lshift.diffa.snowflake.IdProvider
 
 /**
- * Helpers for test code to generate identifiers in a very primitive and predictable way.
+ * A simple sequentially incrementing ID Provider for single-threaded, single-node testing only.
  */
-object IdHelper {
-  private var nextIdentifier = 0L
+object IncrementingIdProvider extends IdProvider {
+  var next = 0L
 
-  def nextId = {
-    nextIdentifier = nextIdentifier + 1
-    nextIdentifier
+  def getId = {
+    next = next + 1
+    next
   }
 }

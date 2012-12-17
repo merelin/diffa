@@ -15,8 +15,6 @@ import scala.collection.JavaConversions._
 import org.apache.commons.lang.RandomStringUtils
 
 class ReportManagerTest {
-  import net.lshift.diffa.kernel.IdHelper.nextId
-
   private val storeReferences = ReportManagerTest.storeReferences
 
   private val systemConfigStore = storeReferences.systemConfigStore
@@ -32,8 +30,8 @@ class ReportManagerTest {
 
   val reportManager = new ReportManager(domainConfigStore, domainDiffStore, diagnostics)
 
-  val e1 = EndpointDef(id = nextId, name = "e1")
-  val e2 = EndpointDef(id = nextId, name = "e2")
+  val e1 = EndpointDef(name = "e1")
+  val e2 = EndpointDef(name = "e2")
 
   @Before
   def prepareEnvironment() {

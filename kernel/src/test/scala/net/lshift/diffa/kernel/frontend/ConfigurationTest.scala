@@ -148,13 +148,13 @@ class ConfigurationTest {
     systemConfigStore.createOrUpdateUser(user1)
     systemConfigStore.createOrUpdateUser(user2)
 
-    val ep1 = DomainEndpointDef(space = space.id, id = 1L, name = "upstream1", scanUrl = "http://localhost:1234",
+    val ep1 = DomainEndpointDef(space = space.id, name = "upstream1", scanUrl = "http://localhost:1234",
                 inboundUrl = "http://inbound",
                 categories = Map(
                   "a" -> new RangeCategoryDescriptor("datetime", "2009", "2010"),
                   "b" -> new SetCategoryDescriptor(Set("a", "b", "c"))),
                 views = List(EndpointViewDef("v1")))
-    val ep2 = DomainEndpointDef(space = space.id, id = 2L, name = "downstream1", scanUrl = "http://localhost:5432/scan",
+    val ep2 = DomainEndpointDef(space = space.id, name = "downstream1", scanUrl = "http://localhost:5432/scan",
           categories = Map(
             "c" -> new PrefixCategoryDescriptor(1, 5, 1),
             "d" -> new PrefixCategoryDescriptor(1, 6, 1)
@@ -211,13 +211,13 @@ class ConfigurationTest {
     resetAll
 
       // upstream1 is kept but changed
-    val ep1 = DomainEndpointDef(space = space.id, id = 3, name = "upstream1", scanUrl = "http://localhost:6543/scan",
+    val ep1 = DomainEndpointDef(space = space.id, name = "upstream1", scanUrl = "http://localhost:6543/scan",
           inboundUrl = "http://inbound",
           categories = Map(
             "a" -> new RangeCategoryDescriptor("datetime", "2009", "2010"),
             "b" -> new SetCategoryDescriptor(Set("a", "b", "c"))))
       // downstream1 is gone, downstream2 is added
-    val ep2 = DomainEndpointDef(space = space.id, id = 4, name = "downstream2", scanUrl = "http://localhost:54321/scan",
+    val ep2 = DomainEndpointDef(space = space.id, name = "downstream2", scanUrl = "http://localhost:54321/scan",
           categories = Map(
             "c" -> new PrefixCategoryDescriptor(1, 5, 1),
             "d" -> new PrefixCategoryDescriptor(1, 6, 1)
@@ -269,7 +269,7 @@ class ConfigurationTest {
     expect(pairPolicyClient.difference(PairRef(name = "ad", space = space.id))).once
 
     expect(endpointListener.onEndpointRemoved(space.id, "downstream1")).once
-    expect(endpointListener.onEndpointAvailable(ep1.copy(id = 1))).once
+    expect(endpointListener.onEndpointAvailable(ep1)).once
     expect(endpointListener.onEndpointAvailable(ep2)).once
     replayAll
 

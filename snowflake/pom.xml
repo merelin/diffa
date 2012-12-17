@@ -160,7 +160,7 @@
         <artifactId>maven-surefire-plugin</artifactId>
         <configuration>
           <includes>
-            <include>**/IdProviderSpec.class</include>
+            <include>**/SnowflakeIdProviderSpec.class</include>
           </includes>
         </configuration>
         <executions>

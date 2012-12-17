@@ -204,7 +204,6 @@ object JooqConfigStoreCompanion {
 
         val currentEndpoint = DomainEndpointDef(
           space = record.getValue(ENDPOINTS.SPACE),
-          id = record.getValue(ENDPOINTS.ID),
           domain = record.getValue(SPACES.NAME.as(SPACE_NAME_ALIAS)),
           name = record.getValue(ENDPOINTS.NAME),
           scanUrl = record.getValue(ENDPOINTS.SCAN_URL),
@@ -558,19 +557,20 @@ object JooqConfigStoreCompanion {
 
   def insertCategories(t:Factory,
                        space:java.lang.Long,
+                       endpointId:LONG,
                        endpoint:EndpointDef) = {
     endpoint.categories.foreach { case (categoryName, descriptor) => {
 
       try {
         t.insertInto(UNIQUE_CATEGORY_NAMES).
-            set(UNIQUE_CATEGORY_NAMES.ENDPOINT, endpoint.id:LONG).
+            set(UNIQUE_CATEGORY_NAMES.ENDPOINT, endpointId).
             set(UNIQUE_CATEGORY_NAMES.NAME, categoryName).
           execute()
 
         descriptor match {
-          case r:RangeCategoryDescriptor  => insertRangeCategory(t, space, endpoint.name, categoryName, r)
-          case s:SetCategoryDescriptor    => insertSetCategory(t, space, endpoint.name, categoryName, s)
-          case p:PrefixCategoryDescriptor => insertPrefixCategory(t, space, endpoint.name, categoryName, p)
+          case r:RangeCategoryDescriptor  => insertRangeCategory(t, endpointId, categoryName, r)
+          case s:SetCategoryDescriptor    => insertSetCategory(t, endpointId, categoryName, s)
+          case p:PrefixCategoryDescriptor => insertPrefixCategory(t, endpointId, categoryName, p)
           case rw: RollingWindowFilter    => // Rolling Windows can only be defined on Endpoints.
         }
       }
@@ -589,36 +589,39 @@ object JooqConfigStoreCompanion {
   }
 
   def endpointIdByNameAsField(t: Factory, endpointName: String, space: Long) =
-    endpointIdByName(t, endpointName, space).
+    selectEndpointIdByName(t, endpointName, space).
       asField().
       asInstanceOf[Field[LONG]]
 
-  def endpointIdByName(t: Factory, endpointName: String, spaceId: Long) =
+  def selectEndpointIdByName(t: Factory, endpointName: String, spaceId: Long) =
     t.select(ENDPOINTS.ID).
       from(ENDPOINTS).
       where(ENDPOINTS.SPACE.equal(spaceId)).
       and(ENDPOINTS.NAME.equal(endpointName))
 
-  def insertCategoriesForView(t:Factory,
-                              space:Long,
-                              endpoint:String,
-                              view:EndpointViewDef) = {
+  def endpointIdByName(t: Factory, endpointName: String, spaceId: Long) =
+    selectEndpointIdByName(t, endpointName, spaceId).fetchOne(ENDPOINTS.ID).longValue():LONG
 
+  def insertCategoriesForView(t:Factory,
+                              space:LONG,
+                              endpoint:String,
+                              endpointId:LONG,
+                              view:EndpointViewDef) {
     view.categories.foreach { case (categoryName, descriptor) => {
 
       try {
 
         t.insertInto(UNIQUE_CATEGORY_VIEW_NAMES).
-            set(UNIQUE_CATEGORY_VIEW_NAMES.ENDPOINT, endpointIdByNameAsField(t, endpoint, space)).
+            set(UNIQUE_CATEGORY_VIEW_NAMES.ENDPOINT, endpointId).
             set(UNIQUE_CATEGORY_VIEW_NAMES.VIEW_NAME, view.name).
             set(UNIQUE_CATEGORY_VIEW_NAMES.NAME, categoryName).
           execute()
 
         descriptor match {
-          case r:RangeCategoryDescriptor  => insertRangeCategoryView(t, space, endpoint, view.name, categoryName, r)
-          case s:SetCategoryDescriptor    => insertSetCategoryView(t, space, endpoint, view.name, categoryName, s)
-          case p:PrefixCategoryDescriptor => insertPrefixCategoryView(t, space, endpoint, view.name, categoryName, p)
-          case rw: RollingWindowFilter => insertViewRollingWindow(t, space, endpoint, view.name, categoryName, rw)
+          case r:RangeCategoryDescriptor  => insertRangeCategoryView(t, endpointId, view.name, categoryName, r)
+          case s:SetCategoryDescriptor    => insertSetCategoryView(t, endpointId, view.name, categoryName, s)
+          case p:PrefixCategoryDescriptor => insertPrefixCategoryView(t, endpointId, view.name, categoryName, p)
+          case rw: RollingWindowFilter => insertViewRollingWindow(t, endpointId, view.name, categoryName, rw)
         }
       }
       catch {
@@ -636,13 +639,12 @@ object JooqConfigStoreCompanion {
   }
 
   def insertPrefixCategory(t:Factory,
-                           space:Long,
-                           endpoint:String,
+                           endpointId:LONG,
                            categoryName:String,
                            descriptor:PrefixCategoryDescriptor) = {
 
     t.insertInto(PREFIX_CATEGORIES).
-        set(PREFIX_CATEGORIES.ENDPOINT, endpointIdByNameAsField(t, endpoint, space)).
+        set(PREFIX_CATEGORIES.ENDPOINT, endpointId).
         set(PREFIX_CATEGORIES.NAME, categoryName).
         set(PREFIX_CATEGORIES.STEP, Integer.valueOf(descriptor.step)).
         set(PREFIX_CATEGORIES.MAX_LENGTH, Integer.valueOf(descriptor.maxLength)).
@@ -651,14 +653,13 @@ object JooqConfigStoreCompanion {
   }
 
   def insertPrefixCategoryView(t:Factory,
-                               space:Long,
-                               endpoint:String,
+                               endpointId:LONG,
                                view:String,
                                categoryName:String,
                                descriptor:PrefixCategoryDescriptor) = {
 
     t.insertInto(PREFIX_CATEGORY_VIEWS).
-      set(PREFIX_CATEGORY_VIEWS.ENDPOINT, endpointIdByNameAsField(t, endpoint, space)).
+      set(PREFIX_CATEGORY_VIEWS.ENDPOINT, endpointId).
       set(PREFIX_CATEGORY_VIEWS.VIEW_NAME, view).
       set(PREFIX_CATEGORY_VIEWS.NAME, categoryName).
       set(PREFIX_CATEGORY_VIEWS.STEP, Integer.valueOf(descriptor.step)).
@@ -668,8 +669,7 @@ object JooqConfigStoreCompanion {
   }
 
   def insertSetCategory(t:Factory,
-                        space:Long,
-                        endpoint:String,
+                        endpointId:LONG,
                         categoryName:String,
                         descriptor:SetCategoryDescriptor) = {
 
@@ -677,7 +677,7 @@ object JooqConfigStoreCompanion {
 
     descriptor.values.foreach(value => {
       t.insertInto(SET_CATEGORIES).
-        set(SET_CATEGORIES.ENDPOINT, endpointIdByNameAsField(t, endpoint, space)).
+        set(SET_CATEGORIES.ENDPOINT, endpointId).
         set(SET_CATEGORIES.NAME, categoryName).
         set(SET_CATEGORIES.VALUE, value).
       execute()
@@ -685,17 +685,16 @@ object JooqConfigStoreCompanion {
   }
 
   def insertSetCategoryView(t:Factory,
-                            space:Long,
-                            endpoint:String,
+                            endpointId:LONG,
                             view:String,
                             categoryName:String,
-                            descriptor:SetCategoryDescriptor) = {
+                            descriptor:SetCategoryDescriptor) {
 
     // TODO Is there a way to re-use the insert statement with a bind parameter?
 
     descriptor.values.foreach(value => {
       t.insertInto(SET_CATEGORY_VIEWS).
-        set(SET_CATEGORY_VIEWS.ENDPOINT, endpointIdByNameAsField(t, endpoint, space)).
+        set(SET_CATEGORY_VIEWS.ENDPOINT, endpointId).
         set(SET_CATEGORY_VIEWS.VIEW_NAME, view).
         set(SET_CATEGORY_VIEWS.NAME, categoryName).
         set(SET_CATEGORY_VIEWS.VALUE, value).
@@ -704,12 +703,11 @@ object JooqConfigStoreCompanion {
   }
 
   def insertRangeCategory(t:Factory,
-                          space:Long,
-                          endpoint:String,
+                          endpointId:LONG,
                           categoryName:String,
                           descriptor:RangeCategoryDescriptor) = {
     t.insertInto(RANGE_CATEGORIES).
-        set(RANGE_CATEGORIES.ENDPOINT, endpointIdByNameAsField(t, endpoint, space)).
+        set(RANGE_CATEGORIES.ENDPOINT, endpointId).
         set(RANGE_CATEGORIES.NAME, categoryName).
         set(RANGE_CATEGORIES.DATA_TYPE, descriptor.dataType).
         set(RANGE_CATEGORIES.LOWER_BOUND, descriptor.lower).
@@ -719,38 +717,37 @@ object JooqConfigStoreCompanion {
   }
 
   def insertViewRollingWindow(t: Factory,
-                          space: Long,
-                          endpoint: String,
+                          endpointId: LONG,
                           viewName: String,
                           categoryName: String,
                           filter: RollingWindowFilter) =
     t.insertInto(ENDPOINT_VIEW_ROLLING_WINDOWS).
-        set(ENDPOINT_VIEW_ROLLING_WINDOWS.ENDPOINT, endpointIdByNameAsField(t, endpoint, space)).
+        set(ENDPOINT_VIEW_ROLLING_WINDOWS.ENDPOINT, endpointId).
         set(ENDPOINT_VIEW_ROLLING_WINDOWS.VIEW_NAME, viewName).
         set(ENDPOINT_VIEW_ROLLING_WINDOWS.NAME, categoryName).
         set(ENDPOINT_VIEW_ROLLING_WINDOWS.PERIOD, filter.periodExpression).
         set(ENDPOINT_VIEW_ROLLING_WINDOWS.OFFSET, filter.offsetDurationExpression).
       execute()
 
+
   def insertRangeCategoryView(t:Factory,
-                              space:Long,
-                              endpoint:String,
+                              endpointId:LONG,
                               view:String,
                               categoryName:String,
-                              descriptor:RangeCategoryDescriptor) = {
+                              descriptor:RangeCategoryDescriptor) {
     t.insertInto(RANGE_CATEGORY_VIEWS).
-        set(RANGE_CATEGORY_VIEWS.ENDPOINT, endpointIdByNameAsField(t, endpoint, space)).
-        set(RANGE_CATEGORY_VIEWS.VIEW_NAME, view).
-        set(RANGE_CATEGORY_VIEWS.NAME, categoryName).
-        set(RANGE_CATEGORY_VIEWS.DATA_TYPE, descriptor.dataType).
-        set(RANGE_CATEGORY_VIEWS.LOWER_BOUND, descriptor.lower).
-        set(RANGE_CATEGORY_VIEWS.UPPER_BOUND, descriptor.upper).
-        set(RANGE_CATEGORY_VIEWS.MAX_GRANULARITY, descriptor.maxGranularity).
+      set(RANGE_CATEGORY_VIEWS.ENDPOINT, endpointId).
+      set(RANGE_CATEGORY_VIEWS.VIEW_NAME, view).
+      set(RANGE_CATEGORY_VIEWS.NAME, categoryName).
+      set(RANGE_CATEGORY_VIEWS.DATA_TYPE, descriptor.dataType).
+      set(RANGE_CATEGORY_VIEWS.LOWER_BOUND, descriptor.lower).
+      set(RANGE_CATEGORY_VIEWS.UPPER_BOUND, descriptor.upper).
+      set(RANGE_CATEGORY_VIEWS.MAX_GRANULARITY, descriptor.maxGranularity).
       execute()
   }
 
   def deleteGenericCategoriesForEndpoint[R <: Record](t: Factory, space: Long, endpoint: String, table: Table[R]) =
-    t.delete(table).where(table.getField("ENDPOINT").in(endpointIdByName(t, endpoint, space)))
+    t.delete(table).where(table.getField("ENDPOINT").in(selectEndpointIdByName(t, endpoint, space)))
 
   def deleteCategories(t:Factory, space:Long, endpoint:String) = {
     // The order of these tables is important. Incorrect ordering will result in foreign key constraint violation.

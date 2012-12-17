@@ -24,9 +24,9 @@ import net.lshift.diffa.kernel.StoreReferenceContainer
 import net.lshift.diffa.schema.environment.TestDatabaseEnvironments
 import net.lshift.diffa.kernel.frontend.EndpointDef
 import system.SystemConfigStore
+import java.lang.{Long => LONG}
+import org.jooq.impl.Factory
 
-/**
- */
 @RunWith(classOf[JUnitRunner])
 class EndpointCreationSpec extends FlatSpec with ShouldMatchers {
   info("In order to have a more reliable service in the event of faults")
@@ -61,14 +61,17 @@ object EndpointCreationSpec {
   private[EndpointCreationSpec] val configStore: DomainConfigStore = storeRefs.domainConfigStore
 
   lazy val spaceId = systemConfigStore.createOrUpdateSpace(spaceName).id
+  def executeWithFactory[T](fn: Factory => T) = storeRefs.executeWithFactory(fn)
 }
 
 case class CreateEndpointCommand(endpoint: String) {
-  import EndpointCreationSpec.spaceId
+  import EndpointCreationSpec.{spaceId, executeWithFactory}
 
   implicit def toEndpointDef(name: String): EndpointDef = EndpointDef(name = name)
 
   def executeWithConfigStore(configStore: DomainConfigStore): Long = {
-    configStore.createOrUpdateEndpoint(spaceId, endpoint).id
+    configStore.createOrUpdateEndpoint(spaceId, endpoint)
+    executeWithFactory(factory =>
+      JooqConfigStoreCompanion.endpointIdByName(factory, endpoint.name, spaceId))
   }
 }
