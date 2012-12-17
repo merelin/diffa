@@ -45,8 +45,9 @@ import net.lshift.diffa.kernel.frontend.DomainEndpointDef
 import net.lshift.diffa.kernel.frontend.DomainPairDef
 import net.lshift.diffa.kernel.frontend.PairDef
 import net.lshift.diffa.kernel.frontend.EndpointDef
-import org.jooq.{Record, Field, Condition, Table}
+import org.jooq._
 import java.lang.{Long => LONG}
+import system.PolicyKey
 import system.{ConflictingConcurrentModificationException, PolicyKey}
 import java.lang.{Integer => INT}
 import net.lshift.diffa.kernel.util.sequence.SequenceProvider
@@ -54,6 +55,26 @@ import net.lshift.diffa.kernel.naming.SequenceName
 import java.sql.SQLIntegrityConstraintViolationException
 import org.jooq.exception.DataAccessException
 import net.lshift.diffa.snowflake.IdProvider
+import net.lshift.diffa.kernel.frontend.DomainPairDef
+import net.lshift.diffa.kernel.frontend.EndpointDef
+import net.lshift.diffa.kernel.frontend.PairDef
+import scala.Some
+import net.lshift.diffa.kernel.config.Member
+import net.lshift.diffa.kernel.config.BreakerByDomainPredicate
+import net.lshift.diffa.kernel.naming.CacheName.values
+import net.lshift.diffa.kernel.config.EndpointView
+import net.lshift.diffa.kernel.config.DomainConfigKey
+import net.lshift.diffa.kernel.config.SpacePolicyKey
+import net.lshift.diffa.kernel.config.DomainPairKey
+import net.lshift.diffa.kernel.config.PairRef
+import net.lshift.diffa.kernel.config.PairByDomainPredicate
+import net.lshift.diffa.kernel.frontend.DomainEndpointDef
+import net.lshift.diffa.kernel.config.BreakerKey
+import net.lshift.diffa.kernel.config.Endpoint
+import net.lshift.diffa.kernel.config.ConfigOptionByDomainPredicate
+import net.lshift.diffa.kernel.config.PairByDomainAndEndpointPredicate
+import net.lshift.diffa.kernel.config.EndpointByDomainPredicate
+import net.lshift.diffa.kernel.config.DomainEndpointKey
 
 class JooqDomainConfigStore(jooq:JooqDatabaseFacade,
                             cacheProvider:CacheProvider,
@@ -141,27 +162,48 @@ class JooqDomainConfigStore(jooq:JooqDatabaseFacade,
   def onDomainRemoved(space: Long) = invalidateAllCaches(space)
 
   def createOrUpdateEndpoint(space: Long, endpointDef: EndpointDef) : DomainEndpointDef = {
+    val id:LONG = idProvider.getId
+
     jooq.execute(t => {
 
-      val insert = t.insertInto(ENDPOINTS).
-        set(ENDPOINTS.SPACE, space:LONG).
-        set(ENDPOINTS.NAME, endpointDef.name).
-        set(ENDPOINTS.ID, idProvider.getId:LONG).
-        set(ENDPOINTS.COLLATION_TYPE, endpointDef.collation).
-        set(ENDPOINTS.CONTENT_RETRIEVAL_URL, endpointDef.contentRetrievalUrl).
-        set(ENDPOINTS.SCAN_URL, endpointDef.scanUrl).
-        set(ENDPOINTS.VERSION_GENERATION_URL, endpointDef.versionGenerationUrl).
-        set(ENDPOINTS.INBOUND_URL, endpointDef.inboundUrl)
-      val update = t.update(ENDPOINTS).
-        set(ENDPOINTS.COLLATION_TYPE, endpointDef.collation).
-        set(ENDPOINTS.CONTENT_RETRIEVAL_URL, endpointDef.contentRetrievalUrl).
-        set(ENDPOINTS.SCAN_URL, endpointDef.scanUrl).
-        set(ENDPOINTS.VERSION_GENERATION_URL, endpointDef.versionGenerationUrl).
-        set(ENDPOINTS.INBOUND_URL, endpointDef.inboundUrl).
-        where(ENDPOINTS.SPACE.equal(space:LONG).and(ENDPOINTS.NAME.equal(endpointDef.name)))
 
-      /* mergeInto should be used when there is merge support in MySQL.
-      val merge = t.mergeInto(ENDPOINTS).
+      /* mergeInto should be used when there is merge support in MySQL. */
+      if (jooq.resolvedDialect.equals(SQLDialect.MYSQL)) {
+        val insert = t.insertInto(ENDPOINTS).
+          set(ENDPOINTS.SPACE, space:LONG).
+          set(ENDPOINTS.NAME, endpointDef.name).
+          set(ENDPOINTS.ID, id).
+          set(ENDPOINTS.COLLATION_TYPE, endpointDef.collation).
+          set(ENDPOINTS.CONTENT_RETRIEVAL_URL, endpointDef.contentRetrievalUrl).
+          set(ENDPOINTS.SCAN_URL, endpointDef.scanUrl).
+          set(ENDPOINTS.VERSION_GENERATION_URL, endpointDef.versionGenerationUrl).
+          set(ENDPOINTS.INBOUND_URL, endpointDef.inboundUrl)
+        val update = t.update(ENDPOINTS).
+          set(ENDPOINTS.COLLATION_TYPE, endpointDef.collation).
+          set(ENDPOINTS.CONTENT_RETRIEVAL_URL, endpointDef.contentRetrievalUrl).
+          set(ENDPOINTS.SCAN_URL, endpointDef.scanUrl).
+          set(ENDPOINTS.VERSION_GENERATION_URL, endpointDef.versionGenerationUrl).
+          set(ENDPOINTS.INBOUND_URL, endpointDef.inboundUrl).
+          where(ENDPOINTS.SPACE.equal(space:LONG).and(ENDPOINTS.NAME.equal(endpointDef.name)))
+
+        // This is not a fail-safe way to create or update.  It is subject to a race condition:
+        // if the same endpoint is created between when the update fails and the insert is attempted,
+        // then the unique key constraint violation will trigger a DataAccessException.  In this case,
+        // we just let the user know it failed.
+        val rowsUpdated = update.execute()
+        if (rowsUpdated > 1) {
+          throw new RuntimeException("Duplicate endpoint definition found for endpoint %s".format(endpointDef.name))
+        } else if (rowsUpdated < 1) {
+          try {
+            insert.execute()
+          } catch {
+            case ex: DataAccessException =>
+              log.warn("Potential concurrent modification inserting " + endpointDef.name, ex)
+              throw new ConflictingConcurrentModificationException(endpointDef.name)
+          }
+        }
+      } else {
+      t.mergeInto(ENDPOINTS).
         usingDual().
         on(ENDPOINTS.SPACE.equal(space), ENDPOINTS.NAME.equal(endpointDef.name)).
         whenMatchedThenUpdate().
@@ -173,28 +215,12 @@ class JooqDomainConfigStore(jooq:JooqDatabaseFacade,
         whenNotMatchedThenInsert().
           set(ENDPOINTS.SPACE, space:LONG).
           set(ENDPOINTS.NAME, endpointDef.name).
-          set(ENDPOINTS.ID, endpointDef.id:LONG).
+          set(ENDPOINTS.ID, id).
           set(ENDPOINTS.COLLATION_TYPE, endpointDef.collation).
           set(ENDPOINTS.CONTENT_RETRIEVAL_URL, endpointDef.contentRetrievalUrl).
           set(ENDPOINTS.SCAN_URL, endpointDef.scanUrl).
           set(ENDPOINTS.VERSION_GENERATION_URL, endpointDef.versionGenerationUrl).
-          set(ENDPOINTS.INBOUND_URL, endpointDef.inboundUrl)
-       */
-
-      // This is not a fail-safe way to create or update.  It is subject to a race condition:
-      // if the same endpoint is created between when the update fails and the insert is attempted,
-      // then the unique key constraint violation will trigger a DataAccessException.  In this case,
-      // we just let the user know it failed.
-      val rowsUpdated = update.execute()
-      if (rowsUpdated > 1) {
-        throw new RuntimeException("Duplicate endpoint definition found for endpoint %s".format(endpointDef.name))
-      } else if (rowsUpdated < 1) {
-        try {
-          insert.execute()
-        } catch {
-          case ex: DataAccessException =>
-            throw new ConflictingConcurrentModificationException(endpointDef.name)
-        }
+          set(ENDPOINTS.INBOUND_URL, endpointDef.inboundUrl).execute()
       }
 
       val endpointId = endpointIdByName(t, endpointDef.name, space)
