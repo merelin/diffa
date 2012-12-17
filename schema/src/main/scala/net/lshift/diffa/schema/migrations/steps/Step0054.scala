@@ -172,6 +172,10 @@ object Step0054 extends VerifiedMigrationStep {
     migration.alterTable("pairs")
       .addUniqueConstraint("uk_pair_exts", "extent")
 
+    // See note below regarding fk_escl_pair fk constraint.
+    migration.sql("alter table pairs add constraint fk_pair_upstream_spc foreign key (space, upstream) references endpoints (space, id)")
+    migration.sql("alter table pairs add constraint fk_pair_downstream_spc foreign key (space, downstream) references endpoints (space, id)")
+
     migration.createTable("escalations").
       column("name", Types.VARCHAR, 50, false).
       column("extent", Types.BIGINT, false).
