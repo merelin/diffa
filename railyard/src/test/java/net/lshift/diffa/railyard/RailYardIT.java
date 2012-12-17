@@ -16,7 +16,7 @@ import static org.junit.Assert.*;
 
 public class RailYardIT {
 
-  RailYard railYard = new RailYardClient("http://localhost:9999");
+  RailYard railYard = new RailYardClient("http://localhost:7655");
 
   @Test
   public void shouldPostChangeEvents() throws Exception {

@@ -12,6 +12,8 @@ import net.lshift.diffa.scanning.Scannable;
 import net.lshift.diffa.sql.PartitionAwareDriver;
 import net.lshift.diffa.sql.PartitionMetadata;
 import org.jboss.resteasy.spi.BadRequestException;
+import org.jboss.resteasy.spi.NotFoundException;
+import org.joda.time.DateTime;
 import org.jooq.DataType;
 import org.jooq.impl.SQLDataType;
 import org.slf4j.Logger;
@@ -35,6 +37,7 @@ public class InterviewResource {
   private RailYard railyard;
 
   private Map<String, Scannable> drivers = new ConcurrentHashMap<String, Scannable>();
+  private Map<Long, InterviewState> interviews = new ConcurrentHashMap<Long, InterviewState>();
 
   private ExecutorService executor = Executors.newCachedThreadPool();
 
@@ -52,7 +55,8 @@ public class InterviewResource {
 
   @POST
   @Path("/{endpoint}")
-  public void begin(@PathParam("space") String space, @PathParam("endpoint") String endpoint) {
+  @Produces("text/plain")
+  public Long begin(@PathParam("space") String space, @PathParam("endpoint") String endpoint) {
 
     Scannable driver = getDriver(space, endpoint);
 
@@ -60,10 +64,29 @@ public class InterviewResource {
       throw new BadRequestException("No driver registered for " + space + " / " + endpoint);
     }
 
-    log.info("Kicking of interview for {} endpoint in space {}", endpoint, space);
+    Long id  = System.currentTimeMillis(); // TODO wire in snowflake
 
-    Interview interview = new Interview(railyard, driver, space, endpoint);
+    log.info("Kicking off interview ({}) for {} endpoint in space {}", new Object[]{id, endpoint, space});
+
+    Interview interview = new Interview(id, railyard, driver, space, endpoint);
     executor.execute(interview);
+
+    interviews.put(id, new InterviewState(id, "STARTED", new DateTime().toString()));
+
+    return id;
+
+  }
+
+  @GET
+  @Path("/{id}/progress")
+  @Produces("application/json")
+  public InterviewState getProgress(@PathParam("id") Long id) {
+    if (interviews.containsKey(id)) {
+      return interviews.get(id);
+    }
+    else {
+      throw new NotFoundException("id = " + id);
+    }
 
   }
 
@@ -79,11 +102,13 @@ public class InterviewResource {
 
   private class Interview implements Runnable {
 
+    private final Long id;
     private final RailYard railyard;
     private final Scannable scannable;
     private final String space, endpoint;
 
-    private Interview(RailYard railyard, Scannable scannable, String space, String endpoint) {
+    private Interview(Long id, RailYard railyard, Scannable scannable, String space, String endpoint) {
+      this.id = id;
       this.railyard = railyard;
       this.scannable = scannable;
       this.space = space;
@@ -108,6 +133,11 @@ public class InterviewResource {
         question = railyard.getNextQuestion(space, endpoint, question, handler);
 
       }
+
+      InterviewState state = interviews.get(id);
+      state.setEnd(new DateTime().toString());
+      state.setState("FINISHED");
+      interviews.put(id, state);
 
     }
   }

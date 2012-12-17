@@ -13,6 +13,7 @@
     <buildVersion>${project.version}</buildVersion>    <!-- Can be overridden via -D -->
     <hsqldb.port>11091</hsqldb.port>
     <hsqldb.db.name>things</hsqldb.db.name>
+    <hsqldb.daemon>true</hsqldb.daemon>
     <cassandra.version>1.1.7</cassandra.version>
     <slf4j.version>1.6.4</slf4j.version>
     <logback.version>1.0.0</logback.version>
@@ -186,7 +187,7 @@
           </execution>
 
           <execution>
-            <id>start-hsqldb</id>
+            <id>default-cli</id>
             <phase>pre-integration-test</phase>
             <goals>
               <goal>java</goal>
@@ -201,7 +202,7 @@
                 <argument>--port</argument>
                 <argument>${hsqldb.port}</argument>
                 <argument>--daemon</argument>
-                <argument>true</argument>
+                <argument>${hsqldb.daemon}</argument>
               </arguments>
               <classpathScope>test</classpathScope>
             </configuration>

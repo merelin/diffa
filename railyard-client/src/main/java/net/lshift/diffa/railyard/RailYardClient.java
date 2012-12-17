@@ -5,6 +5,7 @@ import com.google.inject.name.Named;
 import com.ning.http.client.*;
 import com.ning.http.client.generators.InputStreamBodyGenerator;
 import net.lshift.diffa.events.ChangeEvent;
+import net.lshift.diffa.plumbing.BufferedJsonBodyConsumer;
 import net.lshift.diffa.railyard.plumbing.*;
 import net.lshift.diffa.scanning.http.ScanRequestEncoder;
 import org.codehaus.jackson.JsonFactory;

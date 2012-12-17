@@ -33,6 +33,7 @@
     <module>railyard-client</module>
     <module>versioning</module>
     <module>scanning-support</module>
+    <module>plumbing-support</module>
     <module>snowflake</module>
     <module>sql-driver</module>
   </modules>

@@ -1,4 +1,4 @@
-package net.lshift.diffa.railyard.plumbing;
+package net.lshift.diffa.plumbing;
 
 import com.ning.http.client.BodyConsumer;
 import org.codehaus.jackson.map.ObjectMapper;

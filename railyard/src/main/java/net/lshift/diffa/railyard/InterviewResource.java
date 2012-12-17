@@ -31,6 +31,6 @@ public class InterviewResource {
     SliceSizeParser sliceSizeParser = new SliceSizeParser(parameters);
 
 
-    return new SimpleQuestion();
+    return new NoFurtherQuestions();
   }
 }

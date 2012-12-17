@@ -7,5 +7,6 @@ public interface Conductor {
   /**
    * For want of a better word ....
    */
-  void begin(String space, String endpoint);
+  Long begin(String space, String endpoint);
+  InterviewState getProgress(String space, Long id);
 }
