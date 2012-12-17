@@ -11,18 +11,22 @@ import javax.sql.DataSource;
 public class ConfigurationBuilder {
 
   public static DataSource buildDataSource(DriverConfiguration conf) {
+    return buildDataSource(conf.getUrl(), conf.getDriverClass(), conf.getUsername(), conf.getPassword());
+  }
+
+  public static DataSource buildDataSource(String url, String driver, String user, String password) {
 
     try {
-      Class.forName(conf.getDriverClass());
+      Class.forName(driver);
     } catch (ClassNotFoundException e) {
       throw new RuntimeException(e);
     }
 
     BoneCPConfig config = new BoneCPConfig();
 
-    config.setJdbcUrl(conf.getUrl());
-    config.setUsername(conf.getUsername());
-    config.setPassword(conf.getPassword());
+    config.setJdbcUrl(url);
+    config.setUsername(user);
+    config.setPassword(password);
 
     return new BoneCPDataSource(config);
   }

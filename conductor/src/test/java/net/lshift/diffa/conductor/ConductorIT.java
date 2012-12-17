@@ -9,6 +9,7 @@ import net.lshift.diffa.sql.PartitionMetadata;
 import net.lshift.diffa.versioning.events.PartitionedEvent;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.joda.time.DateTime;
+import org.junit.Before;
 import org.junit.Test;
 
 import javax.sql.DataSource;
@@ -23,6 +24,27 @@ public class ConductorIT {
 
   static String url = "http://localhost:" + ConductorDaemon.DEFAULT_PORT;
 
+  private int port = Integer.parseInt(System.getProperty("hsqldb.port", "11091"));
+  private String dbUrl = "jdbc:hsqldb:hsql://localhost:" + port + "/things";
+  private String driver = "org.hsqldb.jdbcDriver";
+  private String username = "sa";
+  private String password = "";
+
+
+  @Before
+  public void migrate() {
+
+    DataSource ds = buildDataSource(dbUrl, driver, username, password);
+
+    Flyway flyway = new Flyway();
+    flyway.setDataSource(ds);
+    flyway.setLocations("hsqldb");
+    flyway.setSqlMigrationPrefix("M");
+    flyway.clean();
+    flyway.migrate();
+
+  }
+
   @Test
   public void interviewShouldFinishWhenVersionStoreIsInSyncWithRemoteSystem() throws Exception {
 
@@ -34,10 +56,13 @@ public class ConductorIT {
     conf.setIdFieldName("id");
     conf.setVersionFieldName("version");
     conf.setPartitionFieldName("entry_date");
-    conf.setDriverClass("org.hsqldb.jdbcDriver");
-    conf.setUrl("jdbc:hsqldb:mem:" + RandomStringUtils.randomAlphabetic(5));
-    conf.setUsername("sa");
-    conf.setPassword("");
+    conf.setDriverClass(driver);
+
+    conf.setUrl(dbUrl);
+    conf.setUsername(username);
+    conf.setPassword(password);
+
+    DataSource ds = buildDataSource(conf);
 
     Conductor conductor = new ConductorClient(url);
 
@@ -46,17 +71,6 @@ public class ConductorIT {
 
     int maxSliceSize = 100;
 
-    DataSource ds = buildDataSource(conf);
-
-    try {
-
-      Flyway flyway = new Flyway();
-      flyway.setDataSource(ds);
-      flyway.migrate();
-
-    } catch (Exception e) {
-      throw new RuntimeException(e);
-    }
 
     PartitionMetadata metadata = buildMetaData(conf);
     PartitionedStore partitionAwareStore = new PartitionedStore(ds, metadata);
@@ -70,7 +84,7 @@ public class ConductorIT {
 
     Random random = new Random();
     DateTime median = new DateTime();
-    int itemsInSync = 100;
+    int itemsInSync = 5;
     List<ChangeEvent> events = new ArrayList<ChangeEvent>();
 
     for (int i = 0; i < itemsInSync; i++) {

@@ -11,6 +11,9 @@
 
   <properties>
     <buildVersion>${project.version}</buildVersion>    <!-- Can be overridden via -D -->
+    <hsqldb.port>11091</hsqldb.port>
+    <hsqldb.db.name>things</hsqldb.db.name>
+    <cassandra.version>1.1.7</cassandra.version>
     <slf4j.version>1.6.4</slf4j.version>
     <logback.version>1.0.0</logback.version>
     <guice.version>3.0</guice.version>
@@ -83,6 +86,13 @@
     </dependency>
 
     <dependency>
+      <groupId>net.lshift.diffa</groupId>
+      <artifactId>diffa-railyard</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>
       <version>${junit.version}</version>
@@ -117,6 +127,129 @@
 
       <plugin>
         <groupId>org.codehaus.mojo</groupId>
+        <artifactId>cassandra-maven-plugin</artifactId>
+        <version>1.1.0-1</version>
+        <dependencies>
+          <dependency>
+            <groupId>org.xerial.snappy</groupId>
+            <artifactId>snappy-java</artifactId>
+            <version>1.0.5-M3</version>
+          </dependency>
+          <dependency>
+            <groupId>org.apache.cassandra</groupId>
+            <artifactId>cassandra-all</artifactId>
+            <version>${cassandra.version}</version>
+          </dependency>
+        </dependencies>
+        <configuration>
+          <loadAfterFirstStart>false</loadAfterFirstStart>
+          <rpcAddress>0.0.0.0</rpcAddress>
+          <script>${basedir}/../versioning/src/cassandra/cli/load.script</script>
+        </configuration>
+        <executions>
+          <execution>
+            <id>start-cassandra</id>
+            <phase>pre-integration-test</phase>
+            <goals>
+              <goal>delete</goal>
+              <goal>start</goal>
+              <goal>load</goal>
+            </goals>
+          </execution>
+          <execution>
+            <id>stop-cassandra</id>
+            <phase>post-integration-test</phase>
+            <goals>
+              <goal>stop</goal>
+              <goal>delete</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>exec-maven-plugin</artifactId>
+        <version>1.2</version>
+        <executions>
+
+          <execution>
+            <id>start-railyard</id>
+            <phase>pre-integration-test</phase>
+            <goals>
+              <goal>java</goal>
+            </goals>
+            <configuration>
+              <mainClass>net.lshift.diffa.railyard.RailYardEngine</mainClass>
+              <classpathScope>test</classpathScope>
+            </configuration>
+          </execution>
+
+          <execution>
+            <id>start-hsqldb</id>
+            <phase>pre-integration-test</phase>
+            <goals>
+              <goal>java</goal>
+            </goals>
+            <configuration>
+              <mainClass>org.hsqldb.Server</mainClass>
+              <arguments>
+                <argument>--dbname.0</argument>
+                <argument>${hsqldb.db.name}</argument>
+                <argument>--database.0</argument>
+                <argument>file:target/${hsqldb.db.name}</argument>
+                <argument>--port</argument>
+                <argument>${hsqldb.port}</argument>
+                <argument>--daemon</argument>
+                <argument>true</argument>
+              </arguments>
+              <classpathScope>test</classpathScope>
+            </configuration>
+          </execution>
+
+          <execution>
+            <id>start-conductor</id>
+            <phase>pre-integration-test</phase>
+            <goals>
+              <goal>java</goal>
+            </goals>
+            <configuration>
+              <mainClass>net.lshift.diffa.conductor.ConductorDaemon</mainClass>
+              <classpathScope>test</classpathScope>
+            </configuration>
+          </execution>
+
+        </executions>
+
+      </plugin>
+
+      <!--plugin>
+        <groupId>com.googlecode.flyway</groupId>
+        <artifactId>flyway-maven-plugin</artifactId>
+        <version>2.0.3</version>
+
+        <configuration>
+          <driver>org.hsqldb.jdbcDriver</driver>
+          <url>jdbc:hsqldb:hsql://localhost:${hsqldb.port}/${hsqldb.db.name}</url>
+
+          <locations>
+            <location>hsqldb</location>
+          </locations>
+          <sqlMigrationPrefix>M</sqlMigrationPrefix>
+        </configuration>
+        <executions>
+          <execution>
+            <phase>pre-integration-test</phase>
+            <goals>
+              <goal>clean</goal>
+              <goal>migrate</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin-->
+
+      <!--plugin>
+        <groupId>org.codehaus.mojo</groupId>
         <artifactId>exec-maven-plugin</artifactId>
         <executions>
           <execution>
@@ -131,7 +264,7 @@
           <mainClass>net.lshift.diffa.conductor.ConductorDaemon</mainClass>
           <classpathScope>test</classpathScope>
         </configuration>
-      </plugin>
+      </plugin-->
 
       <plugin>
         <artifactId>maven-surefire-plugin</artifactId>

@@ -95,24 +95,18 @@ public class InterviewResource {
 
       Question question = railyard.getNextQuestion(space, endpoint);
 
-      while (true) {
+      while ( !(question instanceof NoFurtherQuestions) ) {
 
-        if (question instanceof NoFurtherQuestions) {
-          break;
-        }
-        else {
+        Set<ScanConstraint> constraints = question.getConstraints();
+        Set<ScanAggregation> aggregations = question.getAggregations();
+        int maxSliceSize = question.getMaxSliceSize();
 
-          Set<ScanConstraint> constraints = question.getConstraints();
-          Set<ScanAggregation> aggregations = question.getAggregations();
-          int maxSliceSize = question.getMaxSliceSize();
+        InterviewResultHandler handler = new InterviewResultHandler();
 
-          InterviewResultHandler handler = new InterviewResultHandler();
+        scannable.scan(constraints, aggregations, maxSliceSize, handler);
 
-          scannable.scan(constraints, aggregations, maxSliceSize, handler);
+        question = railyard.getNextQuestion(space, endpoint, question, handler);
 
-          question = railyard.getNextQuestion(space, endpoint, question, handler);
-
-        }
       }
 
     }

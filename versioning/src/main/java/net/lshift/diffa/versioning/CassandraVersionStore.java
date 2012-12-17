@@ -135,6 +135,7 @@ public class CassandraVersionStore implements VersionStore {
 
     } catch (HectorException he) {
       String reason = getReason(he);
+      log.error("Issue communicating with Cassandra", he);
       throw new VersionStoreException(reason);
     }
 
