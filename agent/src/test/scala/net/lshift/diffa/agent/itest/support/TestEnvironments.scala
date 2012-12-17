@@ -28,7 +28,7 @@ object TestEnvironments {
 
   val factory = new ConnectionFactory()
   val failureHandler = new AccentConnectionFailureHandler()
-  private val accentConnection = new AccentConnection(factory, failureHandler)
+//  private val accentConnection = new AccentConnection(factory, failureHandler)
 
   // Each environment will need participants running on their own ports. To do this, we'll simply provide
   // a mechanism for portOffset.
@@ -50,21 +50,21 @@ object TestEnvironments {
                         { (env: TestEnvironment, epName:String) => new ChangesRestClient(env.serverRoot, env.domain.name, epName) },
                         CorrelatedVersionScheme)
 
-  def sameAmqp(key:String) =
-    new TestEnvironment(key,
-                        new HttpParticipants(nextPort, nextPort),
-                        { (_, epName) => new ChangesAmqpClient(accentConnection,
-                                                     epName + "-changes-same" + key,
-                                                     10000) },
-                        SameVersionScheme,
-                        (epName:String) => AmqpQueueUrl(epName + "-changes-same" + key).toString)
-
-  def correlatedAmqp(key:String) =
-    new TestEnvironment(key,
-                        new HttpParticipants(nextPort, nextPort),
-                        { (_, epName:String) => new ChangesAmqpClient(accentConnection,
-                                                                      epName + "-changes-correlated" + key,
-                                                                      10000) },
-                        CorrelatedVersionScheme,
-                        (epName:String) => AmqpQueueUrl(epName + "-changes-correlated" + key).toString)
+//  def sameAmqp(key:String) =
+//    new TestEnvironment(key,
+//                        new HttpParticipants(nextPort, nextPort),
+//                        { (_, epName) => new ChangesAmqpClient(accentConnection,
+//                                                     epName + "-changes-same" + key,
+//                                                     10000) },
+//                        SameVersionScheme,
+//                        (epName:String) => AmqpQueueUrl(epName + "-changes-same" + key).toString)
+//
+//  def correlatedAmqp(key:String) =
+//    new TestEnvironment(key,
+//                        new HttpParticipants(nextPort, nextPort),
+//                        { (_, epName:String) => new ChangesAmqpClient(accentConnection,
+//                                                                      epName + "-changes-correlated" + key,
+//                                                                      10000) },
+//                        CorrelatedVersionScheme,
+//                        (epName:String) => AmqpQueueUrl(epName + "-changes-correlated" + key).toString)
 }
