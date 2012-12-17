@@ -45,7 +45,25 @@ class EndpointCreationSpec extends FlatSpec with ShouldMatchers {
     CreateEndpointCommand(endpoint).executeWithConfigStore(configStore) should be > 0L
   }
 
-  "Updating an existing Endpoint" should "not change the endpoint's identifier" in {
+  it should "provision unique endpoints with unique identifiers" in {
+    val endpoints = ("req2-1", "req2-2")
+
+    CreateEndpointCommand(endpoints._1).executeWithConfigStore(configStore) should not be(
+      CreateEndpointCommand(endpoints._2).executeWithConfigStore(configStore))
+  }
+
+  it should "provision endpoints with successively greater identifier values" in {
+    val endpoints = Seq("req3-1", "req3-2", "req3-3", "req3-z", "req3-a")
+    var lastId = -1L
+
+    endpoints foreach { e =>
+      val nextId = CreateEndpointCommand(e).executeWithConfigStore(configStore)
+      nextId should be > lastId
+      lastId = nextId
+    }
+  }
+
+  it should "not change the endpoint's identifier" in {
     val endpoint = "req4-1"
     val firstId = CreateEndpointCommand(endpoint).executeWithConfigStore(configStore)
 
