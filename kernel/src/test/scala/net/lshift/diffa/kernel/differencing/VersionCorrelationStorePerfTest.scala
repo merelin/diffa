@@ -47,10 +47,10 @@ class VersionCorrelationStorePerfTest {
 
   @Before
   def cleanupStore {
-    LuceneVersionCorrelationStoreTest.stores(pair).reset
+    LuceneVersionCorrelationStoreOld.stores(pair).reset
   }
 
-  private val stores = LuceneVersionCorrelationStoreTest.stores
+  private val stores = LuceneVersionCorrelationStoreOld.stores
   private val pair = PairRef(name="ab", space = 400L)
 
   @Test

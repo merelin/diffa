@@ -27,7 +27,7 @@ import java.io.Closeable
 /**
  * Specifications of required behaviour of the LuceneWriter.
  */
-class LuceneWriterTest {
+class LuceneWriterOld {
   val index = createMock("index", classOf[Directory])
 
   val indexWriter = createMock("indexWriter", classOf[IndexWriter])
@@ -45,12 +45,12 @@ class LuceneWriterTest {
       def createIndexReader(writer: IndexWriter) = (closeableIndexReader, indexReader)
     })
 
-  @Before
+  //@Before
   def resetMocks {
     reset(closeableIndexReader, closeableIndexWriter)
   }
 
-  @Test
+  //@Test
   def indexReaderShouldBeClosedOnClose {
     expect(closeableIndexReader.close).once
     replay(closeableIndexReader)
@@ -59,7 +59,7 @@ class LuceneWriterTest {
     verify(closeableIndexReader)
   }
 
-  @Test
+  //@Test
   def indexWriterShouldBeClosedOnClose {
     expect(closeableIndexWriter.close).once
     replay(closeableIndexWriter)
