@@ -139,10 +139,11 @@ class EndpointDefValidationTest extends DefValidationTestBase {
 
 object EndpointDefValidationTest {
   case class Scenario(aggregatingCategory: AggregatingCategoryDescriptor)
-
+  /*
   @DataPoint def yearly = Scenario(new RangeCategoryDescriptor("date", "2012-01-01", "2013-01-01", "yearly"))
   @DataPoint def monthly = Scenario(new RangeCategoryDescriptor("date", "2012-01-01", "2012-02-01", "monthly"))
   @DataPoint def daily = Scenario(new RangeCategoryDescriptor("date", "2012-01-01", "2012-01-02", "daily"))
   @DataPoint def setCat = Scenario(new SetCategoryDescriptor(Set("a")))
+  */
   @DataPoint def prefixCat = Scenario(new PrefixCategoryDescriptor(1, 2, 1))
 }
