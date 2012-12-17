@@ -164,7 +164,7 @@ public class CassandraVersionStoreIT {
     assertEquals(randomLeftEvent.getVersion(), diff.getLeft());
 
     // TODO This could be more comprehensive, i.e. it asserts nothing about the RHS of the diff
-
+    /*
     String agent = "http://localhost:19093/diffa-agent/store/scan";
     Scannable scannable = new HttpDriver(agent, "guest", "guest");
 
@@ -180,7 +180,7 @@ public class CassandraVersionStoreIT {
     BufferingScanResultHandler handler = new BufferingScanResultHandler();
 
     scannable.scan(cons, aggs, maxSliceSize, handler);
-
+    */
 
 
   }
