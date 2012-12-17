@@ -41,13 +41,8 @@ import reflect.BeanProperty
 import java.util
 import collection.mutable.ListBuffer
 import org.jooq.impl.Factory
-import net.lshift.diffa.kernel.frontend.DomainEndpointDef
-import net.lshift.diffa.kernel.frontend.DomainPairDef
-import net.lshift.diffa.kernel.frontend.PairDef
-import net.lshift.diffa.kernel.frontend.EndpointDef
 import org.jooq._
 import java.lang.{Long => LONG}
-import system.PolicyKey
 import system.{ConflictingConcurrentModificationException, PolicyKey}
 import java.lang.{Integer => INT}
 import net.lshift.diffa.kernel.util.sequence.SequenceProvider
@@ -59,22 +54,7 @@ import net.lshift.diffa.kernel.frontend.DomainPairDef
 import net.lshift.diffa.kernel.frontend.EndpointDef
 import net.lshift.diffa.kernel.frontend.PairDef
 import scala.Some
-import net.lshift.diffa.kernel.config.Member
-import net.lshift.diffa.kernel.config.BreakerByDomainPredicate
-import net.lshift.diffa.kernel.naming.CacheName.values
-import net.lshift.diffa.kernel.config.EndpointView
-import net.lshift.diffa.kernel.config.DomainConfigKey
-import net.lshift.diffa.kernel.config.SpacePolicyKey
-import net.lshift.diffa.kernel.config.DomainPairKey
-import net.lshift.diffa.kernel.config.PairRef
-import net.lshift.diffa.kernel.config.PairByDomainPredicate
 import net.lshift.diffa.kernel.frontend.DomainEndpointDef
-import net.lshift.diffa.kernel.config.BreakerKey
-import net.lshift.diffa.kernel.config.Endpoint
-import net.lshift.diffa.kernel.config.ConfigOptionByDomainPredicate
-import net.lshift.diffa.kernel.config.PairByDomainAndEndpointPredicate
-import net.lshift.diffa.kernel.config.EndpointByDomainPredicate
-import net.lshift.diffa.kernel.config.DomainEndpointKey
 
 class JooqDomainConfigStore(jooq:JooqDatabaseFacade,
                             cacheProvider:CacheProvider,
@@ -165,7 +145,6 @@ class JooqDomainConfigStore(jooq:JooqDatabaseFacade,
     val id:LONG = idProvider.getId
 
     jooq.execute(t => {
-
 
       /* mergeInto should be used when there is merge support in MySQL. */
       if (jooq.resolvedDialect.equals(SQLDialect.MYSQL)) {
