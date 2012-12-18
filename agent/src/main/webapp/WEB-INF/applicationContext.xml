@@ -548,19 +548,6 @@
     ==============================
   -->
 
-  <!-- register inbound AMQP support -->
-  <bean class="org.springframework.beans.factory.config.MethodInvokingFactoryBean">
-    <property name="targetObject" ref="inboundEndpointManager" />
-    <property name="targetMethod" value="registerFactory" />
-    <property name="arguments">
-      <list>
-        <bean class="net.lshift.diffa.agent.amqp.AmqpInboundEndpointFactory">
-          <constructor-arg ref="changesFrontend" />
-        </bean>
-      </list>
-    </property>
-  </bean>
-
   <!-- register REST client support for participants -->
   <bean class="org.springframework.beans.factory.config.MethodInvokingFactoryBean">
     <property name="targetObject" ref="participantFactory" />
