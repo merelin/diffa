@@ -1,18 +1,17 @@
 package net.lshift.diffa.railyard;
 
-import com.ning.http.client.AsyncHttpClient;
-import com.ning.http.client.Response;
 import net.lshift.diffa.events.ChangeEvent;
 import net.lshift.diffa.events.SimpleUpsertEvent;
-import net.lshift.diffa.events.UpsertEvent;
 import org.apache.commons.lang.RandomStringUtils;
 import org.joda.time.DateTime;
 import org.junit.Test;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
 
-import static java.util.Arrays.*;
-import static org.junit.Assert.*;
+import static java.util.Arrays.asList;
+import static org.junit.Assert.assertNotNull;
 
 public class RailYardIT {
 

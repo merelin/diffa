@@ -26,6 +26,7 @@
     <!--module>partitioning</module-->
     <module>daemon</module>
     <module>configuration</module>
+    <module>system-configuration-client</module>
     <module>conductor</module>
     <module>conductor-client</module>
     <module>change-events</module>
@@ -85,6 +86,7 @@
     <hazelcast.version>2.4</hazelcast.version>
     <guava.version>11.0.1</guava.version>
     <zookeeper.version>3.4.5</zookeeper.version>
+    <mokito.version>1.9.5</mokito.version>
   </properties>
 
   <scm>
@@ -220,6 +222,11 @@
       <groupId>io.netty</groupId>
       <artifactId>netty</artifactId>
       <version>${netty.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-all</artifactId>
+      <version>${mokito.version}</version>
     </dependency>
     <dependency>
       <groupId>net.sf.jopt-simple</groupId>
