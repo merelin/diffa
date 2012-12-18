@@ -282,6 +282,7 @@
       <plugin>
         <artifactId>maven-surefire-plugin</artifactId>
         <configuration>
+          <threadCount>1</threadCount>
           <!--<forkMode>never</forkMode>-->
           <excludes>
             <exclude>**/*$*/**</exclude>
@@ -394,13 +395,6 @@
       <activation>
         <activeByDefault>false</activeByDefault>
       </activation>
-      <dependencies>
-        <dependency>
-          <groupId>com.oracle</groupId>
-          <artifactId>ojdbc6</artifactId>
-          <version>11.2.0.1.0</version>
-        </dependency>
-      </dependencies>
       <build>
         <plugins>
           <plugin>
