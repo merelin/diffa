@@ -3,17 +3,20 @@ package net.lshift.diffa.railyard;
 import com.google.inject.Inject;
 import net.lshift.diffa.adapter.scanning.AggregationBuilder;
 import net.lshift.diffa.adapter.scanning.HttpRequestParameters;
+import net.lshift.diffa.adapter.scanning.ScanConstraint;
 import net.lshift.diffa.adapter.scanning.SliceSizeParser;
+import net.lshift.diffa.config.CategoryDescriptor;
+import net.lshift.diffa.railyard.categories.QuestionBuilder;
 import net.lshift.diffa.railyard.plumbing.RestEasyRequestWrapper;
+import net.lshift.diffa.system.Endpoint;
 import net.lshift.diffa.system.SystemConfiguration;
 import net.lshift.diffa.versioning.VersionStore;
 import org.jboss.resteasy.spi.HttpRequest;
 import javax.ws.rs.*;
 import javax.ws.rs.core.Context;
-import javax.ws.rs.core.MultivaluedMap;
-import javax.ws.rs.core.Request;
 import java.io.IOException;
-import java.net.URI;
+import java.util.Map;
+import java.util.Set;
 
 @Path("/{space}/interview")
 public class InterviewResource {
@@ -30,8 +33,12 @@ public class InterviewResource {
   @GET
   @Path("/{endpoint}")
   @Produces("application/json")
-  public Question getNextQuestion(@PathParam("space") String space, @PathParam("endpoint") String endpoint) {
-    return new SimpleQuestion();
+  public Question getNextQuestion(@PathParam("space") String space, @PathParam("endpoint") String endpointName) {
+
+    Endpoint endpoint = systemConfig.getEndpoint(space, endpointName);
+    Map<String,CategoryDescriptor> categories = endpoint.getCategories();
+
+    return QuestionBuilder.buildInitialQuestion(categories);
   }
 
   @POST

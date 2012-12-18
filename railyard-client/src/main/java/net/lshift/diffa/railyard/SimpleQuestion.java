@@ -11,6 +11,11 @@ public class SimpleQuestion implements Question {
   private Set<ScanAggregation> aggregations;
   private int maxSliceSize = 100;
 
+  public SimpleQuestion(Set<ScanConstraint> constraints, Set<ScanAggregation> aggregations) {
+    this.aggregations = aggregations;
+    this.constraints = constraints;
+  }
+
   @Override
   public Set<ScanConstraint> getConstraints() {
     return constraints;

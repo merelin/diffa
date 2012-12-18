@@ -29,6 +29,12 @@
       <artifactId>joda-time</artifactId>
     </dependency>
 
+    <dependency>
+      <groupId>net.lshift.diffa</groupId>
+      <artifactId>diffa-configuration</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
   </dependencies>
 
 </project>

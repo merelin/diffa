@@ -15,6 +15,7 @@
  */
 package net.lshift.diffa.config;
 
+import net.lshift.diffa.adapter.scanning.ScanAggregation;
 import net.lshift.diffa.adapter.scanning.ScanConstraint;
 import org.codehaus.jackson.annotate.JsonSubTypes;
 import org.codehaus.jackson.annotate.JsonTypeInfo;
@@ -88,7 +89,11 @@ public abstract class CategoryDescriptor implements Serializable {
   /**
    * Ensures that the given constraint is acceptable to this category.
    * @param constraint the constraint to validate.
-   * @throws net.lshift.diffa.kernel.util.InvalidConstraintException if the constraint is invalid.
+   * @throws net.lshift.diffa.config.InvalidConstraintException if the constraint is invalid.
    */
   public abstract void validateConstraint(ScanConstraint constraint);
+
+  public ScanAggregation getInitialBucketing(String name) {
+    throw new RuntimeException("Initial bucketing not implemented");
+  }
 }

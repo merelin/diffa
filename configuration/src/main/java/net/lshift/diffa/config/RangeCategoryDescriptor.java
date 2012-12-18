@@ -187,6 +187,18 @@ public class RangeCategoryDescriptor extends AggregatingCategoryDescriptor {
   }
 
   @Override
+  public ScanAggregation getInitialBucketing(String name) {
+    if (dataType.equals("date")) {
+      DateAggregation aggregation = new DateAggregation(name, DateGranularityEnum.Yearly);
+      return aggregation;
+    }
+    else {
+      throw new RuntimeException( dataType + " data type not implemented yet, please contact a good developer");
+    }
+
+  }
+
+  @Override
   public void validateConstraint(ScanConstraint constraint) {
     if (dataType.equals("date")) {
       if (!(constraint instanceof DateRangeConstraint)) {

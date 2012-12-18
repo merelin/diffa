@@ -1,5 +1,10 @@
 package net.lshift.diffa.system;
 
+import net.lshift.diffa.config.CategoryDescriptor;
+
+import java.util.HashMap;
+import java.util.Map;
+
 public class Endpoint {
 
   /**
@@ -11,6 +16,7 @@ public class Endpoint {
    */
 
   private Long id;
+  private Map<String, CategoryDescriptor> categories = new HashMap<String, CategoryDescriptor>();
 
   public Long getId() {
     return id;
@@ -18,5 +24,13 @@ public class Endpoint {
 
   public void setId(Long id) {
     this.id = id;
+  }
+
+  public Map<String, CategoryDescriptor> getCategories() {
+    return categories;
+  }
+
+  public void addCategory(String name, CategoryDescriptor descriptor) {
+    categories.put(name, descriptor);
   }
 }
