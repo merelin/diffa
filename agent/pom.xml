@@ -298,6 +298,8 @@
             <configuration>
               <excludes>
                 <exclude>**/itest/**/*AmqpTest.class</exclude>
+                <!-- Non-deterministic with too many failures -->
+                <exclude>**/itest/**/CorrelatedEnvironmentTest.class</exclude>
               </excludes>
               <includes>
                 <include>**/itest/**/*Test.class</include>
