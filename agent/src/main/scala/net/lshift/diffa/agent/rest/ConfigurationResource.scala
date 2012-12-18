@@ -63,6 +63,14 @@ class ConfigurationResource(val config:Configuration,
     resourceCreated(e.name, uri)
   }
 
+  @PUT
+  @Consumes(Array("application/json"))
+  @Produces(Array("application/json"))
+  @Path("/endpoints/{id}")
+  def updateEndpoint(@PathParam("id") id:String, e:EndpointDef) = {
+    config.createOrUpdateEndpoint(space, e)
+    e
+  }
 
   @DELETE
   @Path("/endpoints/{id}")
