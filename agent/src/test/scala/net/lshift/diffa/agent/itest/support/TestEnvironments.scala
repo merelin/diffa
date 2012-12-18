@@ -17,6 +17,7 @@
 package net.lshift.diffa.agent.itest.support
 
 import net.lshift.diffa.client.ChangesRestClient
+
 /**
  * Static set of environments that can be used in integration test cases.
  */

@@ -86,7 +86,11 @@ public class JSONHelper {
           scanResultEntries.add(entry);
 
       }
-      log.info("ScanResultEntry readQueryResult [count = " + scanResultEntries.size() + "]");
+
+      if (log.isTraceEnabled()) {
+        log.trace("ScanResultEntry readQueryResult [count = " + scanResultEntries.size() + "]");
+      }
+
       return scanResultEntries;
     } catch (IOException ex) {
       throw ex;
