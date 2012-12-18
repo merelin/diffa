@@ -15,6 +15,7 @@
  */
 package net.lshift.diffa.adapter.common;
 
+import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.LoggerContext;
 import ch.qos.logback.classic.spi.ILoggingEvent;
@@ -67,6 +68,7 @@ public class JSONHelperTest {
     logAppender.setContext(ctx);
     logAppender.start();
     Logger jsonHelperLogger = (Logger) LoggerFactory.getLogger(JSONHelper.class);
+    jsonHelperLogger.setLevel(Level.TRACE);
     jsonHelperLogger.addAppender(logAppender);
   }
 

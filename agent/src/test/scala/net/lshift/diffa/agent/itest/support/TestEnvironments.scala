@@ -17,18 +17,11 @@
 package net.lshift.diffa.agent.itest.support
 
 import net.lshift.diffa.client.ChangesRestClient
-import com.rabbitmq.client.ConnectionFactory
-import net.lshift.accent.AccentConnection
-import net.lshift.diffa.agent.amqp.{AmqpQueueUrl, ChangesAmqpClient, AccentConnectionFailureHandler}
 
 /**
  * Static set of environments that can be used in integration test cases.
  */
 object TestEnvironments {
-
-  val factory = new ConnectionFactory()
-  val failureHandler = new AccentConnectionFailureHandler()
-  private val accentConnection = new AccentConnection(factory, failureHandler)
 
   // Each environment will need participants running on their own ports. To do this, we'll simply provide
   // a mechanism for portOffset.
@@ -49,22 +42,4 @@ object TestEnvironments {
                         new HttpParticipants(nextPort, nextPort),
                         { (env: TestEnvironment, epName:String) => new ChangesRestClient(env.serverRoot, env.domain.name, epName) },
                         CorrelatedVersionScheme)
-
-  def sameAmqp(key:String) =
-    new TestEnvironment(key,
-                        new HttpParticipants(nextPort, nextPort),
-                        { (_, epName) => new ChangesAmqpClient(accentConnection,
-                                                     epName + "-changes-same" + key,
-                                                     10000) },
-                        SameVersionScheme,
-                        (epName:String) => AmqpQueueUrl(epName + "-changes-same" + key).toString)
-
-  def correlatedAmqp(key:String) =
-    new TestEnvironment(key,
-                        new HttpParticipants(nextPort, nextPort),
-                        { (_, epName:String) => new ChangesAmqpClient(accentConnection,
-                                                                      epName + "-changes-correlated" + key,
-                                                                      10000) },
-                        CorrelatedVersionScheme,
-                        (epName:String) => AmqpQueueUrl(epName + "-changes-correlated" + key).toString)
 }
