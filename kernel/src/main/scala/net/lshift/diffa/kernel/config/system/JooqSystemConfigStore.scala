@@ -65,7 +65,7 @@ import org.jooq.impl.Factory._
 import scala.Some
 import net.lshift.diffa.kernel.config.Member
 import net.lshift.diffa.kernel.config.User
-import net.lshift.diffa.kernel.frontend.DomainEndpointDef
+import net.lshift.diffa.kernel.frontend.{DomainPairDef, DomainEndpointDef}
 import net.lshift.diffa.kernel.naming.{CacheName, SequenceName}
 import org.jooq.impl.Factory
 import org.jooq._
@@ -146,7 +146,7 @@ class JooqSystemConfigStore(jooq:JooqDatabaseFacade,
 
   def deleteSpace(id: Long) = {
     jooq.execute(t => {
-      descendancyTree(t, id).foreach(s => {
+      descendancyTree(t, id).foreach( (s:Space) => {
         invalidateCaches(s.id)
         deleteSingleSpace(t, s.id)
         domainEventSubscribers.foreach(_.onDomainRemoved(s.id))
@@ -205,7 +205,7 @@ class JooqSystemConfigStore(jooq:JooqDatabaseFacade,
       from(SPACES).
       orderBy(SPACES.NAME).
       fetch().
-      iterator().map(s => Space(
+      iterator().map( (s:Record) => Space(
         id = s.getValue(SPACES.ID),
         parent = s.getValue(SPACES.PARENT),
         name = s.getValue(SPACES.NAME),
@@ -227,7 +227,11 @@ class JooqSystemConfigStore(jooq:JooqDatabaseFacade,
         leftOuterJoin(upstream).on(upstream.ID.equal(PAIRS.UPSTREAM)).
         leftOuterJoin(downstream).on(downstream.ID.equal(PAIRS.DOWNSTREAM)).
       fetch().
-        map(ResultMappingUtil.recordToDomainPairDef)
+      map(new RecordMapper[Record, DomainPairDef] {
+        def map(r:Record) : DomainPairDef = {
+          ResultMappingUtil.recordToDomainPairDef(r)
+        }
+      })
     }
   }
 
@@ -300,7 +304,7 @@ class JooqSystemConfigStore(jooq:JooqDatabaseFacade,
                       join(SPACES).on(SPACES.ID.equal(MEMBERS.SPACE)).
                       where(MEMBERS.USERNAME.equal(username)).
                       fetch()
-      results.iterator().map(r => Member(
+      results.iterator().map( (r:Record) => Member(
         user = username,
         space = r.getValue(MEMBERS.SPACE),
         policySpace = r.getValue(MEMBERS.POLICY_SPACE),

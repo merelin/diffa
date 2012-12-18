@@ -4,7 +4,7 @@
 
   <groupId>net.lshift.diffa</groupId>
   <artifactId>diffa-parent</artifactId>
-  <version>1.6.2-SNAPSHOT</version>
+  <version>1.7.0-SNAPSHOT</version>
 
   <name>LShift Diffa Parent POM</name>
 
@@ -52,14 +52,14 @@
     <jodatime.version>2.0</jodatime.version>
     <jadira.version>1.9</jadira.version>
     <javamail.file.transport.version>1.0</javamail.file.transport.version>
-    <jooq.version>2.5.1</jooq.version>
+    <jooq.version>2.6.0</jooq.version>
     <slf4j.version>1.6.4</slf4j.version>
     <logback.version>1.0.0</logback.version>
     <akka.version>2.0.1</akka.version>
     <quartz.version>2.1.3</quartz.version>
     <wroj.version>1.4.4</wroj.version>
     <curator.version>1.2.3</curator.version>
-    <hazelcast.version>2.3.1</hazelcast.version>
+    <hazelcast.version>2.4</hazelcast.version>
     <guava.version>11.0.1</guava.version>
     <zookeeper.version>3.4.5</zookeeper.version>
     <scalatest.version>1.8</scalatest.version>
@@ -453,7 +453,7 @@
     <dependency>
       <groupId>net.lshift</groupId>
       <artifactId>db-migrations</artifactId>
-      <version>1.6.2-SNAPSHOT</version>
+      <version>1.7.0-SNAPSHOT</version>
     </dependency>
 
     <dependency>
@@ -615,6 +615,26 @@
               <contextPath>/diffa-agent</contextPath>
             </webAppConfig>
           </configuration>
+          <executions>
+            <execution>
+              <id>start-jetty</id>
+              <phase>pre-integration-test</phase>
+              <goals>
+                <goal>run-war</goal>
+              </goals>
+              <configuration>
+                <scanIntervalSeconds>0</scanIntervalSeconds>
+                <daemon>true</daemon>
+              </configuration>
+            </execution>
+            <execution>
+              <id>stop-jetty</id>
+              <phase>post-integration-test</phase>
+              <goals>
+                <goal>stop</goal>
+              </goals>
+            </execution>
+          </executions>
         </plugin>
         <plugin>
           <groupId>org.codehaus.mojo</groupId>

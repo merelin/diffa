@@ -25,6 +25,7 @@ import net.lshift.diffa.kernel.util.MissingObjectException
 import net.lshift.diffa.schema.tables.ExternalHttpCredentials.EXTERNAL_HTTP_CREDENTIALS
 import net.lshift.diffa.schema.jooq.DatabaseFacade
 import java.lang.{Long => LONG}
+import org.jooq.{RecordMapper, Record}
 
 class JooqDomainCredentialsStore(val db: DatabaseFacade)
   extends DomainCredentialsManager
@@ -72,14 +73,17 @@ class JooqDomainCredentialsStore(val db: DatabaseFacade)
       t.select().
         from(EXTERNAL_HTTP_CREDENTIALS).
         where(EXTERNAL_HTTP_CREDENTIALS.SPACE.equal(space)).
-        fetch().map { r =>
-        OutboundExternalHttpCredentialsDef(
-          url = r.getValue(EXTERNAL_HTTP_CREDENTIALS.URL),
-          key = r.getValue(EXTERNAL_HTTP_CREDENTIALS.CRED_KEY),
-          `type` = r.getValue(EXTERNAL_HTTP_CREDENTIALS.CRED_TYPE)
-        )
-      }
-    }
+        fetch().
+        map(new RecordMapper[Record, OutboundExternalHttpCredentialsDef] {
+          def map(r:Record) : OutboundExternalHttpCredentialsDef = {
+            OutboundExternalHttpCredentialsDef(
+              url = r.getValue(EXTERNAL_HTTP_CREDENTIALS.URL),
+              key = r.getValue(EXTERNAL_HTTP_CREDENTIALS.CRED_KEY),
+              `type` = r.getValue(EXTERNAL_HTTP_CREDENTIALS.CRED_TYPE)
+            )
+          }
+        })
+     }
   }
 
   def credentialsForUrl(space:Long, url:String) : Option[HttpCredentials] = credentialsForUri(space, new URI(url))
@@ -90,18 +94,23 @@ class JooqDomainCredentialsStore(val db: DatabaseFacade)
 
       val baseUrl = searchURI.getScheme + "://" + searchURI.getAuthority + "%"
 
-      val results = t.selectFrom(EXTERNAL_HTTP_CREDENTIALS).
-                      where(EXTERNAL_HTTP_CREDENTIALS.SPACE.equal(space)).
-                        and(EXTERNAL_HTTP_CREDENTIALS.URL.like(baseUrl)).
-                      fetch().map { r =>
-                      ExternalHttpCredentials(
-                        space = r.getValue(EXTERNAL_HTTP_CREDENTIALS.SPACE),
-                        url = r.getValue(EXTERNAL_HTTP_CREDENTIALS.URL),
-                        key = r.getValue(EXTERNAL_HTTP_CREDENTIALS.CRED_KEY),
-                        value = r.getValue(EXTERNAL_HTTP_CREDENTIALS.CRED_VALUE),
-                        credentialType = r.getValue(EXTERNAL_HTTP_CREDENTIALS.CRED_TYPE)
-                      )
-      }
+      val results:Seq[ExternalHttpCredentials]
+        = t.selectFrom(EXTERNAL_HTTP_CREDENTIALS).
+            where(EXTERNAL_HTTP_CREDENTIALS.SPACE.equal(space)).
+              and(EXTERNAL_HTTP_CREDENTIALS.URL.like(baseUrl)).
+            fetch().
+              map(new RecordMapper[Record, ExternalHttpCredentials] {
+                def map(r:Record) : ExternalHttpCredentials = {
+                  ExternalHttpCredentials(
+                    space = r.getValue(EXTERNAL_HTTP_CREDENTIALS.SPACE),
+                    url = r.getValue(EXTERNAL_HTTP_CREDENTIALS.URL),
+                    key = r.getValue(EXTERNAL_HTTP_CREDENTIALS.CRED_KEY),
+                    value = r.getValue(EXTERNAL_HTTP_CREDENTIALS.CRED_VALUE),
+                    credentialType = r.getValue(EXTERNAL_HTTP_CREDENTIALS.CRED_TYPE)
+                  )
+                }
+              })
+
 
       if (results.isEmpty) {
         None

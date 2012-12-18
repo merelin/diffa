@@ -134,8 +134,11 @@ object Step0054 extends VerifiedMigrationStep {
       column("collation_type", Types.VARCHAR, 16, false, "ascii").
       pk("id")
 
+    migration.createIndex("endpoints_space_id_idx", "endpoints", "space", "id")
+
     migration.alterTable("endpoints").
       addForeignKey("fk_edpt_spcs", "space", "spaces", "id").
+      addUniqueConstraint("uk_endpoints_space_id", "space", "id").
       addUniqueConstraint("uk_endpoints_space_name", "space", "name")
 
     migration.createTable("endpoint_views").
