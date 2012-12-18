@@ -374,7 +374,7 @@
   <profiles>
 
     <profile>
-      <id>default</id> <!-- Profile to activate for HSQLDB and MySQL, i.e. when not using Oracle -->
+      <id>hsqldb</id>
       <activation>
         <activeByDefault>true</activeByDefault>
       </activation>
