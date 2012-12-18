@@ -23,6 +23,8 @@ import net.lshift.diffa.agent.util.ConfigComparisonUtil
 import net.lshift.diffa.kernel.config._
 import net.lshift.diffa.kernel.frontend.DiffaConfig._
 import net.lshift.diffa.kernel.frontend._
+import net.lshift.diffa.config.{PrefixCategoryDescriptor, SetCategoryDescriptor, RangeCategoryDescriptor}
+import net.lshift.diffa.adapter.scanning.{UnicodeCollation, UnorderedCollation}
 
 /*
 * Test cases for the DiffaConfigReaderWriter.
@@ -42,7 +44,7 @@ class DiffaConfigReaderWriterTest {
           inboundUrl = "http://inbound",
           scanUrl = "http://localhost:1234/scan",
           contentRetrievalUrl = "http://localhost:1234/content",
-          collation = UnicodeCollationOrdering.name,
+          collation = UnicodeCollation.get().getName,
           categories = Map(
             "a" -> new RangeCategoryDescriptor("date", "2009", "2010"),
             "b" -> new SetCategoryDescriptor(Set("a", "b", "c")),
@@ -65,7 +67,7 @@ class DiffaConfigReaderWriterTest {
             ))),
         EndpointDef(name = "downstream2",
           scanUrl = "http://localhost:5436/scan", versionGenerationUrl = "http://localhost:5436/generate-version",
-          collation = UnorderedCollationOrdering.name,
+          collation = UnorderedCollation.get().getName,
           categories = Map(
             "i" -> new RangeCategoryDescriptor("date", "2012", "2013", "individual")
           ))

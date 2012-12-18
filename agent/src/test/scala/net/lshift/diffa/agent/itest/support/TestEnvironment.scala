@@ -36,6 +36,7 @@ import net.lshift.diffa.adapter.scanning.{ScanAggregation, ScanConstraint}
 import net.lshift.diffa.kernel.frontend._
 import net.lshift.diffa.adapter.changes.ChangeEvent
 import net.lshift.diffa.kernel.limiting.SystemClock
+import net.lshift.diffa.config.{SetCategoryDescriptor, RangeCategoryDescriptor}
 
 /**
  * An assembled environment consisting of a downstream and upstream adapter. Provides a factory for the
@@ -285,11 +286,11 @@ abstract class VersionScheme {
 }
 object SameVersionScheme extends VersionScheme {
   val policyName = "same"
-  val upstreamVersionGen = (content) => "vsn_" + content
-  val downstreamVersionGen = (content) => "vsn_" + content
+  val upstreamVersionGen = (content:String) => "vsn_" + content
+  val downstreamVersionGen = (content:String) => "vsn_" + content
 }
 object CorrelatedVersionScheme extends VersionScheme {
   val policyName = "correlated"
-  val upstreamVersionGen = (content) => "uvsn_" + content
-  val downstreamVersionGen = (content) => "dvsn_" + content
+  val upstreamVersionGen = (content:String) => "uvsn_" + content
+  val downstreamVersionGen = (content:String) => "dvsn_" + content
 }

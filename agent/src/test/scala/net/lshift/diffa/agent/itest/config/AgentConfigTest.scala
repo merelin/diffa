@@ -22,10 +22,10 @@ import org.junit.Test
 import com.eaio.uuid.UUID
 import org.junit.Assert._
 import collection.JavaConversions._
-import net.lshift.diffa.kernel.config.RangeCategoryDescriptor
 import net.lshift.diffa.kernel.frontend.EndpointDef
 import net.lshift.diffa.agent.itest.IsolatedDomainTest
 import net.lshift.diffa.client.NotFoundException
+import net.lshift.diffa.config.RangeCategoryDescriptor
 
 /**
  * A bunch of smoke tests for the config of a known agent
