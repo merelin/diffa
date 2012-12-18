@@ -5,7 +5,7 @@ import com.google.common.collect.ImmutableSet;
 import net.lshift.diffa.adapter.scanning.*;
 import net.lshift.diffa.config.CategoryDescriptor;
 import net.lshift.diffa.config.RangeCategoryDescriptor;
-import net.lshift.diffa.railyard.categories.QuestionBuilder;
+import net.lshift.diffa.railyard.questions.QuestionBuilder;
 import org.junit.experimental.theories.DataPoint;
 import org.junit.experimental.theories.Theories;
 import org.junit.experimental.theories.Theory;

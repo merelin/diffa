@@ -49,6 +49,12 @@
 
     <dependency>
       <groupId>net.lshift.diffa</groupId>
+      <artifactId>diffa-configuration</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>net.lshift.diffa</groupId>
       <artifactId>diffa-system-configuration-client</artifactId>
       <version>${project.version}</version>
     </dependency>
@@ -117,66 +123,6 @@
 
   <build>
     <plugins>
-
-      <plugin>
-        <groupId>org.codehaus.mojo</groupId>
-        <artifactId>cassandra-maven-plugin</artifactId>
-        <version>1.1.0-1</version>
-        <dependencies>
-          <dependency>
-            <groupId>org.xerial.snappy</groupId>
-            <artifactId>snappy-java</artifactId>
-            <version>1.0.5-M3</version>
-          </dependency>
-          <dependency>
-            <groupId>org.apache.cassandra</groupId>
-            <artifactId>cassandra-all</artifactId>
-            <version>${cassandra.version}</version>
-          </dependency>
-        </dependencies>
-        <configuration>
-          <loadAfterFirstStart>false</loadAfterFirstStart>
-          <rpcAddress>0.0.0.0</rpcAddress>
-          <script>${basedir}/../versioning/src/cassandra/cli/load.script</script>
-        </configuration>
-        <executions>
-          <execution>
-            <id>start-cassandra</id>
-            <phase>pre-integration-test</phase>
-            <goals>
-              <goal>delete</goal>
-              <goal>start</goal>
-              <goal>load</goal>
-            </goals>
-          </execution>
-          <execution>
-            <id>stop-cassandra</id>
-            <phase>post-integration-test</phase>
-            <goals>
-              <goal>stop</goal>
-              <goal>delete</goal>
-            </goals>
-          </execution>
-        </executions>
-      </plugin>
-
-      <plugin>
-        <groupId>org.codehaus.mojo</groupId>
-        <artifactId>exec-maven-plugin</artifactId>
-        <executions>
-          <execution>
-            <id>start-railyard-server</id>
-            <phase>pre-integration-test</phase>
-            <goals>
-              <goal>java</goal>
-            </goals>
-          </execution>
-        </executions>
-        <configuration>
-          <mainClass>net.lshift.diffa.railyard.RailYardEngine</mainClass>
-          <classpathScope>test</classpathScope>
-        </configuration>
-      </plugin>
 
       <plugin>
         <artifactId>maven-surefire-plugin</artifactId>

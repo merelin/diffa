@@ -3,10 +3,9 @@ package net.lshift.diffa.railyard;
 import com.google.inject.Inject;
 import net.lshift.diffa.adapter.scanning.AggregationBuilder;
 import net.lshift.diffa.adapter.scanning.HttpRequestParameters;
-import net.lshift.diffa.adapter.scanning.ScanConstraint;
 import net.lshift.diffa.adapter.scanning.SliceSizeParser;
 import net.lshift.diffa.config.CategoryDescriptor;
-import net.lshift.diffa.railyard.categories.QuestionBuilder;
+import net.lshift.diffa.railyard.questions.QuestionBuilder;
 import net.lshift.diffa.railyard.plumbing.RestEasyRequestWrapper;
 import net.lshift.diffa.system.Endpoint;
 import net.lshift.diffa.system.SystemConfiguration;
@@ -16,7 +15,6 @@ import javax.ws.rs.*;
 import javax.ws.rs.core.Context;
 import java.io.IOException;
 import java.util.Map;
-import java.util.Set;
 
 @Path("/{space}/interview")
 public class InterviewResource {

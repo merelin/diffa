@@ -28,7 +28,7 @@ public class InterviewResourceTest {
     InterviewResource interview = new InterviewResource(store, conf);
     Question question = interview.getNextQuestion(space, endpointName);
 
-    assertEquals(1, question.getAggregations());
-    assertEquals(1, question.getConstraints());
+    assertEquals(1, question.getAggregations().size());
+    assertEquals(1, question.getConstraints().size());
   }
 }

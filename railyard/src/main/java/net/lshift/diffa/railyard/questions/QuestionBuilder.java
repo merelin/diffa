@@ -1,4 +1,4 @@
-package net.lshift.diffa.railyard.categories;
+package net.lshift.diffa.railyard.questions;
 
 import net.lshift.diffa.adapter.scanning.RangeConstraint;
 import net.lshift.diffa.adapter.scanning.ScanAggregation;
