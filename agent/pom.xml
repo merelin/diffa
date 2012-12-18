@@ -282,7 +282,6 @@
       <plugin>
         <artifactId>maven-surefire-plugin</artifactId>
         <configuration>
-          <threadCount>1</threadCount>
           <!--<forkMode>never</forkMode>-->
           <excludes>
             <exclude>**/*$*/**</exclude>
@@ -300,7 +299,8 @@
               <excludes>
                 <exclude>**/itest/**/*AmqpTest.class</exclude>
                 <!-- Non-deterministic with too many failures -->
-                <exclude>**/itest/**/CorrelatedEnvironmentTest.class</exclude>
+                <exclude>**/itest/**/*EnvironmentTest.class</exclude>
+                <exclude>**/itest/**/InventoryTest.class</exclude>
               </excludes>
               <includes>
                 <include>**/itest/**/*Test.class</include>
@@ -340,6 +340,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-war-plugin</artifactId>
+        <version>2.3</version>
         <configuration>
           <webResources>
             <!-- allow the diffa.build.number property to be spliced into decorators.jsp -->
