@@ -142,13 +142,14 @@ class SnowflakeIdProviderSpec extends SpecificationWithJUnit with ScalaCheck {
 
     "generate k-ordered identifiers over a period" in {
       val provider = new SnowflakeIdProvider(1)
-      val period = 200L // milliseconds
+      val period = 2000L // milliseconds
       var lastId = -1L
 
       val startTime = System.currentTimeMillis()
       while (elapsedTime < period) {
         val nextId = getWithRetry(provider)
         nextId must be greaterThan lastId
+        nextId must be greaterThan 0
         lastId = nextId
       }
 
