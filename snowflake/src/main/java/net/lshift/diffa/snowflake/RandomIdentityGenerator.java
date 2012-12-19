@@ -37,6 +37,6 @@ public class RandomIdentityGenerator implements IdentityGenerator {
 
 	@Override
 	public int generate() {
-		return rng.nextInt();
+		return rng.nextInt(10);
 	}
 }
