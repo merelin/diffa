@@ -18,6 +18,7 @@ import javax.sql.DataSource;
 import java.lang.reflect.ParameterizedType;
 import java.sql.Connection;
 import java.sql.Date;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
@@ -29,6 +30,15 @@ public class PartitionAwareDriver extends AbstractDatabaseAware implements Scann
 
   private PartitionMetadata config;
 
+  private static HashMap<SQLDialect, String> md5FunctionDefinitions = new HashMap<SQLDialect, String>();
+
+  static {
+    md5FunctionDefinitions.put(SQLDialect.HSQLDB,
+        "create function md5(v varchar(32672)) returns varchar(32) language java deterministic no sql external name 'CLASSPATH:org.apache.commons.codec.digest.DigestUtils.md5Hex'");
+    md5FunctionDefinitions.put(SQLDialect.ORACLE,
+        "CREATE OR REPLACE FUNCTION md5 (input_string VARCHAR2) RETURN VARCHAR2 IS BEGIN RETURN dbms_obfuscation_toolkit.md5(input_string => inputString); END;");
+  }
+
   @Inject
   public PartitionAwareDriver(DataSource ds, PartitionMetadata config) {
     super(ds);
@@ -37,17 +47,15 @@ public class PartitionAwareDriver extends AbstractDatabaseAware implements Scann
     Connection connection = getConnection();
     Factory db = getFactory(connection);
 
+    String functionDefinition = md5DefinitionForDialect(db.getDialect());
+
     try {
 
-      if (db.getDialect().equals(SQLDialect.HSQLDB)) {
+      // TODO Hack - Just try to create the function, if it fails, we just assume that it already exists
+      // It is probably a better idea to introspect the information schema to find out for sure that this function is available
 
-        // TODO Hack - Just try to create the function, if it fails, we just assume that it already exists
-        // It is probably a better idea to introspect the information schema to find out for sure that this function is available
-
-        db.execute("create function md5(v varchar(32672)) returns varchar(32) language java deterministic no sql external name 'CLASSPATH:org.apache.commons.codec.digest.DigestUtils.md5Hex'");
-        log.info("Created md5 function");
-      }
-
+      db.execute(functionDefinition);
+      log.info("Created md5 function");
     }
     catch (Exception e) {
 
@@ -61,6 +69,9 @@ public class PartitionAwareDriver extends AbstractDatabaseAware implements Scann
 
     }
 
+  }
+  private String md5DefinitionForDialect(SQLDialect dialect) {
+    return md5FunctionDefinitions.get(dialect);
   }
 
   @Override

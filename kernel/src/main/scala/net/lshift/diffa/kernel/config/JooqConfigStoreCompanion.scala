@@ -38,13 +38,8 @@ import net.lshift.diffa.schema.tables.UserItemVisibility.USER_ITEM_VISIBILITY
 import net.lshift.diffa.schema.tables.PairViews.PAIR_VIEWS
 import net.lshift.diffa.schema.tables.StoreCheckpoints.STORE_CHECKPOINTS
 import net.lshift.diffa.schema.tables.Breakers.BREAKERS
-import net.lshift.diffa.kernel.frontend._
 import net.lshift.diffa.schema.jooq.DatabaseFacade
 import net.lshift.diffa.schema.tables.EndpointViews._
-import net.lshift.diffa.kernel.frontend.DomainEndpointDef
-import net.lshift.diffa.kernel.frontend.RepairActionDef
-import net.lshift.diffa.kernel.frontend.EscalationDef
-import net.lshift.diffa.kernel.frontend.PairReportDef
 import collection.mutable
 import org.slf4j.LoggerFactory
 import org.jooq.exception.DataAccessException
@@ -61,7 +56,6 @@ import scala.Some
 import net.lshift.diffa.kernel.frontend.EndpointViewDef
 import net.lshift.diffa.kernel.frontend.PairReportDef
 import net.lshift.diffa.kernel.frontend.EscalationDef
-import net.lshift.diffa.kernel.config.PairRef
 import net.lshift.diffa.kernel.frontend.DomainEndpointDef
 import net.lshift.diffa.kernel.frontend.PairViewDef
 

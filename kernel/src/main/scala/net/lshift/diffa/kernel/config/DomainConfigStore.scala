@@ -19,26 +19,15 @@ package net.lshift.diffa.kernel.config
 import reflect.BeanProperty
 import scala.collection.JavaConversions._
 import net.lshift.diffa.kernel.differencing.AttributesUtil
-import scala.Option._
-import net.lshift.diffa.kernel.frontend._
-import net.lshift.diffa.kernel.util.{EndpointSide, UpstreamEndpoint, DownstreamEndpoint, CategoryUtil}
+import net.lshift.diffa.kernel.util.CategoryUtil
 import net.lshift.diffa.adapter.scanning._
 import java.util.HashMap
-import net.lshift.diffa.kernel.participants._
-import system.PolicyKey
 import net.lshift.diffa.config.{ConfigValidationException, CategoryDescriptor, AggregatingCategoryDescriptor}
-import net.lshift.diffa.kernel.config.PairRef
 import net.lshift.diffa.kernel.frontend.DomainPairDef
 import net.lshift.diffa.kernel.frontend.EndpointDef
 import net.lshift.diffa.kernel.frontend.DomainEndpointDef
 import system.PolicyKey
-import net.lshift.diffa.kernel.config.PairView
 import net.lshift.diffa.kernel.frontend.PairDef
-import net.lshift.diffa.kernel.config.Member
-import net.lshift.diffa.kernel.config.Endpoint
-import net.lshift.diffa.kernel.config.User
-import net.lshift.diffa.kernel.config.EndpointView
-import net.lshift.diffa.kernel.config.DiffaPairRef
 
 /**
  * Provides general configuration options within the scope of a particular domain.

@@ -19,14 +19,11 @@ package net.lshift.diffa.kernel.config
 import org.junit.Test
 import org.junit.Assert._
 import scala.collection.JavaConversions._
-import net.lshift.diffa.kernel.differencing.{DateTimeAttribute, IntegerAttribute}
 import org.junit.runner.RunWith
 import org.junit.experimental.theories.{Theories, Theory, DataPoints}
-import net.lshift.diffa.kernel.config.EndpointTest.ConstraintExpectation
 import net.lshift.diffa.adapter.scanning._
 import org.joda.time.{DateTimeZone, LocalDate, DateTime}
 import net.lshift.diffa.config.RangeCategoryDescriptor
-import net.lshift.diffa.kernel.config.Endpoint
 import net.lshift.diffa.kernel.config.EndpointTest.ConstraintExpectation
 import net.lshift.diffa.kernel.differencing.IntegerAttribute
 import net.lshift.diffa.kernel.differencing.DateTimeAttribute
