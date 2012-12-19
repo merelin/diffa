@@ -298,8 +298,7 @@
             <configuration>
               <excludes>
                 <!-- Non-deterministic with too many failures -->
-                <!--<exclude>**/itest/**/*EnvironmentTest.class</exclude>-->
-                <!--<exclude>**/itest/**/InventoryTest.class</exclude>-->
+                <exclude>**/itest/**/CorrelatedEnvironmentTest.class</exclude>
               </excludes>
               <includes>
                 <include>**/itest/**/*Test.class</include>
