@@ -24,6 +24,9 @@ import static java.lang.Math.round;
  * nodes can be achieved by having each node provide a unique machine ID.
  */
 public class SnowflakeIdProvider implements IdProvider {
+  private static final long timestampMask = 0x000001ffffffffffL;
+  private static final long machineIdMask = 0x00000000000003ffL;
+  private static final long sequenceMask  = 0x0000000000000fffL;
   public static final int machineBits = 10;
   public static final int sequenceBits = 12;
 
@@ -54,6 +57,7 @@ public class SnowflakeIdProvider implements IdProvider {
 
   public long getId() throws InvalidSystemClockException, SequenceExhaustedException {
     long now = timeFn.now();
+    long seq;
 
     synchronized(mutex) {
       maybePause();
@@ -69,10 +73,14 @@ public class SnowflakeIdProvider implements IdProvider {
           throw new SequenceExhaustedException(sequenceNum);
         }
       }
+      seq = sequenceNum;
+      lastTimestamp = now;
     }
-    lastTimestamp = now;
 
-    return (now << timestampLShift) | (machineId << machineLShift) | (sequenceNum << sequenceLShift);
+    long id = ((now & timestampMask) << timestampLShift)
+        | ((machineId & machineIdMask) << machineLShift)
+        | ((seq & sequenceMask) << sequenceLShift);
+    return id;
   }
 
   private void maybePause() {
