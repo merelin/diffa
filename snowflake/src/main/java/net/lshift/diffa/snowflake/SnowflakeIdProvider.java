@@ -27,6 +27,7 @@ public class SnowflakeIdProvider implements IdProvider {
   public static final int machineBits = 10;
   public static final int sequenceBits = 12;
 
+  public static final short machineIdUpperBound = (short) (round(pow(2, machineBits)) - 1);
   public static final short sequenceUpperBound = (short) (round(pow(2, sequenceBits)) - 1);
 
   public static final int timestampLShift = machineBits + sequenceBits;
@@ -41,6 +42,9 @@ public class SnowflakeIdProvider implements IdProvider {
   private final Object mutex = new Object();
 
   public SnowflakeIdProvider(int machineId) {
+    if (machineId < 0 || machineId > machineIdUpperBound) {
+      throw new IllegalArgumentException("machineId must be in the (inclusive) range [0, 1023]");
+    }
     this.machineId = machineId;
   }
 

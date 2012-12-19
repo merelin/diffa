@@ -97,6 +97,13 @@ class SnowflakeIdProviderSpec extends SpecificationWithJUnit with ScalaCheck {
       })
     }
 
+    "not operate with a machine ID outside the range [0, 1023]" in {
+      check(Prop.forAll { id: Int => (id < 0 || id > 1023) ==> {
+          (new SnowflakeIdProvider(id)) should throwAn[IllegalArgumentException]
+        }
+      })
+    }
+
     "generate the first ID with a sequence component of 0" in {
       ((new SnowflakeIdProvider(1)).getId & sequenceMask) should_== 0
     }
