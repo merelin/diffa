@@ -19,19 +19,9 @@ import static java.util.Arrays.*;
 public abstract class SimpleDaemon implements Runnable {
 
   private static Logger log = LoggerFactory.getLogger(SimpleDaemon.class);
-
-  private AtomicBoolean bootSuccess = new AtomicBoolean(false);
-  private CountDownLatch startSignal = new CountDownLatch(1);
-
-  private Object monitor = new Object();
-
-  private long timeout = 60L;
-
   protected OptionSet options;
   
   public SimpleDaemon(String[] args)  {
-
-    final long start = System.currentTimeMillis();
 
     try {
       options = getOptions(args);
@@ -43,14 +33,12 @@ public abstract class SimpleDaemon implements Runnable {
 
     Thread serverThread = new Thread(this);
 
-
     serverThread.setDaemon(daemon);
     serverThread.start();
 
     if (!daemon) {
       log.info("Daemon running in foreground");
     }
-
 
   }
 
@@ -78,7 +66,6 @@ public abstract class SimpleDaemon implements Runnable {
     }
     catch (Throwable t) {
       log.error("Could not boot daemon", t);
-
     }
 
   }
