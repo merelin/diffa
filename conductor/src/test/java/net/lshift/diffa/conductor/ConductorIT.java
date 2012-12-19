@@ -102,14 +102,6 @@ public class ConductorIT {
 
     InterviewState state = conductor.getProgress(space, id);
 
-    while (state.getEnd() == null) {
-
-      Thread.sleep(5000);
-      state = conductor.getProgress(space, id);
-
-    }
-
-    System.err.println("Interview end: " + state.getEnd());
 
     /*
 

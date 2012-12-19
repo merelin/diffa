@@ -10,6 +10,8 @@ import com.google.common.collect.Maps;
 import me.prettyprint.cassandra.serializers.BooleanSerializer;
 import me.prettyprint.cassandra.serializers.DynamicCompositeSerializer;
 import me.prettyprint.cassandra.serializers.StringSerializer;
+import me.prettyprint.cassandra.service.CassandraHost;
+import me.prettyprint.cassandra.service.CassandraHostConfigurator;
 import me.prettyprint.cassandra.service.ColumnSliceIterator;
 import me.prettyprint.cassandra.service.template.ColumnFamilyTemplate;
 import me.prettyprint.cassandra.service.template.ColumnFamilyResult;
@@ -85,35 +87,54 @@ public class CassandraVersionStore implements VersionStore {
   static final String LAST_UPDATE_KEY = "lastUpdate";
   static final String PARTITION_KEY = "partition";
 
-  private Cluster cluster = HFactory.getOrCreateCluster("test-cluster", "localhost:9160");
-  private Keyspace keyspace = HFactory.createKeyspace(KEY_SPACE, cluster);
 
-  private ColumnFamilyTemplate<String, String> entityVersionsTemplate =
-      new ThriftColumnFamilyTemplate<String, String>(keyspace, ENTITY_VERSIONS_CF,
-          StringSerializer.get(),
-          StringSerializer.get());
 
-  private ColumnFamilyTemplate<String, String> entityIdDigestsTemplate =
-      new ThriftColumnFamilyTemplate<String, String>(keyspace, ENTITY_ID_DIGESTS_CF,
-          StringSerializer.get(),
-          StringSerializer.get());
 
-  private ColumnFamilyTemplate<String, String> userDefinedDigestsTemplate =
-      new ThriftColumnFamilyTemplate<String, String>(keyspace, USER_DEFINED_DIGESTS_CF,
-          StringSerializer.get(),
-          StringSerializer.get());
+  private Cluster cluster;
+  private Keyspace keyspace;
 
-  private ColumnFamilyTemplate<String, String> userDefinedAttributesTemplate =
-      new ThriftColumnFamilyTemplate<String, String>(keyspace, USER_DEFINED_ATTRIBUTES_CF,
-          StringSerializer.get(),
-          StringSerializer.get());
-
-  private ColumnFamilyTemplate<String, String> pairDigestsTemplate =
-      new ThriftColumnFamilyTemplate<String, String>(keyspace, PAIR_DIGESTS_CF,
-          StringSerializer.get(),
-          StringSerializer.get());
+  private ColumnFamilyTemplate<String, String> entityVersionsTemplate;
+  private ColumnFamilyTemplate<String, String> entityIdDigestsTemplate;
+  private ColumnFamilyTemplate<String, String> userDefinedDigestsTemplate;
+  private ColumnFamilyTemplate<String, String> userDefinedAttributesTemplate;
+  private ColumnFamilyTemplate<String, String> pairDigestsTemplate;
 
   private Map<Long,Integer> sliceSizes = new ConcurrentHashMap<Long,Integer>();
+
+  public CassandraVersionStore() {
+
+    CassandraHostConfigurator configurer = new CassandraHostConfigurator();
+    configurer.setHosts("localhost");
+    configurer.setRetryDownedHosts(true);
+
+    cluster = HFactory.getOrCreateCluster("test-cluster", configurer);
+    keyspace = HFactory.createKeyspace(KEY_SPACE, cluster);
+
+    entityVersionsTemplate =
+        new ThriftColumnFamilyTemplate<String, String>(keyspace, ENTITY_VERSIONS_CF,
+            StringSerializer.get(),
+            StringSerializer.get());
+
+    entityIdDigestsTemplate =
+        new ThriftColumnFamilyTemplate<String, String>(keyspace, ENTITY_ID_DIGESTS_CF,
+            StringSerializer.get(),
+            StringSerializer.get());
+
+    userDefinedDigestsTemplate =
+        new ThriftColumnFamilyTemplate<String, String>(keyspace, USER_DEFINED_DIGESTS_CF,
+            StringSerializer.get(),
+            StringSerializer.get());
+
+    userDefinedAttributesTemplate =
+        new ThriftColumnFamilyTemplate<String, String>(keyspace, USER_DEFINED_ATTRIBUTES_CF,
+            StringSerializer.get(),
+            StringSerializer.get());
+
+    pairDigestsTemplate =
+        new ThriftColumnFamilyTemplate<String, String>(keyspace, PAIR_DIGESTS_CF,
+            StringSerializer.get(),
+            StringSerializer.get());
+  }
 
   public void onEvent(Long endpoint, ChangeEvent event) {
 

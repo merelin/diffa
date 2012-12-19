@@ -10,6 +10,9 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static java.util.Arrays.*;
 
@@ -17,9 +20,18 @@ public abstract class SimpleDaemon implements Runnable {
 
   private static Logger log = LoggerFactory.getLogger(SimpleDaemon.class);
 
+  private AtomicBoolean bootSuccess = new AtomicBoolean(false);
+  private CountDownLatch startSignal = new CountDownLatch(1);
+
+  private Object monitor = new Object();
+
+  private long timeout = 60L;
+
   protected OptionSet options;
   
   public SimpleDaemon(String[] args)  {
+
+    final long start = System.currentTimeMillis();
 
     try {
       options = getOptions(args);
@@ -31,31 +43,43 @@ public abstract class SimpleDaemon implements Runnable {
 
     Thread serverThread = new Thread(this);
 
+
+    serverThread.setDaemon(daemon);
+    serverThread.start();
+
     if (!daemon) {
       log.info("Daemon running in foreground");
     }
 
-    serverThread.setDaemon(daemon);
-    serverThread.start();
+
   }
 
 
   public void run() {
 
-    ResteasyDeployment deployment = new ResteasyDeployment();
-    deployment.setResources(getResources());
-    deployment.setProviderClasses(getProviderClasses());
+    try {
 
-    final int port = getPort(options);
+      ResteasyDeployment deployment = new ResteasyDeployment();
+      deployment.setResources(getResources());
+      deployment.setProviderClasses(getProviderClasses());
+      deployment.setResources(getResources());
 
-    NettyJaxrsServer server = new NettyJaxrsServer();
-    server.setDeployment(deployment);
-    server.setPort(port);
-    server.start();
+      final int port = getPort(options);
 
-    final String name = getName(options);
+      NettyJaxrsServer server = new NettyJaxrsServer();
+      server.setDeployment(deployment);
+      server.setPort(port);
+      server.start();
 
-    log.info(String.format("Started %s on port %s", name, port));
+      final String name = getName(options);
+
+      log.info(String.format("Started %s on port %s", name, port));
+
+    }
+    catch (Throwable t) {
+      log.error("Could not boot daemon", t);
+
+    }
 
   }
 
