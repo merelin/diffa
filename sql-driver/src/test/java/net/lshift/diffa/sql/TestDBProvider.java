@@ -9,14 +9,6 @@ import javax.sql.DataSource;
 
 public class TestDBProvider {
 
-  static {
-    try {
-      Class.forName("org.hsqldb.jdbcDriver");
-    } catch (ClassNotFoundException e) {
-      throw new RuntimeException(e);
-    }
-  }
-
   public static DataSource getHSQLDBDataSource() {
 
     BoneCPConfig config = new BoneCPConfig();
