@@ -87,6 +87,7 @@
     <guava.version>11.0.1</guava.version>
     <zookeeper.version>3.4.5</zookeeper.version>
     <mokito.version>1.9.5</mokito.version>
+    <scalatest.version>1.8</scalatest.version>
   </properties>
 
   <scm>
@@ -704,7 +705,7 @@
               <id>start-jetty</id>
               <phase>pre-integration-test</phase>
               <goals>
-                <goal>run</goal>
+                <goal>run-war</goal>
               </goals>
               <configuration>
                 <scanIntervalSeconds>0</scanIntervalSeconds>

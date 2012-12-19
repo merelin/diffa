@@ -289,7 +289,6 @@
         <groupId>org.scala-tools</groupId>
         <artifactId>maven-scala-plugin</artifactId>
       </plugin>
-
       <plugin>
         <artifactId>maven-surefire-plugin</artifactId>
         <configuration>
@@ -308,7 +307,8 @@
             </goals>
             <configuration>
               <excludes>
-                <exclude>**/itest/**/*AmqpTest.class</exclude>
+                <!-- Non-deterministic with too many failures -->
+                <exclude>**/itest/**/CorrelatedEnvironmentTest.class</exclude>
               </excludes>
               <includes>
                 <include>**/itest/**/*Test.class</include>
@@ -348,6 +348,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-war-plugin</artifactId>
+        <version>2.3</version>
         <configuration>
           <webResources>
             <!-- allow the diffa.build.number property to be spliced into decorators.jsp -->
@@ -403,13 +404,6 @@
       <activation>
         <activeByDefault>false</activeByDefault>
       </activation>
-      <dependencies>
-        <dependency>
-          <groupId>com.oracle</groupId>
-          <artifactId>ojdbc6</artifactId>
-          <version>11.2.0.1.0</version>
-        </dependency>
-      </dependencies>
       <build>
         <plugins>
           <plugin>

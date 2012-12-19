@@ -32,7 +32,7 @@ import org.slf4j.LoggerFactory
 
 class DatabaseFacade(val dataSource: DataSource, dialect: String) {
 
-  private val resolvedDialect = SQLDialect.valueOf(dialect)
+  val resolvedDialect = SQLDialect.valueOf(dialect)
   private val settings = new Settings()
     .withRenderSchema(false)
     .withRenderNameStyle(RenderNameStyle.LOWER)

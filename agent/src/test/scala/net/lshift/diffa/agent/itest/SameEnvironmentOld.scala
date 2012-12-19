@@ -29,8 +29,7 @@ import net.lshift.diffa.agent.itest.support.TestEnvironments
  * don't make this test a hard acceptance criteria, since the external behavior has changed deliberately.
  */
 class SameEnvironmentOld {} /*extends AbstractEnvironmentTest
-    with CommonDifferenceTests {
-  
-  val envFactory = TestEnvironments.same _
+
+  def envFactory(ident: String) = TestEnvironments.same(ident)
 }
 */

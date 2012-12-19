@@ -77,7 +77,6 @@ class ChangesTest {
 }
 
 object ChangesTest {
-
   var space:Space = null
   var pairRef:PairRef = null
 
