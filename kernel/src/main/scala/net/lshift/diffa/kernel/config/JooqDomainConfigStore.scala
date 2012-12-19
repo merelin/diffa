@@ -182,24 +182,24 @@ class JooqDomainConfigStore(jooq:JooqDatabaseFacade,
           }
         }
       } else {
-      t.mergeInto(ENDPOINTS).
-        usingDual().
-        on(ENDPOINTS.SPACE.equal(space), ENDPOINTS.NAME.equal(endpointDef.name)).
-        whenMatchedThenUpdate().
-          set(ENDPOINTS.COLLATION_TYPE, endpointDef.collation).
-          set(ENDPOINTS.CONTENT_RETRIEVAL_URL, endpointDef.contentRetrievalUrl).
-          set(ENDPOINTS.SCAN_URL, endpointDef.scanUrl).
-          set(ENDPOINTS.VERSION_GENERATION_URL, endpointDef.versionGenerationUrl).
-          set(ENDPOINTS.INBOUND_URL, endpointDef.inboundUrl).
-        whenNotMatchedThenInsert().
-          set(ENDPOINTS.SPACE, space:LONG).
-          set(ENDPOINTS.NAME, endpointDef.name).
-          set(ENDPOINTS.ID, id).
-          set(ENDPOINTS.COLLATION_TYPE, endpointDef.collation).
-          set(ENDPOINTS.CONTENT_RETRIEVAL_URL, endpointDef.contentRetrievalUrl).
-          set(ENDPOINTS.SCAN_URL, endpointDef.scanUrl).
-          set(ENDPOINTS.VERSION_GENERATION_URL, endpointDef.versionGenerationUrl).
-          set(ENDPOINTS.INBOUND_URL, endpointDef.inboundUrl).execute()
+        t.mergeInto(ENDPOINTS).
+          usingDual().
+          on(ENDPOINTS.SPACE.equal(space), ENDPOINTS.NAME.equal(endpointDef.name)).
+          whenMatchedThenUpdate().
+            set(ENDPOINTS.COLLATION_TYPE, endpointDef.collation).
+            set(ENDPOINTS.CONTENT_RETRIEVAL_URL, endpointDef.contentRetrievalUrl).
+            set(ENDPOINTS.SCAN_URL, endpointDef.scanUrl).
+            set(ENDPOINTS.VERSION_GENERATION_URL, endpointDef.versionGenerationUrl).
+            set(ENDPOINTS.INBOUND_URL, endpointDef.inboundUrl).
+          whenNotMatchedThenInsert().
+            set(ENDPOINTS.SPACE, space:LONG).
+            set(ENDPOINTS.NAME, endpointDef.name).
+            set(ENDPOINTS.ID, id).
+            set(ENDPOINTS.COLLATION_TYPE, endpointDef.collation).
+            set(ENDPOINTS.CONTENT_RETRIEVAL_URL, endpointDef.contentRetrievalUrl).
+            set(ENDPOINTS.SCAN_URL, endpointDef.scanUrl).
+            set(ENDPOINTS.VERSION_GENERATION_URL, endpointDef.versionGenerationUrl).
+            set(ENDPOINTS.INBOUND_URL, endpointDef.inboundUrl).execute()
       }
 
       val endpointId = endpointIdByName(t, endpointDef.name, space)
