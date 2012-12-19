@@ -23,16 +23,15 @@ import org.junit.{After, Before}
  * Common base for a difference test.
  */
 abstract class AbstractEnvironmentTest {
-  def envFactory:(String => TestEnvironment)
+  def envFactory(ident: String): TestEnvironment
 
   /**
    * The environment under test.
    */
-  var env:TestEnvironment = null
+  val env: TestEnvironment = envFactory("pair-" + (new com.eaio.uuid.UUID()).toString)
 
   @Before
   def setup() {
-    env = envFactory("pair-" + (new com.eaio.uuid.UUID()).toString)
     env.clearParticipants()
     env.entityResendTally.clear()
   }
