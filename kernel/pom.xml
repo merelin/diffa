@@ -61,7 +61,7 @@
     </dependency>
     <dependency>
       <groupId>net.lshift.diffa</groupId>
-      <artifactId>diffa-snowflake</artifactId>
+      <artifactId>snowflake</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>

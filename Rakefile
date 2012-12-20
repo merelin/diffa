@@ -43,6 +43,12 @@ task :release => :prepare do
         sh "mvn gpg:sign-and-deploy-file -Dgpg.passphrase=xxxxxxx -Durl=#{url} -DrepositoryId=#{repoId} -DpomFile=pom.xml -Dfile=target/adapter-support-#{@version}-javadoc.jar -Dclassifier=javadoc"
       end
 
+      chdir('snowflake') do
+        sh "mvn gpg:sign-and-deploy-file -Dgpg.passphrase=xxxxxxx -Durl=#{url} -DrepositoryId=#{repoId} -DpomFile=pom.xml -Dfile=target/snowflake-#{@version}.jar"
+        sh "mvn gpg:sign-and-deploy-file -Dgpg.passphrase=xxxxxxx -Durl=#{url} -DrepositoryId=#{repoId} -DpomFile=pom.xml -Dfile=target/snowflake-#{@version}-sources.jar -Dclassifier=sources"
+        sh "mvn gpg:sign-and-deploy-file -Dgpg.passphrase=xxxxxxx -Durl=#{url} -DrepositoryId=#{repoId} -DpomFile=pom.xml -Dfile=target/snowflake-#{@version}-javadoc.jar -Dclassifier=javadoc"
+      end
+
       puts "Deploying release war to s3"
       chdir('agent') do
         sh "mvn deploy -Dmaven.test.skip=true -Djetty.skip=true"
