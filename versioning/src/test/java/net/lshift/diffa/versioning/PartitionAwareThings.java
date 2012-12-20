@@ -4,14 +4,15 @@ import com.jolbox.bonecp.BoneCPDataSource;
 import net.lshift.diffa.sql.PartitionAwareDriver;
 import net.lshift.diffa.sql.PartitionMetadata;
 import org.apache.commons.lang.RandomStringUtils;
+import org.jooq.SQLDialect;
 import org.jooq.impl.*;
 import java.sql.Connection;
 import java.util.*;
 
 public class PartitionAwareThings extends PartitionAwareDriver {
 
-  public PartitionAwareThings(BoneCPDataSource ds, PartitionMetadata config) {
-    super(ds, config);
+  public PartitionAwareThings(BoneCPDataSource ds, PartitionMetadata config, SQLDialect dialect) {
+    super(ds, config, dialect);
   }
 
   public PartitionableThing createRandomThing(Map<String, ?> attributes) {

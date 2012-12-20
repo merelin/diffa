@@ -15,6 +15,7 @@ import org.jboss.resteasy.spi.BadRequestException;
 import org.jboss.resteasy.spi.NotFoundException;
 import org.joda.time.DateTime;
 import org.jooq.DataType;
+import org.jooq.SQLDialect;
 import org.jooq.impl.SQLDataType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -49,7 +50,7 @@ public class InterviewResource {
     DataSource ds = buildDataSource(config);
     PartitionMetadata metadata = buildMetaData(config);
 
-    PartitionAwareDriver driver = new PartitionAwareDriver(ds, metadata, config.getDialect());
+    PartitionAwareDriver driver = new PartitionAwareDriver(ds, metadata, SQLDialect.valueOf(config.getDialect()));
     registerDriver(space, endpoint, driver);
   }
 

@@ -49,7 +49,7 @@ public class PartitionAwareDriver extends AbstractDatabaseAware implements Scann
   }
 
   @Inject
-  public PartitionAwareDriver(DataSource ds, PartitionMetadata config, String dialect) {
+  public PartitionAwareDriver(DataSource ds, PartitionMetadata config, SQLDialect dialect) {
     super(ds, dialect);
     this.config = config;
 

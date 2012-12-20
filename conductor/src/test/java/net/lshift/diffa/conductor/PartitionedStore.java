@@ -3,6 +3,7 @@ package net.lshift.diffa.conductor;
 import net.lshift.diffa.sql.PartitionAwareDriver;
 import net.lshift.diffa.sql.PartitionMetadata;
 import org.apache.commons.lang3.RandomStringUtils;
+import org.jooq.SQLDialect;
 import org.jooq.impl.Factory;
 
 import javax.sql.DataSource;
@@ -11,8 +12,8 @@ import java.util.Map;
 
 public class PartitionedStore extends PartitionAwareDriver {
 
-  public PartitionedStore(DataSource ds, PartitionMetadata config) {
-    super(ds, config);
+  public PartitionedStore(DataSource ds, PartitionMetadata config, SQLDialect dialect) {
+    super(ds, config, dialect);
   }
 
   public PartitionableThing createRandomThing(Map<String, ?> attributes) {

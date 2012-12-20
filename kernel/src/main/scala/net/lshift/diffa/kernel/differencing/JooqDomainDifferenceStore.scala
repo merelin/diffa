@@ -67,7 +67,7 @@ class JooqDomainDifferenceStore(db: DatabaseFacade,
   val nonExistentReportedEvent = InternalReportedDifferenceEvent(seqId = NON_EXISTENT_SEQUENCE_ID)
 
   /**
-   * This is a heuristic that allows the cache to get prefilled if the agent is booted and
+   * This is a heuristic that allows the cache to get pre-filled if the agent is booted and
    * there were persistent pending diffs. The motivation is to reduce cache misses in subsequent calls.
    */
   val prefetchLimit = 1000 // TODO This should be a tuning parameter
@@ -84,7 +84,7 @@ class JooqDomainDifferenceStore(db: DatabaseFacade,
   metadata.withVersion(DIFFS.SEQ_ID.getName, DIFFS.SEQ_ID.getDataType)
   metadata.partitionBy(DIFFS.DETECTED_AT.getName, DIFFS.DETECTED_AT.getDataType)
 
-  val scanDriver = new PartitionAwareDriver(db.dataSource, metadata)
+  val scanDriver = new PartitionAwareDriver(db.dataSource, metadata, db.resolvedDialect)
 
   def reset {
     pendingEvents.evictAll()
