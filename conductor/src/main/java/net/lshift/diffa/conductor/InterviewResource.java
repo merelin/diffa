@@ -49,7 +49,7 @@ public class InterviewResource {
     DataSource ds = buildDataSource(config);
     PartitionMetadata metadata = buildMetaData(config);
 
-    PartitionAwareDriver driver = new PartitionAwareDriver(ds, metadata);
+    PartitionAwareDriver driver = new PartitionAwareDriver(ds, metadata, config.getDialect());
     registerDriver(space, endpoint, driver);
   }
 

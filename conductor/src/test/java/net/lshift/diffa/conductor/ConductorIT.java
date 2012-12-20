@@ -61,6 +61,7 @@ public class ConductorIT {
     conf.setUrl(dbUrl);
     conf.setUsername(username);
     conf.setPassword(password);
+    conf.setDialect("HSQLDB");
 
     DataSource ds = buildDataSource(conf);
 
