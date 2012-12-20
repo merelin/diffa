@@ -19,15 +19,12 @@ package net.lshift.diffa.kernel.escalation
 import org.joda.time.DateTime
 import net.lshift.diffa.kernel.config.EscalationEvent._
 import net.lshift.diffa.kernel.config.EscalationActionType._
-import net.lshift.diffa.kernel.client.{ActionableRequest, ActionsClient}
 import org.slf4j.LoggerFactory
 import net.lshift.diffa.kernel.lifecycle.{NotificationCentre, AgentLifecycleAware}
 import net.lshift.diffa.kernel.differencing._
 import net.lshift.diffa.kernel.reporting.ReportManager
 import net.lshift.diffa.kernel.util.AlertCodes._
 import java.io.Closeable
-import net.lshift.diffa.kernel.actors.AbstractActorSupervisor
-import akka.actor.{ActorSystem, Props, Actor}
 import scala.collection.JavaConversions._
 import java.util.{Timer, TimerTask}
 import net.lshift.diffa.kernel.frontend.EscalationDef
@@ -53,20 +50,18 @@ import net.lshift.diffa.config.ConfigValidationException
 class EscalationManager(val config:DomainConfigStore,
                         val systemConfig:SystemConfigStore,
                         val diffs:DomainDifferenceStore,
-                        val actionsClient:ActionsClient,
                         val reportManager:ReportManager,
-                        val actorSystem: ActorSystem,
                         val breakerHelper: BreakerHelper)
-    extends AbstractActorSupervisor
-    with AgentLifecycleAware
+    extends AgentLifecycleAware
     with PairScanListener
     with Closeable
     with EscalationHandler {
 
   val log = LoggerFactory.getLogger(getClass)
 
-  private class EscalationActor(pair: PairRef) extends Actor {
-    
+  private class EscalationActor(pair: PairRef) {
+
+    /*
     def receive = {
       case Escalate(d:DifferenceEvent)            =>
         if (breakerHelper.isEscalationEnabled(pair, d.nextEscalation)) {
@@ -88,6 +83,7 @@ class EscalationManager(val config:DomainConfigStore,
         log.warn("{} EscalationActor received unexpected message: {}",
           formatAlertCode(pair, SPURIOUS_ACTOR_MESSAGE), other)
     }
+    */
   }
 
   val timer = new Timer()
@@ -95,7 +91,7 @@ class EscalationManager(val config:DomainConfigStore,
   val period = 1
 
   def start() {
-    systemConfig.listPairs.foreach(p => startActor(p.asRef))
+    //systemConfig.listPairs.foreach(p => startActor(p.asRef))
 
     timer.schedule(escalateTask, period * 1000, period * 1000)
   }
@@ -103,16 +99,17 @@ class EscalationManager(val config:DomainConfigStore,
   override def close {
     timer.cancel()
 
-    super.close
+    //super.close
   }
 
   private object EscalationActor {
     def key(pair: PairRef) = "escalations:" + pair.identifier
   }
 
+  /*
   def createPairActor(pair: PairRef) = Some(actorSystem.actorOf(
    Props(new EscalationActor(pair))))
-
+  */
   def initiateEscalation(e: DifferenceEvent) {
     progressDiff(e)
   }
@@ -164,7 +161,7 @@ class EscalationManager(val config:DomainConfigStore,
   }
 
   def escalateDiff(diff:DifferenceEvent) {
-    findActor(diff.objId) ! Escalate(diff)
+    //findActor(diff.objId) ! Escalate(diff)
     progressDiff(diff)
   }
 

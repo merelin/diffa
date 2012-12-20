@@ -16,7 +16,7 @@
 
 package net.lshift.diffa.agent.itest.config
 
-import org.junit.Test
+import org.junit.{Ignore, Test}
 import org.junit.Assert._
 import net.lshift.diffa.agent.itest.support.TestConstants._
 import net.lshift.diffa.client.{RestClientParams, BadRequestException, NotFoundException}
@@ -30,6 +30,7 @@ import net.lshift.diffa.config.RangeCategoryDescriptor
 /**
  * Smoke tests for the scan interface.
  */
+@Ignore
 class ScanningTest extends IsolatedDomainTest {
   val securityClient = new SecurityRestClient(agentURL)
   val configClient = new ConfigurationRestClient(agentURL, isolatedDomain)
