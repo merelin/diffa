@@ -18,8 +18,6 @@ package net.lshift.diffa.sql;
 
 import org.jooq.SQLDialect;
 
-import javax.sql.DataSource;
-
 /**
  */
 public class HsqldbTestSchema extends TestSchema {

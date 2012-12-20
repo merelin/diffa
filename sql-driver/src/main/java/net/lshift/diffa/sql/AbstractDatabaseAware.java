@@ -1,6 +1,5 @@
 package net.lshift.diffa.sql;
 
-import com.jolbox.bonecp.BoneCPDataSource;
 import org.jooq.SQLDialect;
 import org.jooq.impl.Factory;
 

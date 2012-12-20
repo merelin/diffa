@@ -1,13 +1,8 @@
 package net.lshift.diffa.sql;
 
-import com.jolbox.bonecp.BoneCPConfig;
-import com.jolbox.bonecp.BoneCPDataSource;
-import org.apache.commons.lang3.RandomStringUtils;
 import org.jooq.SQLDialect;
-import org.jooq.impl.Factory;
 
 import javax.sql.DataSource;
-import java.sql.SQLException;
 
 public class TestDBProvider {
   public static DataSource getDataSource() {
