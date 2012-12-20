@@ -18,4 +18,4 @@
 
 ## Upgrading
 
-Diffa will automatically upgrade itself to this version from release 1.4 onwards.
+Diffa will automatically upgrade itself to this version from release 1.7 onwards.

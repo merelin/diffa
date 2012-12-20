@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (C) 2010-2012 LShift Ltd.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,14 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package net.lshift.diffa.kernel.naming;
 
+package net.lshift.diffa.schema.migrations;
 
 /**
- * This a is canonical list of names used to identify sequence.
+ * This exception should be thrown when a migration step should not be applied because the version
+ * of the system is incompatible with the step.
  */
-public enum SequenceName {
-  SPACES,
-  EXTENTS,
-  ESCALATION_RULES
+public class UpgradeNotSupportedException extends Exception {
+  public UpgradeNotSupportedException(Integer newVersionId, String newVersionName, Integer oldVersion) {
+    super(String.format("Migration to version %d (%s) is not supported from version %d",
+        newVersionId, newVersionName, oldVersion));
+  }
 }

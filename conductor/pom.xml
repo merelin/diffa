@@ -69,6 +69,12 @@
     </dependency>
 
     <dependency>
+      <groupId>net.lshift.diffa</groupId>
+      <artifactId>diffa-system-configuration-client</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
       <groupId>com.google.inject</groupId>
       <artifactId>guice</artifactId>
       <version>${guice.version}</version>
@@ -232,49 +238,6 @@
         </executions>
 
       </plugin>
-
-      <!--plugin>
-        <groupId>com.googlecode.flyway</groupId>
-        <artifactId>flyway-maven-plugin</artifactId>
-        <version>2.0.3</version>
-
-        <configuration>
-          <driver>org.hsqldb.jdbcDriver</driver>
-          <url>jdbc:hsqldb:hsql://localhost:${hsqldb.port}/${hsqldb.db.name}</url>
-
-          <locations>
-            <location>hsqldb</location>
-          </locations>
-          <sqlMigrationPrefix>M</sqlMigrationPrefix>
-        </configuration>
-        <executions>
-          <execution>
-            <phase>pre-integration-test</phase>
-            <goals>
-              <goal>clean</goal>
-              <goal>migrate</goal>
-            </goals>
-          </execution>
-        </executions>
-      </plugin-->
-
-      <!--plugin>
-        <groupId>org.codehaus.mojo</groupId>
-        <artifactId>exec-maven-plugin</artifactId>
-        <executions>
-          <execution>
-            <id>start-conductor</id>
-            <phase>pre-integration-test</phase>
-            <goals>
-              <goal>java</goal>
-            </goals>
-          </execution>
-        </executions>
-        <configuration>
-          <mainClass>net.lshift.diffa.conductor.ConductorDaemon</mainClass>
-          <classpathScope>test</classpathScope>
-        </configuration>
-      </plugin-->
 
       <plugin>
         <artifactId>maven-surefire-plugin</artifactId>

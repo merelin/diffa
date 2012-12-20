@@ -29,7 +29,7 @@ import scala.Some
 import net.lshift.diffa.kernel.frontend.EndpointDef
 import net.lshift.diffa.kernel.util.MissingObjectException
 import system.PolicyKey
-import net.lshift.diffa.kernel.util.sequence.HazelcastSequenceProvider
+import net.lshift.diffa.kernel.actors.IncrementingIdProvider
 
 class CachedDomainConfigStoreTest {
 
@@ -37,10 +37,9 @@ class CachedDomainConfigStoreTest {
   val ml = createStrictMock(classOf[DomainMembershipAware])
 
   val cp = new HazelcastCacheProvider
-  val sp = new HazelcastSequenceProvider
 
-  val domainConfig = new JooqDomainConfigStore(jooq, cp, sp, ml)
-  
+  val domainConfig = new JooqDomainConfigStore(jooq, cp, IncrementingIdProvider, ml)
+
   val spaceId = System.currentTimeMillis()
 
   @Before

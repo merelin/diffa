@@ -19,14 +19,13 @@ package net.lshift.diffa.kernel.differencing
 import reflect.BeanProperty
 import scala.collection.JavaConversions._
 import org.joda.time.{DateTime, Interval}
-import net.lshift.diffa.kernel.config.{ExternalHttpCredentials, JooqConfigStoreCompanion, PairRef}
+import net.lshift.diffa.kernel.config.{JooqConfigStoreCompanion, PairRef}
 import net.lshift.diffa.kernel.util.cache.{KeyPredicate, CachedMap, CacheProvider}
-import net.lshift.diffa.kernel.util.sequence.SequenceProvider
 import net.lshift.diffa.kernel.util.AlertCodes._
 import net.lshift.diffa.schema.jooq.DatabaseFacade
 import net.lshift.diffa.schema.jooq.DatabaseFacade.{timestampToDateTime, dateTimeToTimestamp}
 import net.lshift.diffa.schema.Tables._
-import net.lshift.diffa.schema.tables.records.{PendingDiffsRecord}
+import net.lshift.diffa.schema.tables.records.PendingDiffsRecord
 import org.jooq.impl.Factory._
 import net.lshift.diffa.kernel.util.MissingObjectException
 import org.jooq.impl.Factory
@@ -34,7 +33,7 @@ import org.slf4j.LoggerFactory
 import org.jooq._
 import java.lang.{Long => LONG}
 import java.sql.Timestamp
-import net.lshift.diffa.kernel.naming.{CacheName, SequenceName}
+import net.lshift.diffa.kernel.naming.CacheName
 import net.lshift.diffa.kernel.events.VersionID
 import net.lshift.diffa.kernel.lifecycle.PairLifecycleAware
 import net.lshift.diffa.adapter.scanning.{ScanResultEntry, ScanAggregation, ScanConstraint}
@@ -42,18 +41,17 @@ import java.io.{BufferedOutputStream, OutputStream}
 import net.lshift.diffa.scanning.{ScanResultHandler, Scannable}
 import java.util
 import net.lshift.diffa.sql.{PartitionMetadata, PartitionAwareDriver}
+import net.lshift.diffa.snowflake.IdProvider
 
 /**
  * Hibernate backed Domain Cache provider.
  */
 class JooqDomainDifferenceStore(db: DatabaseFacade,
                                 cacheProvider:CacheProvider,
-                                sequenceProvider:SequenceProvider)
+                                idProvider: IdProvider)
     extends DomainDifferenceStore with PairLifecycleAware {
 
   val logger = LoggerFactory.getLogger(getClass)
-
-  initializeExistingSequences()
 
   val aggregationCache = new DifferenceAggregationCache(this, cacheProvider)
 
@@ -117,25 +115,31 @@ class JooqDomainDifferenceStore(db: DatabaseFacade,
     db.execute { t =>
       removePendingDifferences(t, pair)
       removeLatestRecordedVersion(t, pair)
+      // TODO investigate potential deadlock - first noticed 2012-12-19
       orphanExtentForPair(t, pair)
     }
 
     extentsByPair.evict(pair)
     preenPendingEventsCache("objId.pair.name", pair.name)
   }
-  
-  def currentSequenceId(space:Long) = sequenceProvider.currentSequenceValue(SequenceName.SPACES).toString
 
-  def maxSequenceId(pair: PairRef, start:DateTime, end:DateTime) = {
+  def currentSequenceId(space:Long) = maxSequenceId(space, null, null, null).toString
+
+  def maxSequenceId(pair: PairRef, start:DateTime, end:DateTime) =
+    maxSequenceId(pair.space, pair.name, start, end)
+
+  private def maxSequenceId(space:Long, pair:String, start:DateTime, end:DateTime) = {
 
     db.execute { t =>
+
       var query = t.select(max(DIFFS.SEQ_ID)).
                     from(DIFFS).
                     join(PAIRS).
                       on(PAIRS.EXTENT.equal(DIFFS.EXTENT)).
-                    where(PAIRS.SPACE.equal(pair.space)).
-                      and(PAIRS.NAME.equal(pair.name))
+                    where(PAIRS.SPACE.equal(space))
 
+      if (pair != null)
+        query = query.and(PAIRS.NAME.equal(pair))
       if (start != null)
         query = query.and(DIFFS.DETECTED_AT.greaterOrEqual(dateTimeToTimestamp(start)))
       if (end != null)
@@ -201,7 +205,7 @@ class JooqDomainDifferenceStore(db: DatabaseFacade,
         try {
 
             removePendingEvent(t, pending)
-            createReportedEvent(t, pending.convertToUnmatched, nextEventSequenceValue)
+            createReportedEvent(t, pending.convertToUnmatched, idProvider.getId)
 
         } catch {
           case e: Exception =>
@@ -605,7 +609,7 @@ class JooqDomainDifferenceStore(db: DatabaseFacade,
   }
 
   private def orphanExtentForPair(t:Factory, pair:PairRef) = {
-    val nextExtent = sequenceProvider.nextSequenceValue(SequenceName.EXTENTS)
+    val nextExtent = idProvider.getId()
 
     t.insertInto(EXTENTS).
         set(EXTENTS.ID, nextExtent:LONG).
@@ -645,50 +649,6 @@ class JooqDomainDifferenceStore(db: DatabaseFacade,
     }
   }
 
-  private def initializeExistingSequences() = db.execute { t =>
-
-    val maxSeqId = t.select(nvl(max(DIFFS.SEQ_ID).asInstanceOf[Field[Any]], 0)).
-                     from(DIFFS).
-                     fetchOne().
-                     getValueAsBigInteger(0).
-                     longValue()
-
-    synchronizeSequence(SequenceName.SPACES, maxSeqId)
-
-    val maxExtentId = t.select(nvl(max(EXTENTS.ID).asInstanceOf[Field[Any]], 0)).
-                        from(EXTENTS).
-                        fetchOne().
-                        getValueAsBigInteger(0).
-                        longValue()
-
-    synchronizeSequence(SequenceName.EXTENTS, maxExtentId)
-
-    t.select(PENDING_DIFFS.SPACE, max(PENDING_DIFFS.SEQ_ID).as("max_seq_id")).
-      from(PENDING_DIFFS).
-      groupBy(PENDING_DIFFS.SPACE).
-      fetch().
-      foreach( (record:Record) => {
-        val space = record.getValue(PENDING_DIFFS.SPACE)
-        val key = pendingEventSequenceKey(space)
-        val persistentValue = record.getValueAsBigInteger("max_seq_id").longValue()
-        val currentValue = sequenceProvider.currentSequenceValue(key)
-        if (persistentValue > currentValue) {
-          sequenceProvider.upgradeSequenceValue(key, currentValue, persistentValue)
-        }
-    })
-  }
-
-  private def synchronizeSequence(sequence:SequenceName, persistentValue:Long) = {
-
-    val currentValue = sequenceProvider.currentSequenceValue(sequence)
-
-    if (persistentValue > currentValue) {
-      sequenceProvider.upgradeSequenceValue(sequence, currentValue, persistentValue)
-    }
-  }
-
-  private def pendingEventSequenceKey(space: Long) = "%s.pending.events".format(space)
-
   private def getPendingEvent(t:Factory, id: VersionID) = {
 
     val query = (f: Factory) =>
@@ -704,7 +664,7 @@ class JooqDomainDifferenceStore(db: DatabaseFacade,
 
     val space = pending.objId.pair.space
     val pair = pending.objId.pair.name
-    val nextSeqId: java.lang.Long = nextPendingEventSequenceValue(space)
+    val nextSeqId: java.lang.Long = idProvider.getId()
 
     t.insertInto(PENDING_DIFFS).
         set(PENDING_DIFFS.SEQ_ID, nextSeqId).
@@ -850,7 +810,7 @@ class JooqDomainDifferenceStore(db: DatabaseFacade,
     }
     else {
 
-      val nextSeqId = nextEventSequenceValue
+      val nextSeqId = idProvider.getId()
 
       try {
         db.execute(t => (NewUnmatchedEvent, createReportedEvent(t, reportableUnmatched, nextSeqId)))
@@ -908,7 +868,7 @@ class JooqDomainDifferenceStore(db: DatabaseFacade,
    */
   private def upgradePreviouslyReportedEvent(t:Factory, reportableUnmatched:InternalReportedDifferenceEvent) = {
 
-    val nextSeqId: java.lang.Long = nextEventSequenceValue
+    val nextSeqId: java.lang.Long = idProvider.getId()
 
     val escalationChanges:Map[Field[_], _] = if (reportableUnmatched.isMatch)
       Map(DIFFS.NEXT_ESCALATION -> null, DIFFS.NEXT_ESCALATION_TIME -> null)
@@ -953,7 +913,7 @@ class JooqDomainDifferenceStore(db: DatabaseFacade,
    */
   private def ignorePreviouslyReportedEvent(event:InternalReportedDifferenceEvent) = {
 
-    val nextSeqId: java.lang.Long = nextEventSequenceValue
+    val nextSeqId: java.lang.Long = idProvider.getId()
 
     db.execute { t =>
       t.update(DIFFS).
@@ -967,9 +927,6 @@ class JooqDomainDifferenceStore(db: DatabaseFacade,
 
     updateSequenceValueAndCache(event, nextSeqId)
   }
-
-  private def nextEventSequenceValue = sequenceProvider.nextSequenceValue(SequenceName.SPACES)
-  private def nextPendingEventSequenceValue(space:Long) = sequenceProvider.nextSequenceValue(pendingEventSequenceKey(space))
 
   private def createReportedEvent(t: Factory, evt:InternalReportedDifferenceEvent, nextSeqId: Long) = {
 

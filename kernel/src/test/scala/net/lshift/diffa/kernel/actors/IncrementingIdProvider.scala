@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (C) 2010-2012 LShift Ltd.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,17 +13,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package net.lshift.diffa.kernel.util.sequence
 
-import net.lshift.diffa.kernel.naming.SequenceName
+package net.lshift.diffa.kernel.actors
 
-trait SequenceProvider {
+import net.lshift.diffa.snowflake.IdProvider
 
-  def nextSequenceValue(name:SequenceName) : Long
-  def currentSequenceValue(name:SequenceName) : Long
-  def upgradeSequenceValue(name:SequenceName, expectation:Long, newValue:Long) : Boolean
-  @Deprecated def nextSequenceValue(name:String) : Long
-  @Deprecated def currentSequenceValue(name:String) : Long
-  @Deprecated def upgradeSequenceValue(name:String, expectation:Long, newValue:Long) : Boolean
+/**
+ * A simple sequentially incrementing ID Provider for single-threaded, single-node testing only.
+ */
+object IncrementingIdProvider extends IdProvider {
+  var next = 0L
 
+  def getId = {
+    next = next + 1
+    next
+  }
 }
