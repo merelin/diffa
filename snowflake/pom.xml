@@ -3,17 +3,52 @@
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
-  <parent>
-    <artifactId>diffa-parent</artifactId>
-    <groupId>net.lshift.diffa</groupId>
-    <version>1.7.0-SNAPSHOT</version>
-  </parent>
 
-  <artifactId>diffa-snowflake</artifactId>
+  <groupId>net.lshift.diffa</groupId>
+  <artifactId>snowflake</artifactId>
+  <version>1.7.0-SNAPSHOT</version>
+
   <name>LShift Diffa Snowflake</name>
   <description>Generator of globally unique 64-bit identifiers</description>
 
   <packaging>jar</packaging>
+
+  <url>http://github.com/lshift/diffa</url>
+
+  <properties>
+    <buildVersion>${project.version}</buildVersion>    <!-- Can be overridden via -D -->
+    <scalatest.version>1.8</scalatest.version>
+    <curator.version>1.2.3</curator.version>
+    <junit.version>4.10</junit.version>
+    <zookeeper.version>3.4.5</zookeeper.version>
+    <zookeeper.url.root>http://www.mirrorservice.org/sites/ftp.apache.org</zookeeper.url.root>
+    <zookeeper.install.dir>/tmp/zookeeper-${zookeeper.version}</zookeeper.install.dir>
+    <zookeeper.exec.bin>bin/zkServer.sh</zookeeper.exec.bin>
+  </properties>
+
+  <licenses>
+    <license>
+      <name>The Apache Software License, Version 2.0</name>
+      <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+      <distribution>repo</distribution>
+    </license>
+  </licenses>
+
+  <scm>
+    <url>https://github.com/lshift/diffa</url>
+    <connection>scm:git:git@github.com:lshift/diffa.git</connection>
+  </scm>
+
+  <developers>
+    <developer>
+      <id>paulj</id>
+      <name>Paul Jones</name>
+    </developer>
+    <developer>
+      <id>0x6e6562</id>
+      <name>Ben Hood</name>
+    </developer>
+  </developers>
 
   <dependencies>
     <dependency>
@@ -31,6 +66,7 @@
     <dependency>
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>
+      <version>${junit.version}</version>
       <scope>test</scope>
     </dependency>
     <dependency>
