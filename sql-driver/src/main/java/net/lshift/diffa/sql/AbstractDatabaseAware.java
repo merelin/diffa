@@ -15,9 +15,9 @@ public class AbstractDatabaseAware {
   protected DataSource ds;
   protected SQLDialect dialect;
 
-  public AbstractDatabaseAware(DataSource ds, SQLDialect dialect) {
+  public AbstractDatabaseAware(DataSource ds, String dialect) {
     this.ds = ds;
-    this.dialect = dialect;
+    this.dialect = SQLDialect.valueOf(dialect);
   }
 
   protected Factory getFactory(Connection c) {
