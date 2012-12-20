@@ -15,7 +15,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.sql.DataSource;
-import java.lang.reflect.ParameterizedType;
 import java.sql.Connection;
 import java.sql.Date;
 import java.util.HashMap;
@@ -36,18 +35,28 @@ public class PartitionAwareDriver extends AbstractDatabaseAware implements Scann
     md5FunctionDefinitions.put(SQLDialect.HSQLDB,
         "create function md5(v varchar(32672)) returns varchar(32) language java deterministic no sql external name 'CLASSPATH:org.apache.commons.codec.digest.DigestUtils.md5Hex'");
     md5FunctionDefinitions.put(SQLDialect.ORACLE,
-        "CREATE OR REPLACE FUNCTION md5 (input_string VARCHAR2) RETURN VARCHAR2 IS BEGIN RETURN dbms_obfuscation_toolkit.md5(input_string => inputString); END;");
+        "create or replace function md5(input_string varchar2) " +
+            "return varchar2 " +
+            "is " +
+            "begin " +
+            "        declare " +
+            "                h_string varchar2(255); " +
+            "        begin " +
+            "                dbms_obfuscation_toolkit.md5(input_string => input_string, checksum_string => h_string); " +
+            "                return lower(rawtohex(utl_raw.cast_to_raw(h_string))); " +
+            "        end; " +
+            "end; ");
   }
 
   @Inject
-  public PartitionAwareDriver(DataSource ds, PartitionMetadata config) {
-    super(ds);
+  public PartitionAwareDriver(DataSource ds, PartitionMetadata config, SQLDialect dialect) {
+    super(ds, dialect);
     this.config = config;
 
     Connection connection = getConnection();
     Factory db = getFactory(connection);
 
-    String functionDefinition = md5DefinitionForDialect(db.getDialect());
+    String functionDefinition = md5DefinitionForDialect(dialect);
 
     try {
 

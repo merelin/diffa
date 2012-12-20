@@ -20,14 +20,7 @@
     <hsqldb.version>2.2.8</hsqldb.version>
     <jooq.version>2.5.1 </jooq.version>
     <bonecp.version>0.7.1.RELEASE</bonecp.version>
-    <flyway.version>2.0</flyway.version>
     <guice.version>3.0</guice.version>
-
-    <jdbcDriverClass>org.hsqldb.jdbc.JDBCDriver</jdbcDriverClass>
-    <jdbcUrl>jdbc:hsqldb:target/temp;hsqldb.lock_file=false</jdbcUrl>
-    <jdbcUser>SA</jdbcUser>
-    <jdbcPass />
-
   </properties>
 
   <dependencies>
@@ -88,14 +81,6 @@
       <artifactId>bonecp</artifactId>
       <version>${bonecp.version}</version>
     </dependency>
-
-    <dependency>
-      <groupId>com.googlecode.flyway</groupId>
-      <artifactId>flyway-core</artifactId>
-      <version>${flyway.version}</version>
-      <scope>test</scope>
-    </dependency>
-
   </dependencies>
 
   <build>
@@ -133,6 +118,69 @@
       </plugin>
     </plugins>
   </build>
+
+  <profiles>
+    <profile>
+      <id>hsqldb</id>
+      <activation>
+        <activeByDefault>true</activeByDefault>
+      </activation>
+      <dependencies>
+        <dependency>
+          <groupId>com.oracle</groupId>
+          <artifactId>ojdbc6</artifactId>
+          <version>11.2.0.1.0</version>
+          <scope>test</scope>
+        </dependency>
+      </dependencies>
+      <build>
+        <plugins>
+          <plugin>
+            <artifactId>maven-failsafe-plugin</artifactId>
+            <version>2.12.4</version>
+            <configuration>
+              <systemPropertyVariables>
+                <jooqDialect>HSQLDB</jooqDialect>
+              </systemPropertyVariables>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+    <profile>
+      <id>oracle</id>
+      <activation>
+        <activeByDefault>false</activeByDefault>
+      </activation>
+      <properties>
+        <jdbcDriverClass>oracle.jdbc.OracleDriver</jdbcDriverClass>
+      </properties>
+      <dependencies>
+        <dependency>
+          <groupId>com.oracle</groupId>
+          <artifactId>ojdbc6</artifactId>
+          <version>11.2.0.1.0</version>
+          <scope>test</scope>
+        </dependency>
+      </dependencies>
+      <build>
+        <plugins>
+          <plugin>
+            <artifactId>maven-failsafe-plugin</artifactId>
+            <version>2.12.4</version>
+            <configuration>
+              <systemPropertyVariables>
+                <jooqDialect>ORACLE</jooqDialect>
+                <jdbcUrl>${diffa.jdbc.url}</jdbcUrl>
+                <jdbcUsername>${diffa.jdbc.sys.username}</jdbcUsername>
+                <jdbcPass>${diffa.jdbc.sys.password}</jdbcPass>
+              </systemPropertyVariables>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
 
 </project>
 

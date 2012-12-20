@@ -19,7 +19,7 @@ import java.util.Set;
 public class SQLDriverIT extends AbstractDatabaseAware {
 
   public SQLDriverIT() {
-    super(TestDBProvider.getHSQLDBDataSource());
+    super(TestDBProvider.getDataSource(), TestDBProvider.getDialect());
   }
 
   @Test
@@ -48,7 +48,7 @@ public class SQLDriverIT extends AbstractDatabaseAware {
              withVersion("VERSION", SQLDataType.VARCHAR).
              partitionBy("ENTRY_DATE", SQLDataType.DATE);
 
-    PartitionAwareDriver driver = new PartitionAwareDriver(ds, metadata);
+    PartitionAwareDriver driver = new PartitionAwareDriver(ds, metadata, TestDBProvider.getDialect());
 
     ScanAggregation dateAggregation = new DateAggregation("some_date", DateGranularityEnum.Yearly);
 

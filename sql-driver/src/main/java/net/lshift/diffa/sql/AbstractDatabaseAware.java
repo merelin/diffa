@@ -14,13 +14,15 @@ import java.sql.SQLException;
 public class AbstractDatabaseAware {
 
   protected DataSource ds;
+  protected SQLDialect dialect;
 
-  public AbstractDatabaseAware(DataSource ds) {
+  public AbstractDatabaseAware(DataSource ds, SQLDialect dialect) {
     this.ds = ds;
+    this.dialect = dialect;
   }
 
   protected Factory getFactory(Connection c) {
-    return new Factory(c, SQLDialect.HSQLDB);
+    return new Factory(c, dialect);
   }
 
   protected void closeConnection(Connection connection) {
