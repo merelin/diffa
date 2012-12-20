@@ -9,6 +9,7 @@ import net.lshift.diffa.sql.PartitionMetadata;
 import net.lshift.diffa.versioning.events.PartitionedEvent;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.joda.time.DateTime;
+import org.jooq.SQLDialect;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -61,6 +62,8 @@ public class ConductorIT {
     conf.setUrl(dbUrl);
     conf.setUsername(username);
     conf.setPassword(password);
+    // TODO add support for databases other than HSQLDB.
+    conf.setDialect("HSQLDB");
 
     DataSource ds = buildDataSource(conf);
 
@@ -73,7 +76,7 @@ public class ConductorIT {
 
 
     PartitionMetadata metadata = buildMetaData(conf);
-    PartitionedStore partitionAwareStore = new PartitionedStore(ds, metadata);
+    PartitionedStore partitionAwareStore = new PartitionedStore(ds, metadata, SQLDialect.valueOf(conf.getDialect()));
 
     String attributeName = "bizDate";
 

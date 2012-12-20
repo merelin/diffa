@@ -11,6 +11,7 @@ public class DriverConfiguration {
   private String url;
   private String username;
   private String password;
+  private String jooqDialect;
 
   public void setTableName(String tableName) {
     this.tableName = tableName;
@@ -44,6 +45,10 @@ public class DriverConfiguration {
     this.password = password;
   }
 
+  public void setDialect(String dialect) {
+    this.jooqDialect = dialect;
+  }
+
   public String getTableName() {
     return tableName;
   }
@@ -74,5 +79,9 @@ public class DriverConfiguration {
 
   public String getPassword() {
     return password;
+  }
+
+  public String getDialect() {
+    return jooqDialect;
   }
 }

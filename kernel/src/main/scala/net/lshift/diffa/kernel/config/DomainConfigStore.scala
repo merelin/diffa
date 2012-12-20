@@ -18,8 +18,7 @@ package net.lshift.diffa.kernel.config
 
 import reflect.BeanProperty
 import scala.collection.JavaConversions._
-import net.lshift.diffa.kernel.frontend._
-import net.lshift.diffa.kernel.util.{EndpointSide, UpstreamEndpoint, DownstreamEndpoint, CategoryUtil}
+import net.lshift.diffa.kernel.util.CategoryUtil
 import net.lshift.diffa.adapter.scanning._
 import java.util.HashMap
 import net.lshift.diffa.config.{ConfigValidationException, CategoryDescriptor, AggregatingCategoryDescriptor}

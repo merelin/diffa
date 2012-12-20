@@ -22,6 +22,7 @@ import org.apache.commons.lang.RandomStringUtils;
 import org.joda.time.DateTime;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
+import org.jooq.SQLDialect;
 import org.jooq.impl.SQLDataType;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -197,9 +198,6 @@ public class CassandraVersionStoreIT {
     BoneCPDataSource ds = null;
 
     try {
-
-      Class.forName("org.hsqldb.jdbcDriver");
-
       BoneCPConfig config = new BoneCPConfig();
       config.setJdbcUrl("jdbc:hsqldb:mem:" + RandomStringUtils.randomAlphabetic(5));
       config.setUsername("sa");
@@ -220,7 +218,8 @@ public class CassandraVersionStoreIT {
          withVersion("VERSION", SQLDataType.VARCHAR).
          partitionBy("ENTRY_DATE", SQLDataType.DATE);
 
-    PartitionAwareThings partitionAwareStore = new PartitionAwareThings(ds, conf);
+    // TODO add support for databases other than HSQLDB.
+    PartitionAwareThings partitionAwareStore = new PartitionAwareThings(ds, conf, SQLDialect.HSQLDB);
 
     String attributeName = "bizDate";
 

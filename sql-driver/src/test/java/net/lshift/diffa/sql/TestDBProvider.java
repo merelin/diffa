@@ -1,35 +1,34 @@
 package net.lshift.diffa.sql;
 
-import com.googlecode.flyway.core.Flyway;
-import com.jolbox.bonecp.BoneCPConfig;
-import com.jolbox.bonecp.BoneCPDataSource;
-import org.apache.commons.lang3.RandomStringUtils;
+import org.jooq.SQLDialect;
 
 import javax.sql.DataSource;
 
 public class TestDBProvider {
-
-  static {
+  public static DataSource getDataSource() {
+    TestSchema schema = getSchema(
+        getDialect(),
+        System.getProperty("jdbcUsername"),
+        System.getProperty("jdbcPass"),
+        System.getProperty("jdbcUrl"));
     try {
-      Class.forName("org.hsqldb.jdbcDriver");
-    } catch (ClassNotFoundException e) {
-      throw new RuntimeException(e);
+      schema.create();
+      schema.migrate();
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
+
+    return schema.getDataSource();
+  }
+
+  private static TestSchema getSchema(SQLDialect dialect, String username, String password, String jdbcUrl) {
+    switch (dialect) {
+      case ORACLE: return new OracleTestSchema(username, password, jdbcUrl);
+      default: return new HsqldbTestSchema();
     }
   }
 
-  public static DataSource getHSQLDBDataSource() {
-
-    BoneCPConfig config = new BoneCPConfig();
-    config.setJdbcUrl("jdbc:hsqldb:mem:" + RandomStringUtils.randomAlphabetic(5));
-    config.setUsername("sa");
-    config.setPassword("");
-
-    BoneCPDataSource ds = new BoneCPDataSource(config);
-
-    Flyway flyway = new Flyway();
-    flyway.setDataSource(ds);
-    flyway.setLocations("hsqldb");
-    flyway.migrate();
-    return ds;
+  public static SQLDialect getDialect() {
+    return SQLDialect.valueOf(System.getProperty("jooqDialect", "HSQLDB"));
   }
 }

@@ -10,7 +10,7 @@ import org.jooq.impl.TableImpl;
 public class DynamicTable extends TableImpl {
 
   public DynamicTable(String name) {
-    super(name, new SchemaImpl("PUBLIC") {});
+    super(name);
   }
 
   /**
