@@ -1,4 +1,4 @@
-package net.lshift.diffa.conductor;
+package net.lshift.diffa.conductor.integration;
 
 import com.google.common.base.Function;
 import com.google.common.collect.Maps;

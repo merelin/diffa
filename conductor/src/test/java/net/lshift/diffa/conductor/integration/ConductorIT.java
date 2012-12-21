@@ -1,7 +1,8 @@
-package net.lshift.diffa.conductor;
+package net.lshift.diffa.conductor.integration;
 
 import com.google.common.collect.ImmutableMap;
 import com.googlecode.flyway.core.Flyway;
+import net.lshift.diffa.conductor.*;
 import net.lshift.diffa.events.ChangeEvent;
 import net.lshift.diffa.railyard.RailYard;
 import net.lshift.diffa.railyard.RailYardClient;
