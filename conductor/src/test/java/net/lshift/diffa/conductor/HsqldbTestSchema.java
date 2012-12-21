@@ -16,6 +16,7 @@
 
 package net.lshift.diffa.conductor;
 
+import org.apache.commons.lang.RandomStringUtils;
 import org.jooq.SQLDialect;
 
 /**
@@ -24,7 +25,11 @@ public class HsqldbTestSchema extends TestSchema {
   private final String jdbcUrl;
 
   public HsqldbTestSchema(String jdbcUrl) {
-    this.jdbcUrl = jdbcUrl;
+    if (jdbcUrl == null) {
+      this.jdbcUrl = "jdbc:hsqldb:mem:" + RandomStringUtils.randomAlphabetic(5);
+    } else {
+      this.jdbcUrl = jdbcUrl;
+    }
   }
 
   @Override
