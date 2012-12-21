@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package net.lshift.diffa.conductor;
+package net.lshift.diffa.dbapp;
 
 import com.jolbox.bonecp.BoneCPConfig;
 import com.jolbox.bonecp.BoneCPDataSource;
@@ -63,6 +63,6 @@ public abstract class TestSchema {
   protected abstract String tableOfThingsDDL();
   protected abstract String md5FunctionDDL();
 
-  protected abstract String dbUsername();
-  protected abstract String dbPassword();
+  public abstract String dbUsername();
+  public abstract String dbPassword();
 }

@@ -1,6 +1,8 @@
 package net.lshift.diffa.conductor;
 
 import com.google.common.collect.ImmutableMap;
+import net.lshift.diffa.dbapp.TestDBProvider;
+import net.lshift.diffa.dbapp.TestSchema;
 import net.lshift.diffa.events.ChangeEvent;
 import net.lshift.diffa.railyard.RailYard;
 import net.lshift.diffa.railyard.RailYardClient;

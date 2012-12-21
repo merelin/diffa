@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package net.lshift.diffa.sql;
+package net.lshift.diffa.dbapp;
 
 import com.jolbox.bonecp.BoneCPConfig;
 import com.jolbox.bonecp.BoneCPDataSource;
@@ -74,12 +74,12 @@ public class OracleTestSchema extends TestSchema {
 
   private final String username = "SQLDRV" + RandomStringUtils.randomAlphabetic(5);
   @Override
-  protected String dbUsername() {
+  public String dbUsername() {
     return username;
   }
 
   @Override
-  protected String dbPassword() {
+  public String dbPassword() {
     return "sqldriverit";
   }
 

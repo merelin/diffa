@@ -75,6 +75,13 @@
     </dependency>
 
     <dependency>
+      <groupId>net.lshift.diffa</groupId>
+      <artifactId>diffa-db-testapp</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
       <groupId>com.google.inject</groupId>
       <artifactId>guice</artifactId>
       <version>${guice.version}</version>

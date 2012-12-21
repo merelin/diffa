@@ -3,6 +3,7 @@ package net.lshift.diffa.sql;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import net.lshift.diffa.adapter.scanning.*;
+import net.lshift.diffa.dbapp.TestDBProvider;
 import net.lshift.diffa.scanning.plumbing.BufferingScanResultHandler;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.joda.time.DateTime;

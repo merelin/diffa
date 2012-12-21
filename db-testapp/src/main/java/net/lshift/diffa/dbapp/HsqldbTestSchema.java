@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package net.lshift.diffa.sql;
+package net.lshift.diffa.dbapp;
 
 import org.apache.commons.lang3.RandomStringUtils;
 import org.jooq.SQLDialect;
@@ -60,12 +60,12 @@ public class HsqldbTestSchema extends TestSchema {
   }
 
   @Override
-  protected String dbUsername() {
+  public String dbUsername() {
     return "sa";
   }
 
   @Override
-  protected String dbPassword() {
+  public String dbPassword() {
     return "";
   }
 }
