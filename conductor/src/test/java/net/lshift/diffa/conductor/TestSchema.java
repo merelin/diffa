@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package net.lshift.diffa.sql;
+package net.lshift.diffa.conductor;
 
 import com.jolbox.bonecp.BoneCPConfig;
 import com.jolbox.bonecp.BoneCPDataSource;

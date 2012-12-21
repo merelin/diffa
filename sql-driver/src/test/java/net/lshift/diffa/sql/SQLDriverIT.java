@@ -17,9 +17,8 @@ import java.util.LinkedHashSet;
 import java.util.Set;
 
 public class SQLDriverIT extends AbstractDatabaseAware {
-
   public SQLDriverIT() {
-    super(TestDBProvider.getDataSource(), TestDBProvider.getDialect());
+    super(TestDBProvider.createSchema().getDataSource(), TestDBProvider.getDialect());
   }
 
   @Test
