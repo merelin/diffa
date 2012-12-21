@@ -152,9 +152,6 @@
       <activation>
         <activeByDefault>false</activeByDefault>
       </activation>
-      <properties>
-        <jdbcDriverClass>oracle.jdbc.OracleDriver</jdbcDriverClass>
-      </properties>
       <dependencies>
         <dependency>
           <groupId>com.oracle</groupId>
