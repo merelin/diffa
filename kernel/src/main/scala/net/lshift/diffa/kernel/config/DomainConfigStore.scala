@@ -18,7 +18,6 @@ package net.lshift.diffa.kernel.config
 
 import reflect.BeanProperty
 import scala.collection.JavaConversions._
-import net.lshift.diffa.kernel.differencing.AttributesUtil
 import net.lshift.diffa.kernel.util.CategoryUtil
 import net.lshift.diffa.adapter.scanning._
 import java.util.HashMap
@@ -152,10 +151,12 @@ case class Endpoint(
    * static schema bound keys because the static attributes
    * are not transmitted over the wire.
    */
-  def schematize(runtimeValues:Map[String, String]) = AttributesUtil.toTypedMap(categories.toMap, runtimeValues)
+  //def schematize(runtimeValues:Map[String, String]) = AttributesUtil.toTypedMap(categories.toMap, runtimeValues)
 
+  /*
   def initialBucketing(view:Option[String]) =
     CategoryUtil.initialBucketingFor(CategoryUtil.fuseViewCategories(categories.toMap, views, view))
+  */
 
   /**
    * Returns a structured group of constraints for the current endpoint that is appropriate for transmission

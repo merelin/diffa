@@ -1,4 +1,4 @@
-package net.lshift.diffa.versioning;
+package net.lshift.diffa.versioning.integration;
 
 import com.google.common.base.Function;
 import com.google.common.collect.Maps;

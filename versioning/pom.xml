@@ -15,15 +15,6 @@
 
   <properties>
     <buildVersion>${project.version}</buildVersion>    <!-- Can be overridden via -D -->
-    <!--<avro.version>1.7.2</avro.version>-->
-
-
-
-    <jdbcDriverClass>org.hsqldb.jdbc.JDBCDriver</jdbcDriverClass>
-    <jdbcUrl>jdbc:hsqldb:target/temp;hsqldb.lock_file=false</jdbcUrl>
-    <jdbcUser>SA</jdbcUser>
-    <jdbcPass />
-
   </properties>
 
   <dependencies>
@@ -37,24 +28,6 @@
     <dependency>
       <groupId>net.lshift.diffa</groupId>
       <artifactId>adapter-support</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-
-    <dependency>
-      <groupId>net.lshift.diffa</groupId>
-      <artifactId>scanning-support</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-
-    <dependency>
-      <groupId>net.lshift.diffa</groupId>
-      <artifactId>diffa-configuration</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-
-    <dependency>
-      <groupId>net.lshift.diffa</groupId>
-      <artifactId>sql-driver</artifactId>
       <version>${project.version}</version>
     </dependency>
 
@@ -74,15 +47,9 @@
     </dependency>
 
     <dependency>
-      <groupId>net.lshift.diffa</groupId>
-      <artifactId>adapter-support</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-
-    <dependency>
       <groupId>org.xerial.snappy</groupId>
       <artifactId>snappy-java</artifactId>
-      <version>1.0.5-M3</version>
+      <scope>provided</scope>
     </dependency>
 
     <dependency>
@@ -91,34 +58,36 @@
     </dependency>
 
     <dependency>
+      <groupId>net.lshift.diffa</groupId>
+      <artifactId>sql-driver</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>
       <scope>test</scope>
     </dependency>
 
-    <!-- Try to make this stuff in the test scope -->
-
     <dependency>
       <groupId>org.hsqldb</groupId>
       <artifactId>hsqldb</artifactId>
+      <scope>test</scope>
     </dependency>
 
     <dependency>
       <groupId>org.jooq</groupId>
       <artifactId>jooq</artifactId>
+      <scope>test</scope>
     </dependency>
 
     <dependency>
       <groupId>com.jolbox</groupId>
       <artifactId>bonecp</artifactId>
       <version>${bonecp.version}</version>
-    </dependency>
-
-    <!--dependency>
-      <groupId>org.springframework</groupId>
-      <artifactId>spring-jdbc</artifactId>
       <scope>test</scope>
-    </dependency-->
+    </dependency>
 
     <dependency>
       <groupId>com.googlecode.flyway</groupId>
@@ -131,42 +100,6 @@
 
   <build>
     <plugins>
-
-      <!--plugin>
-        <groupId>org.mortbay.jetty</groupId>
-        <artifactId>jetty-maven-plugin</artifactId>
-        <dependencies>
-          <dependency>
-            <groupId>net.lshift.diffa</groupId>
-            <artifactId>diffa-agent</artifactId>
-            <version>${project.version}</version>
-            <type>war</type>
-          </dependency>
-        </dependencies>
-        <configuration>
-          <webApp>${basedir}/../agent/target/diffa-agent-b${project.version}.war</webApp>
-        </configuration>
-        <executions>
-          <execution>
-            <id>start-jetty</id>
-            <phase>pre-integration-test</phase>
-            <goals>
-              <goal>run-war</goal>
-            </goals>
-            <configuration>
-              <scanIntervalSeconds>0</scanIntervalSeconds>
-              <daemon>true</daemon>
-            </configuration>
-          </execution>
-          <execution>
-            <id>stop-jetty</id>
-            <phase>post-integration-test</phase>
-            <goals>
-              <goal>stop</goal>
-            </goals>
-          </execution>
-        </executions>
-      </plugin-->
 
       <plugin>
         <groupId>org.codehaus.mojo</groupId>
@@ -191,6 +124,7 @@
         <configuration>
           <loadAfterFirstStart>false</loadAfterFirstStart>
           <rpcAddress>0.0.0.0</rpcAddress>
+          <script>src/main/cassandra/cli/load.script</script>
         </configuration>
         <executions>
           <execution>
@@ -212,6 +146,7 @@
           </execution>
         </executions>
       </plugin>
+
       <plugin>
         <artifactId>maven-surefire-plugin</artifactId>
         <version>2.12.4</version>
@@ -222,6 +157,7 @@
           </excludes>
         </configuration>
       </plugin>
+
       <plugin>
         <artifactId>maven-failsafe-plugin</artifactId>
         <version>2.12.4</version>
@@ -234,6 +170,7 @@
           </execution>
         </executions>
       </plugin>
+
     </plugins>
   </build>
 

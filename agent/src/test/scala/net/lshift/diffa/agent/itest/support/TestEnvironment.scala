@@ -16,12 +16,10 @@
 
 package net.lshift.diffa.agent.itest.support
 
-import net.lshift.diffa.kernel.participants.{UpstreamMemoryParticipant, DownstreamMemoryParticipant, UpstreamParticipant, DownstreamParticipant}
 import net.lshift.diffa.kernel.client._
 import net.lshift.diffa.kernel.util.Placeholders
 import org.joda.time.DateTime
 import scala.collection.JavaConversions._
-import net.lshift.diffa.kernel.differencing.AttributesUtil
 import net.lshift.diffa.agent.itest.support.TestConstants._
 import org.restlet.data.Protocol
 import org.restlet.routing.Router
@@ -89,6 +87,7 @@ class TestEnvironment(val pairKey: String,
   // Participants
   val upstreamEpName = pairKey + "-us"
   val downstreamEpName = pairKey + "-ds"
+  /*
   val upstream = new UpstreamMemoryParticipant(versionScheme.upstreamVersionGen) {
     var queryResponseDelay = 0
 
@@ -100,14 +99,14 @@ class TestEnvironment(val pairKey: String,
     }
   }
   val downstream = new DownstreamMemoryParticipant(versionScheme.upstreamVersionGen, versionScheme.downstreamVersionGen)
-
+  */
   // Clients
   lazy val upstreamChangesClient:ChangesClient = changesClientBuilder(this, upstreamEpName)
   lazy val downstreamChangesClient:ChangesClient = changesClientBuilder(this, downstreamEpName)
 
   lazy val configurationClient:ConfigurationRestClient = TestEnvironment.configurationClient
   lazy val diffClient:DifferencesRestClient = TestEnvironment.diffClient
-  lazy val actionsClient:ActionsRestClient = TestEnvironment.actionsClient
+  //lazy val actionsClient:ActionsRestClient = TestEnvironment.actionsClient
   lazy val escalationsClient:EscalationsRestClient = TestEnvironment.escalationsClient
   lazy val usersClient:SecurityRestClient = TestEnvironment.usersClient
   lazy val scanningClient:ScanningRestClient = TestEnvironment.scanningClient
@@ -133,8 +132,8 @@ class TestEnvironment(val pairKey: String,
   val views = Seq(EndpointViewDef(name = "tt-only", categories = Map("someString" -> new SetCategoryDescriptor(Set("tt")))))
 
   // Participants' RPC server setup
-  participants.startUpstreamServer(upstream, upstream)
-  participants.startDownstreamServer(downstream, downstream, downstream)
+  //participants.startUpstreamServer(upstream, upstream)
+  //participants.startDownstreamServer(downstream, downstream, downstream)
 
   // Ensure that the configuration exists
   systemConfig.declareDomain(domain)
@@ -177,8 +176,8 @@ class TestEnvironment(val pairKey: String,
    * Requests that the environment remove all stored state from the participants.
    */
   def clearParticipants() {
-    upstream.clearEntities
-    downstream.clearEntities
+    //upstream.clearEntities
+    //downstream.clearEntities
   }
 
   // TODO: remove this when limiting can be configured via REST
@@ -201,7 +200,7 @@ class TestEnvironment(val pairKey: String,
     pauseToAvoidRateLimitingFailure()
     val attributes = pack(someDate = someDate, someString = someString)
 
-    upstream.addEntity(id, someDate, someString, Placeholders.dummyLastUpdated, content)
+    //upstream.addEntity(id, someDate, someString, Placeholders.dummyLastUpdated, content)
     upstreamChangesClient.onChangeEvent(ChangeEvent.forChange(id, versionForUpstream(content), Placeholders.dummyLastUpdated, attributes))
   }
 
@@ -209,7 +208,7 @@ class TestEnvironment(val pairKey: String,
     pauseToAvoidRateLimitingFailure()
     val attributes = pack(someDate = someDate, someString = someString)
 
-    downstream.addEntity(id, someDate, someString, Placeholders.dummyLastUpdated, content)
+    //downstream.addEntity(id, someDate, someString, Placeholders.dummyLastUpdated, content)
     versionScheme match {
       case SameVersionScheme =>
         downstreamChangesClient.onChangeEvent(ChangeEvent.forChange(id, versionForDownstream(content), Placeholders.dummyLastUpdated, attributes))
@@ -235,7 +234,7 @@ object TestEnvironment {
   // Clients
   lazy val configurationClient:ConfigurationRestClient = new ConfigurationRestClient(serverRoot, domain.name)
   lazy val diffClient:DifferencesRestClient = new DifferencesRestClient(serverRoot, domain.name)
-  lazy val actionsClient:ActionsRestClient = new ActionsRestClient(serverRoot, domain.name)
+  //lazy val actionsClient:ActionsRestClient = new ActionsRestClient(serverRoot, domain.name)
   lazy val escalationsClient:EscalationsRestClient = new EscalationsRestClient(serverRoot, domain.name)
   lazy val usersClient:SecurityRestClient = new SecurityRestClient(serverRoot)
   lazy val scanningClient:ScanningRestClient = new ScanningRestClient(serverRoot, domain.name)

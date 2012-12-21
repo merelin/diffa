@@ -1,4 +1,4 @@
-package net.lshift.diffa.versioning;
+package net.lshift.diffa.versioning.integration;
 
 import net.lshift.diffa.versioning.events.PartitionedEvent;
 
