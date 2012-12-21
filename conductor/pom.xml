@@ -160,7 +160,7 @@
         <configuration>
           <loadAfterFirstStart>false</loadAfterFirstStart>
           <rpcAddress>0.0.0.0</rpcAddress>
-          <script>${basedir}/../versioning/src/cassandra/cli/load.script</script>
+          <script>../versioning/src/main/cassandra/cli/load.script</script>
         </configuration>
         <executions>
           <execution>
