@@ -1,5 +1,7 @@
 package net.lshift.diffa.scanning.http;
 
+import com.google.inject.Inject;
+import com.google.inject.name.Named;
 import com.ning.http.client.*;
 import net.lshift.diffa.adapter.scanning.ScanAggregation;
 import net.lshift.diffa.adapter.scanning.ScanConstraint;
@@ -23,6 +25,12 @@ public class HttpDriver implements Scannable {
   private String url;
   private Realm realm;
 
+  @Inject
+  public HttpDriver(@Named("scan.url") String url) {
+    this.url = url;
+  }
+  /*
+  @Inject
   public HttpDriver(String url, String user, String password) {
     this.url = url;
     this.realm = new Realm.RealmBuilder()
@@ -32,6 +40,7 @@ public class HttpDriver implements Scannable {
                           .setScheme(Realm.AuthScheme.BASIC)
                           .build();
   }
+  */
 
   @Override
   public void scan(Set<ScanConstraint> constraints, Set<ScanAggregation> aggregations, int maxSliceSize, final ScanResultHandler scanResultHandler) {
@@ -112,10 +121,14 @@ public class HttpDriver implements Scannable {
     };
 
     try {
-      client.prepareRequest(req).
-             setRealm(realm).
-             execute(asyncHandler).
-             get();
+
+      AsyncHttpClient.BoundRequestBuilder builder = client.prepareRequest(req);
+
+      if (realm != null) {
+        builder = builder.setRealm(realm);
+      }
+
+      builder.execute(asyncHandler).get();
 
     } catch (Exception e) {
       throw new RuntimeException(e);
