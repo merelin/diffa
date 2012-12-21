@@ -1,4 +1,4 @@
-package net.lshift.diffa.versioning;
+package net.lshift.diffa.versioning.integration;
 
 import com.jolbox.bonecp.BoneCPDataSource;
 import net.lshift.diffa.sql.PartitionAwareDriver;

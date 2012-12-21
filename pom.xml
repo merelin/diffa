@@ -88,6 +88,7 @@
     <zookeeper.version>3.4.5</zookeeper.version>
     <mokito.version>1.9.5</mokito.version>
     <scalatest.version>1.8</scalatest.version>
+    <snappy.version>1.0.5-M3</snappy.version>
   </properties>
 
   <scm>
@@ -233,6 +234,11 @@
       <groupId>net.sf.jopt-simple</groupId>
       <artifactId>jopt-simple</artifactId>
       <version>${jopt.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.xerial.snappy</groupId>
+      <artifactId>snappy-java</artifactId>
+      <version>${snappy.version}</version>
     </dependency>
     <dependency>
       <groupId>cglib</groupId>

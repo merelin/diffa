@@ -15,15 +15,6 @@
 
   <properties>
     <buildVersion>${project.version}</buildVersion>    <!-- Can be overridden via -D -->
-    <!--<avro.version>1.7.2</avro.version>-->
-
-
-
-    <jdbcDriverClass>org.hsqldb.jdbc.JDBCDriver</jdbcDriverClass>
-    <jdbcUrl>jdbc:hsqldb:target/temp;hsqldb.lock_file=false</jdbcUrl>
-    <jdbcUser>SA</jdbcUser>
-    <jdbcPass />
-
   </properties>
 
   <dependencies>
@@ -37,24 +28,6 @@
     <dependency>
       <groupId>net.lshift.diffa</groupId>
       <artifactId>adapter-support</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-
-    <dependency>
-      <groupId>net.lshift.diffa</groupId>
-      <artifactId>scanning-support</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-
-    <dependency>
-      <groupId>net.lshift.diffa</groupId>
-      <artifactId>diffa-configuration</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-
-    <dependency>
-      <groupId>net.lshift.diffa</groupId>
-      <artifactId>sql-driver</artifactId>
       <version>${project.version}</version>
     </dependency>
 
@@ -74,15 +47,9 @@
     </dependency>
 
     <dependency>
-      <groupId>net.lshift.diffa</groupId>
-      <artifactId>adapter-support</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-
-    <dependency>
       <groupId>org.xerial.snappy</groupId>
       <artifactId>snappy-java</artifactId>
-      <version>1.0.5-M3</version>
+      <scope>provided</scope>
     </dependency>
 
     <dependency>
@@ -91,27 +58,35 @@
     </dependency>
 
     <dependency>
+      <groupId>net.lshift.diffa</groupId>
+      <artifactId>sql-driver</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>
       <scope>test</scope>
     </dependency>
 
-    <!-- Try to make this stuff in the test scope -->
-
     <dependency>
       <groupId>org.hsqldb</groupId>
       <artifactId>hsqldb</artifactId>
+      <scope>test</scope>
     </dependency>
 
     <dependency>
       <groupId>org.jooq</groupId>
       <artifactId>jooq</artifactId>
+      <scope>test</scope>
     </dependency>
 
     <dependency>
       <groupId>com.jolbox</groupId>
       <artifactId>bonecp</artifactId>
       <version>${bonecp.version}</version>
+      <scope>test</scope>
     </dependency>
 
     <dependency>
