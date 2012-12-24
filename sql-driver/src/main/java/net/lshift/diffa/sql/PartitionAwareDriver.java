@@ -5,7 +5,9 @@ import com.google.inject.Inject;
 import net.lshift.diffa.adapter.scanning.ScanAggregation;
 import net.lshift.diffa.adapter.scanning.ScanConstraint;
 import net.lshift.diffa.adapter.scanning.ScanResultEntry;
-import net.lshift.diffa.scanning.ScanResultHandler;
+import net.lshift.diffa.interview.GroupedAnswer;
+import net.lshift.diffa.interview.SimpleGroupedAnswer;
+import net.lshift.diffa.scanning.PruningHandler;
 import net.lshift.diffa.scanning.Scannable;
 import org.joda.time.DateTime;
 import org.jooq.*;
@@ -84,7 +86,7 @@ public class PartitionAwareDriver extends AbstractDatabaseAware implements Scann
   }
 
   @Override
-  public void scan(Set<ScanConstraint> constraints, Set<ScanAggregation> aggregations, int maxSliceSize, ScanResultHandler handler) {
+  public void scan(Set<ScanConstraint> constraints, Set<ScanAggregation> aggregations, int maxSliceSize, PruningHandler handler) {
 
     Connection connection = getConnection();
     Factory db = getFactory(connection);
@@ -177,12 +179,10 @@ public class PartitionAwareDriver extends AbstractDatabaseAware implements Scann
       DateTime date = new DateTime(sqlDate.getTime());
       String dateComponent = date.getYear() + "";
 
-      // TODO This attribute is horribly hard coded
-
-      Map<String,String> partition = ImmutableMap.of("bizDate", dateComponent);
       String digestValue = record.getValueAsString(digest);
-      ScanResultEntry entry = ScanResultEntry.forAggregate(digestValue, partition);
-      handler.onEntry(entry);
+
+      GroupedAnswer answer = new SimpleGroupedAnswer(dateComponent, digestValue);
+      handler.onPrune(answer);
 
     }
 

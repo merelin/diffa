@@ -34,7 +34,7 @@ import collection.mutable.ListBuffer
 import scala.collection.JavaConversions._
 import net.lshift.diffa.kernel.frontend.{RepairActionDef, EscalationDef, EndpointDef, PairDef}
 import org.apache.commons.lang.RandomStringUtils
-import net.lshift.diffa.scanning.plumbing.BufferingScanResultHandler
+import net.lshift.diffa.scanning.plumbing.BufferedPruningHandler
 
 
 /**
@@ -790,10 +790,10 @@ class JooqDomainDifferenceStoreTest {
     val timestamp = new DateTime()
     domainDiffStore.addReportableUnmatchedEvent(VersionID(PairRef("pair1", space.id), "id1"), timestamp, "uV", "dV", timestamp)
 
-    val handler = new BufferingScanResultHandler()
+    val handler = new BufferedPruningHandler()
     domainDiffStore.scan(null,null,100, handler)
 
-    assertFalse(handler.getEntries.isEmpty)
+    assertFalse(handler.getAnswers.isEmpty)
 
   }
 

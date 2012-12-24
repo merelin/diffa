@@ -1,4 +1,4 @@
-package net.lshift.diffa.railyard;
+package net.lshift.diffa.interview;
 
 import net.lshift.diffa.adapter.scanning.ScanAggregation;
 import net.lshift.diffa.adapter.scanning.ScanConstraint;
@@ -10,6 +10,10 @@ public class SimpleQuestion implements Question {
   private Set<ScanConstraint> constraints;
   private Set<ScanAggregation> aggregations;
   private int maxSliceSize = 100;
+
+  public SimpleQuestion() {
+
+  }
 
   public SimpleQuestion(Set<ScanConstraint> constraints, Set<ScanAggregation> aggregations) {
     this.aggregations = aggregations;

@@ -3,10 +3,12 @@ package net.lshift.diffa.railyard;
 import com.google.inject.Inject;
 import net.lshift.diffa.adapter.scanning.*;
 import net.lshift.diffa.config.CategoryDescriptor;
+import net.lshift.diffa.interview.NoFurtherQuestions;
+import net.lshift.diffa.interview.Question;
 import net.lshift.diffa.railyard.questions.QuestionBuilder;
 import net.lshift.diffa.railyard.plumbing.RestEasyRequestWrapper;
 import net.lshift.diffa.scanning.Scannable;
-import net.lshift.diffa.scanning.plumbing.BufferingScanResultHandler;
+import net.lshift.diffa.scanning.plumbing.BufferedPruningHandler;
 import net.lshift.diffa.system.Endpoint;
 import net.lshift.diffa.system.SystemConfiguration;
 import net.lshift.diffa.versioning.VersionStore;
@@ -14,6 +16,7 @@ import org.jboss.resteasy.spi.HttpRequest;
 import javax.ws.rs.*;
 import javax.ws.rs.core.Context;
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -60,12 +63,9 @@ public class InterviewResource {
     Set<ScanAggregation> aggregates = aggregationBuilder.toSet();
     int maxSliceSize = sliceSizeParser.getMaxSliceSize();
 
-    BufferingScanResultHandler handler = new BufferingScanResultHandler();
-
+    BufferedPruningHandler handler = new BufferedPruningHandler();
     diffsStore.scan(constraints, aggregates, maxSliceSize, handler);
 
-    //versionStore.continueInterview()
-
-    return new NoFurtherQuestions();
+    return versionStore.continueInterview(endpoint.getId(), constraints, aggregates, handler.getAnswers());
   }
 }

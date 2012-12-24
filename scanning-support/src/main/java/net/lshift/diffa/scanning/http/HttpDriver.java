@@ -5,8 +5,10 @@ import com.google.inject.name.Named;
 import com.ning.http.client.*;
 import net.lshift.diffa.adapter.scanning.ScanAggregation;
 import net.lshift.diffa.adapter.scanning.ScanConstraint;
-import net.lshift.diffa.adapter.scanning.ScanResultEntry;
-import net.lshift.diffa.scanning.ScanResultHandler;
+import net.lshift.diffa.interview.Answer;
+import net.lshift.diffa.interview.SerializableGroupedAnswer;
+import net.lshift.diffa.interview.SimpleGroupedAnswer;
+import net.lshift.diffa.scanning.PruningHandler;
 import net.lshift.diffa.scanning.Scannable;
 import org.apache.avro.io.DatumReader;
 import org.apache.avro.io.Decoder;
@@ -43,7 +45,7 @@ public class HttpDriver implements Scannable {
   */
 
   @Override
-  public void scan(Set<ScanConstraint> constraints, Set<ScanAggregation> aggregations, int maxSliceSize, final ScanResultHandler scanResultHandler) {
+  public void scan(Set<ScanConstraint> constraints, Set<ScanAggregation> aggregations, int maxSliceSize, final PruningHandler pruningHandler) {
 
     FluentStringsMap queryParams = ScanRequestEncoder.packRequest(constraints, aggregations, maxSliceSize);
 
@@ -52,7 +54,7 @@ public class HttpDriver implements Scannable {
                                 setQueryParameters(queryParams).
                                 build();
 
-    final DatumReader<net.lshift.diffa.adapter.avro.ScanResultEntry> reader = new SpecificDatumReader<net.lshift.diffa.adapter.avro.ScanResultEntry>(net.lshift.diffa.adapter.avro.ScanResultEntry.class);
+    final DatumReader<SerializableGroupedAnswer> reader = new SpecificDatumReader<SerializableGroupedAnswer>(SerializableGroupedAnswer.class);
 
     AsyncHandler<Response> asyncHandler = new AsyncHandler<Response>() {
 
@@ -71,32 +73,16 @@ public class HttpDriver implements Scannable {
         while (true) {
           try {
 
-            net.lshift.diffa.adapter.avro.ScanResultEntry entry = reader.read(null, decoder);
-            ScanResultEntry e = new ScanResultEntry();
+            SerializableGroupedAnswer answer = reader.read(null, decoder);
+            pruningHandler.onPrune(new SimpleGroupedAnswer(answer));
 
-            if (entry.getId() != null) {
-              e.setId(entry.getId().toString());
-            }
-            if (entry.getVersion() != null) {
-              e.setVersion(entry.getVersion().toString());
-            }
-            if (entry.getLastUpdated() != null) {
-              e.setLastUpdated(new DateTime(entry.getLastUpdated()));
-            }
-            if (entry.getAttributes() != null) {
-              Map<String,String> tmp = new HashMap<String, String>();
-              for (Map.Entry<CharSequence,CharSequence> me : entry.getAttributes().entrySet()) {
-                tmp.put(me.getKey().toString(), me.getValue().toString());
-              }
-              e.setAttributes(tmp);
-            }
-
-            scanResultHandler.onEntry(e);
 
           } catch (EOFException e) {
             break;
           }
         }
+
+        pruningHandler.onCompletion();
 
 
         return STATE.CONTINUE;

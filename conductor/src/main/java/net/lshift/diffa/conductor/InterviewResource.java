@@ -1,12 +1,11 @@
 package net.lshift.diffa.conductor;
 
 import com.google.inject.Inject;
-import com.jolbox.bonecp.BoneCPDataSource;
 import net.lshift.diffa.adapter.scanning.ScanAggregation;
 import net.lshift.diffa.adapter.scanning.ScanConstraint;
 import net.lshift.diffa.conductor.plumbing.InterviewResultHandler;
-import net.lshift.diffa.railyard.NoFurtherQuestions;
-import net.lshift.diffa.railyard.Question;
+import net.lshift.diffa.interview.NoFurtherQuestions;
+import net.lshift.diffa.interview.Question;
 import net.lshift.diffa.railyard.RailYard;
 import net.lshift.diffa.scanning.Scannable;
 import net.lshift.diffa.sql.PartitionAwareDriver;
@@ -14,9 +13,7 @@ import net.lshift.diffa.sql.PartitionMetadata;
 import org.jboss.resteasy.spi.BadRequestException;
 import org.jboss.resteasy.spi.NotFoundException;
 import org.joda.time.DateTime;
-import org.jooq.DataType;
 import org.jooq.SQLDialect;
-import org.jooq.impl.SQLDataType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

@@ -1,6 +1,7 @@
 package net.lshift.diffa.railyard.plumbing;
 
-import net.lshift.diffa.railyard.Answer;
+
+import net.lshift.diffa.interview.Answer;
 import org.codehaus.jackson.JsonFactory;
 
 import java.util.concurrent.ExecutorService;

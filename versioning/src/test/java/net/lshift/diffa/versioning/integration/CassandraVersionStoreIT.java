@@ -6,7 +6,9 @@ import com.jolbox.bonecp.BoneCPConfig;
 import com.jolbox.bonecp.BoneCPDataSource;
 import net.lshift.diffa.adapter.scanning.*;
 import net.lshift.diffa.events.TombstoneEvent;
-import net.lshift.diffa.scanning.plumbing.BufferingScanResultHandler;
+import net.lshift.diffa.interview.NoFurtherQuestions;
+import net.lshift.diffa.interview.Question;
+import net.lshift.diffa.scanning.plumbing.BufferedPruningHandler;
 import net.lshift.diffa.sql.PartitionMetadata;
 import net.lshift.diffa.versioning.*;
 import net.lshift.diffa.versioning.events.PartitionedEvent;
@@ -146,13 +148,13 @@ public class CassandraVersionStoreIT {
     Set<ScanConstraint> cons = null;
     Set<ScanAggregation> aggs = ImmutableSet.of(dateAggregation);
 
-    BufferingScanResultHandler handler = new BufferingScanResultHandler();
+    BufferedPruningHandler handler = new BufferedPruningHandler();
 
     partitionAwareStore.scan(cons, aggs, maxSliceSize, handler);
 
-    List<ScanRequest> requests = store.continueInterview(left, cons, aggs, handler.getEntries());
+    Question question = store.continueInterview(left, cons, aggs, handler.getAnswers());
 
-    assertTrue(requests.isEmpty());
+    assertTrue(question instanceof NoFurtherQuestions);
 
   }
 

@@ -5,16 +5,16 @@ import com.google.common.collect.ImmutableSet;
 import net.lshift.diffa.adapter.scanning.*;
 import net.lshift.diffa.config.CategoryDescriptor;
 import net.lshift.diffa.config.RangeCategoryDescriptor;
+import net.lshift.diffa.interview.Question;
 import net.lshift.diffa.railyard.questions.QuestionBuilder;
 import org.junit.experimental.theories.DataPoint;
 import org.junit.experimental.theories.Theories;
 import org.junit.experimental.theories.Theory;
 import org.junit.runner.RunWith;
+import static org.junit.Assert.*;
 
 import java.util.Map;
 import java.util.Set;
-
-import static org.junit.Assert.*;
 
 @RunWith(Theories.class)
 public class QuestionBuilderTest {

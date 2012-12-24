@@ -3,7 +3,7 @@ package net.lshift.diffa.sql;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import net.lshift.diffa.adapter.scanning.*;
-import net.lshift.diffa.scanning.plumbing.BufferingScanResultHandler;
+import net.lshift.diffa.scanning.plumbing.BufferedPruningHandler;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.joda.time.DateTime;
 import org.jooq.impl.Factory;
@@ -55,7 +55,7 @@ public class SQLDriverIT extends AbstractDatabaseAware {
     Set<ScanConstraint> cons = null;
     Set<ScanAggregation> aggs = ImmutableSet.of(dateAggregation);
 
-    BufferingScanResultHandler handler = new BufferingScanResultHandler();
+    BufferedPruningHandler handler = new BufferedPruningHandler();
     driver.scan(cons, aggs, 100, handler);
 
     /**
@@ -69,7 +69,7 @@ public class SQLDriverIT extends AbstractDatabaseAware {
     expectedResults.add(ScanResultEntry.forAggregate("c7b7eb798fcf835ace16f469c6919e1c", ImmutableMap.of("bizDate", "2007")));
     expectedResults.add(ScanResultEntry.forAggregate("0906f8b73c3e2ff365ff235b3cb020b7", ImmutableMap.of("bizDate", "2008")));
 
-    assertEquals(expectedResults, handler.getEntries());
+    assertEquals(expectedResults, handler.getAnswers());
 
   }
 }

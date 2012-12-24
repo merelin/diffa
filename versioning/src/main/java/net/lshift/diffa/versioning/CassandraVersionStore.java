@@ -26,6 +26,10 @@ import me.prettyprint.hector.api.query.SliceQuery;
 import net.lshift.diffa.adapter.scanning.*;
 import net.lshift.diffa.events.ChangeEvent;
 import net.lshift.diffa.events.TombstoneEvent;
+import net.lshift.diffa.interview.Answer;
+import net.lshift.diffa.interview.NoFurtherQuestions;
+import net.lshift.diffa.interview.Question;
+import net.lshift.diffa.interview.SimpleQuestion;
 import net.lshift.diffa.versioning.events.PartitionedEvent;
 import net.lshift.diffa.versioning.events.UnpartitionedEvent;
 import net.lshift.diffa.versioning.partitioning.*;
@@ -222,20 +226,21 @@ public class CassandraVersionStore implements VersionStore {
     return diffs;
   }
 
-  public List<ScanRequest> continueInterview(
+  public Question continueInterview(
       Long endpoint,
       Set<ScanConstraint> constraints,
       Set<ScanAggregation> aggregations,
-      Set<ScanResultEntry> entries) {
+      Iterable<Answer> entries) {
 
 
     try {
+      /*
       if (entries == null || entries.isEmpty()) {
 
         throw new RuntimeException("Think about how to handle this ... ");
 
       } else {
-
+      */
         if (aggregations != null) {
 
           for (ScanAggregation sa : aggregations) {
@@ -251,12 +256,13 @@ public class CassandraVersionStore implements VersionStore {
                 TreeLevelRollup qualified = getChildDigests(context, key, userDefinedDigestsTemplate, USER_DEFINED_HIERARCHY_CF, USER_DEFINED_DIGESTS_CF, USER_DEFINED_BUCKETS_CF, maxSliceSize);
                 TreeLevelRollup unqualified = unqualify(endpoint, qualified);
 
-                Map<String,BucketDigest> remote = DifferencingUtils.convertAggregates(entries);
+                boolean isLeaf = false; // TODO It might be a bad decision to hard code this
+                Map<String,BucketDigest> remote = DifferencingUtils.convertAggregates(entries, isLeaf);
 
                 MapDifference<String,BucketDigest> d = Maps.difference(remote,unqualified.getMembers());
 
                 if (d.areEqual()) {
-                  return new ArrayList<ScanRequest>();
+                  return NoFurtherQuestions.get();
                 }
 
                 else {
@@ -266,7 +272,7 @@ public class CassandraVersionStore implements VersionStore {
 
                   r.add(re);
 
-                  return r;
+                  return new SimpleQuestion();
                 }
               }
             }
@@ -274,7 +280,7 @@ public class CassandraVersionStore implements VersionStore {
 
         }
 
-      }
+      //}
     } catch (HectorException he) {
       String reason = getReason(he);
       throw new VersionStoreException(reason);
@@ -636,7 +642,7 @@ public class CassandraVersionStore implements VersionStore {
     if (node.isLeaf()) {
       // This a leaf node so record the bucket value and it's parent
       bucketWriter.write(qualifiedBucketName, node);
-      //mutator.insertColumn(qualifiedBucketName, bucketCF, node.getId(), node.getVersion());
+      //mutator.insertColumn(qualifiedBucketName, bucketCF, node.getId(), node.getDigest());
     }
     else {
 

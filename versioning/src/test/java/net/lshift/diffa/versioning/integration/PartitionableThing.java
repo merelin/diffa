@@ -79,7 +79,7 @@ public class PartitionableThing implements PartitionedEvent {
   @Override
   public MerkleNode getAttributeHierarchy() {
     /*
-    MerkleNode leaf = new MerkleNode(DAILY_FORMAT.print(getLastUpdated()), getId(), getVersion());
+    MerkleNode leaf = new MerkleNode(DAILY_FORMAT.print(getLastUpdated()), getId(), getDigest());
     MerkleNode monthlyBucket = new MerkleNode(MONTHLY_FORMAT.print(getLastUpdated()), leaf);
     return new MerkleNode(YEARLY_FORMAT.print(getLastUpdated()), monthlyBucket);
     */

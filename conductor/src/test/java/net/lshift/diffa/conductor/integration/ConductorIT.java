@@ -118,7 +118,7 @@ public class ConductorIT {
 
     partitionAwareStore.scan(cons, aggs, maxSliceSize, handler);
 
-    List<ScanRequest> requests = store.continueInterview(left, cons, aggs, handler.getEntries());
+    List<ScanRequest> requests = store.continueInterview(left, cons, aggs, handler.getAnswers());
 
     assertTrue(requests.isEmpty());
 

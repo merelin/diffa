@@ -1,10 +1,10 @@
 [
   {"type": "record",
-   "namespace": "net.lshift.diffa.adapter.avro",
-   "name": "ScanResultEntry",
+   "namespace": "net.lshift.diffa.interview",
+   "name": "SerializableIndividualAnswer",
    "fields": [
-       {"name": "id", "type": [ "string", "null"]},
-       {"name": "version", "type": "string"},
+       {"name": "id", "type": "string" },
+       {"name": "digest", "type": "string" },
        {"name": "lastUpdated", "type": [ "long", "null"]},
        {"name": "attributes", "type": [ {"type": "map", "values" : "string" }, "null" ] }
    ]
