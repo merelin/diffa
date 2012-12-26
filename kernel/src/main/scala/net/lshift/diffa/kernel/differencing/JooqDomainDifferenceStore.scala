@@ -36,9 +36,8 @@ import java.sql.Timestamp
 import net.lshift.diffa.kernel.naming.CacheName
 import net.lshift.diffa.kernel.events.VersionID
 import net.lshift.diffa.kernel.lifecycle.PairLifecycleAware
-import net.lshift.diffa.adapter.scanning.{ScanResultEntry, ScanAggregation, ScanConstraint}
-import java.io.{BufferedOutputStream, OutputStream}
-import net.lshift.diffa.scanning.{ScanResultHandler, Scannable}
+import net.lshift.diffa.adapter.scanning.{ScanAggregation, ScanConstraint}
+import net.lshift.diffa.scanning.ScanResultHandler
 import java.util
 import net.lshift.diffa.sql.{PartitionMetadata, PartitionAwareDriver}
 import net.lshift.diffa.snowflake.IdProvider
