@@ -17,8 +17,10 @@
 package net.lshift.diffa.sql;
 
 import com.google.common.collect.ImmutableMap;
+import net.lshift.diffa.adapter.scanning.ScanAggregation;
 import net.lshift.diffa.adapter.scanning.ScanConstraint;
 import net.lshift.diffa.adapter.scanning.ScanResultEntry;
+import net.lshift.diffa.adapter.scanning.SetConstraint;
 import net.lshift.diffa.scanning.ScanResultHandler;
 import org.joda.time.DateTime;
 import org.jooq.*;
@@ -26,8 +28,7 @@ import org.jooq.impl.Factory;
 import org.jooq.impl.SQLDataType;
 
 import java.sql.Date;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 import static org.jooq.impl.Factory.*;
 
@@ -44,30 +45,52 @@ public class DateBasedAggregationScanner {
   private static final Field<Object> digest = Factory.field("DIGEST");
 
   private final Factory db;
-  private final Table<Record> A;
-  private final Table<Record> B;
-  private final Field<String> A_ID;
-  private final Field<String> B_ID;
-  private final Field<String> A_VERSION;
-  private final Field<Date> truncDay;
-  private final Field<Integer> bucketCount;
-  private final Field<Date> truncMonth;
-  private final Field<Date> truncYear;
+  private final DynamicTable underlyingTable;
+  private final Field<String> underlyingId;
+  private final Field<String> underlyingVersion;
+  private final Field<?> partitionColumn;
+  private final int maxSliceSize;
+  private Table A;
+  private Table B;
+  private Field<String> A_ID;
+  private Field<String> B_ID;
+  private Field<String> A_VERSION;
+  private Field<Date> truncDay;
+  private Field<Integer> bucketCount;
+  private Field<Date> truncMonth;
+  private Field<Date> truncYear;
+
+  private ArrayList<Condition> filters = new ArrayList<Condition>();
 
   public DateBasedAggregationScanner(Factory db, PartitionMetadata config, int maxSliceSize) {
     this.db = db;
-    Table<Record> underlyingTable = config.getTable();
+    this.underlyingTable = config.getTable();
+    this.underlyingId = (Field<String>) config.getId();
+    this.underlyingVersion = (Field<String>) config.getVersion();
+    this.partitionColumn = config.partitionBy();
+    this.maxSliceSize = maxSliceSize;
+
+    // There should be at least one condition - this is just a place-holder which doesn't filter.
+    filters.add(trueCondition());
+  }
+
+  private void configureFields(Set<ScanConstraint> constraints) {
+    if (constraints != null) {
+      for (ScanConstraint constraint : constraints) {
+        // Hope that this can be implicitly converted to the appropriate data type.
+        underlyingTable.addField(constraint.getAttributeName(), SQLDataType.VARCHAR);
+      }
+    }
+
     this.A = underlyingTable.as("A");
     this.B = underlyingTable.as("B");
-
-    Field<String> underlyingId = (Field<String>) config.getId();
     this.A_ID = A.getField(underlyingId);
     this.B_ID = B.getField(underlyingId);
-
-    Field<String> underlyingVersion = (Field<String>) config.getVersion();
     this.A_VERSION = A.getField(underlyingVersion);
+  }
 
-    Field<?> underlyingPartition = config.partitionBy();
+  private void configurePartitions() {
+    Field<?> underlyingPartition = this.partitionColumn;
     Field<?> A_PARTITION = A.getField(underlyingPartition);
     this.truncDay = Factory.field("trunc({0}, {1})", SQLDataType.DATE, A_PARTITION, Factory.inline("DD"));
     this.truncMonth = Factory.field("trunc({0}, {1})", SQLDataType.DATE, day, Factory.inline("MM"));
@@ -76,7 +99,11 @@ public class DateBasedAggregationScanner {
     this.bucketCount = cast(ceil(cast(count(), SQLDataType.REAL).div(maxSliceSize)), SQLDataType.INTEGER);
   }
 
-  public void scan(Set<ScanConstraint> constraints, ScanResultHandler handler) {
+  public void scan(Set<ScanConstraint> constraints, Set<ScanAggregation> aggregations, ScanResultHandler handler) {
+    configureFields(constraints);
+    configurePartitions();
+    setFilters(constraints);
+
     Cursor<Record> cursor = yearly().fetchLazy();
 
     while (cursor.hasNext()) {
@@ -90,6 +117,23 @@ public class DateBasedAggregationScanner {
       handler.onEntry(entry);
     }
     cursor.close();
+  }
+
+  // Currently only gets the first set constraint (assumed to be the extent for now).
+  private void setFilters(Set<ScanConstraint> constraints) {
+    if (constraints != null) {
+      for (ScanConstraint constraint : constraints) {
+        if (constraint instanceof SetConstraint) {
+          SetConstraint setConstraint = (SetConstraint) constraint;
+          Field<String> A_set = (Field<String>) A.getField(setConstraint.getAttributeName());
+          Field<String> B_set = (Field<String>) B.getField(setConstraint.getAttributeName());
+          for (String value : setConstraint.getValues()) {
+            filters.add(A_set.eq(value));
+            filters.add(B_set.eq(value));
+          }
+        }
+      }
+    }
   }
 
   private SelectLimitStep yearly() {
@@ -127,6 +171,7 @@ public class DateBasedAggregationScanner {
           A_VERSION.as(version.getName()),
           bucketCount.as(bucket.getName())).
         from(A).join(B).on(A_ID.ge(B_ID)).
+        where(filters).
         groupBy(truncDay, A_ID, A_VERSION).
         orderBy(truncDay, bucket);
   }

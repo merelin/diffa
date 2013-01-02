@@ -35,6 +35,7 @@ import scala.collection.JavaConversions._
 import net.lshift.diffa.kernel.frontend.{RepairActionDef, EscalationDef, EndpointDef, PairDef}
 import org.apache.commons.lang.RandomStringUtils
 import net.lshift.diffa.scanning.plumbing.BufferingScanResultHandler
+import net.lshift.diffa.adapter.scanning.{ScanConstraint, SetConstraint, ScanResultEntry}
 
 
 /**
@@ -795,6 +796,45 @@ class JooqDomainDifferenceStoreTest {
 
     assertFalse(handler.getEntries.isEmpty)
 
+  }
+
+  @Test
+  def scanOfEmptyExtentShouldGiveEmptyAnswer() {
+    val extentConstraint: ScanConstraint = new SetConstraint("EXTENT", Set("1000000"))
+    val pairRef = PairRef("pair1", space.id)
+
+    val handler = new BufferingScanResultHandler()
+    val timestamp = new DateTime()
+
+    // Given
+    domainDiffStore.addReportableUnmatchedEvent(
+      VersionID(pairRef, "id1"), timestamp, "uV", "dV", timestamp)
+
+    // When
+    domainDiffStore.scan(Set(extentConstraint), null, 100, handler)
+
+    // Then
+    assertTrue("Empty extent should have no diffs", handler.getEntries.isEmpty)
+  }
+
+  @Test
+  def scanOfNonEmptyExtentShouldGiveNonEmptyAnswer() {
+    val timestamp = new DateTime()
+    val pairRef = PairRef("pair1", space.id)
+
+    val handler = new BufferingScanResultHandler()
+
+    // Given
+    domainDiffStore.addReportableUnmatchedEvent(
+      VersionID(PairRef("pair1", space.id), "id1"), timestamp, "uV", "dV", timestamp)
+    val populatedExtent = domainDiffStore.extentsByPair.get(pairRef)
+    val extentConstraint: ScanConstraint = new SetConstraint("EXTENT", Set(populatedExtent.toString))
+
+    // When
+    domainDiffStore.scan(Set(extentConstraint), null, 100, handler)
+
+    // Then
+    assertFalse("Populated extent should have diffs", handler.getEntries.isEmpty)
   }
 
   @Test

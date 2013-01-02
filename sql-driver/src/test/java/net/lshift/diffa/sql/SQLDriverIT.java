@@ -9,11 +9,13 @@ import org.apache.commons.codec.digest.DigestUtils;
 import org.joda.time.DateTime;
 import org.jooq.impl.Factory;
 import org.jooq.impl.SQLDataType;
+import org.junit.Before;
 import org.junit.Test;
 import static org.junit.Assert.*;
 
 import java.sql.Connection;
 import java.sql.Date;
+import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
@@ -22,9 +24,15 @@ public class SQLDriverIT extends AbstractDatabaseAware {
     super(TestDBProvider.createSchema().getDataSource(), TestDBProvider.getDialect());
   }
 
-  @Test
-  public void shouldPartitionByDate() throws Exception {
+  private final PartitionMetadata metadata = new PartitionMetadata("THINGS");
+  {
+    metadata.withId("ID", SQLDataType.VARCHAR).
+        withVersion("VERSION", SQLDataType.VARCHAR).
+        partitionBy("ENTRY_DATE", SQLDataType.DATE);
+  }
 
+  @Before
+  public void seed() throws Exception {
     DateTime start = new DateTime(2005,7,29,0,0,0,0);
     int days = 1000;
 
@@ -42,12 +50,32 @@ public class SQLDriverIT extends AbstractDatabaseAware {
 
     connection.commit();
     closeConnection(connection, true);
+  }
 
-    PartitionMetadata metadata = new PartitionMetadata("THINGS");
-    metadata.withId("ID", SQLDataType.VARCHAR).
-             withVersion("VERSION", SQLDataType.VARCHAR).
-             partitionBy("ENTRY_DATE", SQLDataType.DATE);
+  @Test
+  public void shouldFilterByExtent() throws Exception {
+    // Given the standard test data with an 'extent' column named 'id'...
+    String selectedExtent = "1";
+    ScanConstraint extentConstraint = new SetConstraint("ID", Collections.singleton(selectedExtent));
+    ScanAggregation dateAggregation = new DateAggregation("some_date", DateGranularityEnum.Yearly);
 
+    PartitionAwareDriver driver = new PartitionAwareDriver(ds, metadata, TestDBProvider.getDialect());
+    BufferingScanResultHandler handler = new BufferingScanResultHandler();
+
+    // When
+    driver.scan(Collections.singleton(extentConstraint), Collections.singleton(dateAggregation), 1, handler);
+
+    // Then
+    // There's only one record with an ID = '1', so we just have one entry in the 'extent'.
+    String expectedAggregateVersion = md5(md5(md5(md5(md5(selectedExtent)))));
+    Set<ScanResultEntry> expectedResults = Collections.singleton(
+        ScanResultEntry.forAggregate("e8059811450b854a7b77cc653761282d", ImmutableMap.of("bizDate", "2005")));
+
+    assertEquals(expectedResults, handler.getEntries());
+  }
+
+  @Test
+  public void shouldPartitionByDate() throws Exception {
     PartitionAwareDriver driver = new PartitionAwareDriver(ds, metadata, TestDBProvider.getDialect());
 
     ScanAggregation dateAggregation = new DateAggregation("some_date", DateGranularityEnum.Yearly);
@@ -70,6 +98,9 @@ public class SQLDriverIT extends AbstractDatabaseAware {
     expectedResults.add(ScanResultEntry.forAggregate("0906f8b73c3e2ff365ff235b3cb020b7", ImmutableMap.of("bizDate", "2008")));
 
     assertEquals(expectedResults, handler.getEntries());
+  }
 
+  private static String md5(String msg) {
+    return DigestUtils.md5Hex(msg);
   }
 }

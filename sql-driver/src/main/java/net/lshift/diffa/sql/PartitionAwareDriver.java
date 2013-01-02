@@ -1,27 +1,20 @@
 package net.lshift.diffa.sql;
 
-import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
+import net.lshift.diffa.adapter.scanning.DateAggregation;
 import net.lshift.diffa.adapter.scanning.ScanAggregation;
 import net.lshift.diffa.adapter.scanning.ScanConstraint;
-import net.lshift.diffa.adapter.scanning.ScanResultEntry;
 import net.lshift.diffa.scanning.ScanResultHandler;
 import net.lshift.diffa.scanning.Scannable;
-import org.joda.time.DateTime;
 import org.jooq.*;
 import org.jooq.impl.Factory;
-import org.jooq.impl.SQLDataType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
-import java.sql.Date;
 import java.util.HashMap;
-import java.util.Map;
 import java.util.Set;
-
-import static org.jooq.impl.Factory.*;
 
 public class PartitionAwareDriver extends AbstractDatabaseAware implements Scannable {
 
@@ -99,11 +92,19 @@ public class PartitionAwareDriver extends AbstractDatabaseAware implements Scann
 //      throw new RuntimeException("Currently we can not handle partition type: " + underlyingPartition.getDataType() + " ; please contact your nearest software developer");
 //    }
 
+    // default to date based aggregation for now. TODO default to prefix aggregation or no aggregation.
     DateBasedAggregationScanner scanner = new DateBasedAggregationScanner(db, config, maxSliceSize);
-    scanner.scan(constraints, handler);
+    if (aggregations != null) {
+      if (aggregations.size() == 1) {
+        ScanAggregation head = aggregations.iterator().next();
+        if (head instanceof DateAggregation) {
+          scanner = new DateBasedAggregationScanner(db, config, maxSliceSize);
+        }
+      }
+    }
+    scanner.scan(constraints, aggregations, handler);
 
     handler.onCompletion();
-
 
     closeConnection(connection);
   }
