@@ -6,8 +6,8 @@ import net.lshift.diffa.adapter.scanning.ScanConstraint;
 import net.lshift.diffa.config.AggregatingCategoryDescriptor;
 import net.lshift.diffa.config.CategoryDescriptor;
 import net.lshift.diffa.config.RangeCategoryDescriptor;
-import net.lshift.diffa.railyard.Question;
-import net.lshift.diffa.railyard.SimpleQuestion;
+import net.lshift.diffa.interview.Question;
+import net.lshift.diffa.interview.SimpleQuestion;
 
 import java.util.HashSet;
 import java.util.Map;

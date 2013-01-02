@@ -1,6 +1,9 @@
 package net.lshift.diffa.railyard.wiring;
 
 import com.google.inject.AbstractModule;
+import com.google.inject.name.Names;
+import net.lshift.diffa.scanning.Scannable;
+import net.lshift.diffa.scanning.http.HttpDriver;
 import net.lshift.diffa.system.SystemConfiguration;
 import net.lshift.diffa.system.SystemConfigurationClient;
 import net.lshift.diffa.versioning.CassandraVersionStore;
@@ -15,5 +18,7 @@ public class RailYardModule extends AbstractModule {
     bind(JsonFactory.class).to(MappingJsonFactory.class);
     bind(VersionStore.class).to(CassandraVersionStore.class);
     bind(SystemConfiguration.class).to(SystemConfigurationClient.class);
+    bind(String.class).annotatedWith(Names.named("scan.url")).toInstance("http://localhost:7654");
+    bind(Scannable.class).to(HttpDriver.class);
   }
 }

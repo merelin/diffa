@@ -37,8 +37,7 @@ import net.lshift.diffa.kernel.naming.CacheName
 import net.lshift.diffa.kernel.events.VersionID
 import net.lshift.diffa.kernel.lifecycle.PairLifecycleAware
 import net.lshift.diffa.adapter.scanning.{ScanAggregation, ScanConstraint}
-import net.lshift.diffa.scanning.ScanResultHandler
-import java.util
+import net.lshift.diffa.scanning.PruningHandler
 import net.lshift.diffa.sql.{PartitionMetadata, PartitionAwareDriver}
 import net.lshift.diffa.snowflake.IdProvider
 
@@ -603,7 +602,7 @@ class JooqDomainDifferenceStore(db: DatabaseFacade,
     t.truncate(PENDING_DIFFS).execute()
   }
 
-  def scan(constraints: java.util.Set[ScanConstraint], aggregations: java.util.Set[ScanAggregation], maxSliceSize: Int, handler: ScanResultHandler) {
+  def scan(constraints: java.util.Set[ScanConstraint], aggregations: java.util.Set[ScanAggregation], maxSliceSize: Int, handler: PruningHandler) {
     scanDriver.scan(constraints, aggregations, maxSliceSize, handler)
   }
 

@@ -1,4 +1,4 @@
-package net.lshift.diffa.conductor;
+package net.lshift.diffa.conductor.integration;
 
 import net.lshift.diffa.sql.PartitionAwareDriver;
 import net.lshift.diffa.sql.PartitionMetadata;

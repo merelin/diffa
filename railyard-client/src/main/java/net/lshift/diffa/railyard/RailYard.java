@@ -1,6 +1,8 @@
 package net.lshift.diffa.railyard;
 
 import net.lshift.diffa.events.ChangeEvent;
+import net.lshift.diffa.interview.Answer;
+import net.lshift.diffa.interview.Question;
 
 public interface RailYard {
 

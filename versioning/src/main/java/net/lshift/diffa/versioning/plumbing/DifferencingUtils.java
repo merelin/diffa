@@ -1,53 +1,40 @@
 package net.lshift.diffa.versioning.plumbing;
 
-import com.google.common.base.Joiner;
-import com.google.common.collect.Sets;
-import net.lshift.diffa.adapter.scanning.ScanResultEntry;
+import net.lshift.diffa.interview.Answer;
+import net.lshift.diffa.interview.IndividualAnswer;
+import net.lshift.diffa.interview.GroupedAnswer;
 import net.lshift.diffa.versioning.BucketDigest;
 
 import java.util.*;
 
 public class DifferencingUtils {
 
-  static final Joiner KEY_JOINER = Joiner.on(".").skipNulls();
-
-  public static Map<String,BucketDigest> convertAggregates(Set<ScanResultEntry> aggregates) {
-
-    // TODO We should probably validate the aggregates against the bucketing and constraints
-    // to make sure that no bogus shit is getting sent
+  public static Map<String,BucketDigest> convertAggregates(Iterable<Answer> aggregates, boolean isLeaf) {
 
     Map<String,BucketDigest> mapped = new HashMap<String, BucketDigest>();
 
-    for (ScanResultEntry entry : aggregates) {
+    for (Answer entry : aggregates) {
 
-      if (entry.getVersion() == null) {
+      if (entry.getDigest() == null) {
         throw new RuntimeException("ScanResultEntry did not contain a version: " + entry);
       }
 
-      if (entry.getId() != null && !entry.getId().isEmpty()) {
-        throw new RuntimeException("ScanResultEntry should not contain an id for an aggregate: " + entry);
+      if (entry instanceof GroupedAnswer) {
+
+        GroupedAnswer grouped = (GroupedAnswer) entry;
+        String group = grouped.getGroup();
+        String version = grouped.getDigest();
+        BucketDigest bucket = new BucketDigest(grouped.getGroup(), version, isLeaf);
+        mapped.put(group, bucket);
+
+      } else if (entry instanceof IndividualAnswer) {
+
+        throw new RuntimeException("Answer should not be atomic: " + entry);
+
+      } else {
+        throw new RuntimeException("Received a strange sort of answer");
       }
 
-      Map<String,String> attributes = entry.getAttributes();
-
-      if (attributes == null || attributes.isEmpty()) {
-        throw new RuntimeException("ScanResultEntry did not contain attributes: " + entry);
-      }
-      else {
-
-        // TODO This is probably horribly inefficient, but let's profile it first
-        SortedMap<String,String> sorted = new TreeMap<String, String>(attributes);
-        String partition = KEY_JOINER.join(sorted.values());
-
-        if (mapped.containsKey(partition)) {
-          throw new RuntimeException("Duplicate partition (" + partition + ")");
-        } else {
-          boolean isLeaf = false; // TODO It might be a bad decision to hard code this
-
-          BucketDigest bucket = new BucketDigest(partition, entry.getVersion(), isLeaf);
-          mapped.put(partition, bucket);
-        }
-      }
     }
 
     return mapped;

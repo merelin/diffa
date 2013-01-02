@@ -4,7 +4,9 @@ import com.google.inject.Inject;
 import net.lshift.diffa.adapter.scanning.DateAggregation;
 import net.lshift.diffa.adapter.scanning.ScanAggregation;
 import net.lshift.diffa.adapter.scanning.ScanConstraint;
-import net.lshift.diffa.scanning.ScanResultHandler;
+import net.lshift.diffa.interview.GroupedAnswer;
+import net.lshift.diffa.interview.SimpleGroupedAnswer;
+import net.lshift.diffa.scanning.PruningHandler;
 import net.lshift.diffa.scanning.Scannable;
 import org.jooq.*;
 import org.jooq.impl.Factory;
@@ -77,7 +79,7 @@ public class PartitionAwareDriver extends AbstractDatabaseAware implements Scann
   }
 
   @Override
-  public void scan(Set<ScanConstraint> constraints, Set<ScanAggregation> aggregations, int maxSliceSize, ScanResultHandler handler) {
+  public void scan(Set<ScanConstraint> constraints, Set<ScanAggregation> aggregations, int maxSliceSize, PruningHandler handler) {
 
     Connection connection = getConnection();
     Factory db = getFactory(connection);
@@ -102,13 +104,12 @@ public class PartitionAwareDriver extends AbstractDatabaseAware implements Scann
         }
       }
     }
+
     scanner.scan(constraints, aggregations, handler);
 
     handler.onCompletion();
 
     closeConnection(connection);
   }
-
   // TODO This stuff shouldn't really get invoked inline, we should have some kind of wrapping function ....
-
 }

@@ -16,7 +16,6 @@
 
 package net.lshift.diffa.kernel.differencing
 
-import org.hibernate.exception.ConstraintViolationException
 import org.junit.Assert._
 import net.lshift.diffa.kernel.config._
 import net.lshift.diffa.kernel.events.VersionID
@@ -34,8 +33,8 @@ import collection.mutable.ListBuffer
 import scala.collection.JavaConversions._
 import net.lshift.diffa.kernel.frontend.{RepairActionDef, EscalationDef, EndpointDef, PairDef}
 import org.apache.commons.lang.RandomStringUtils
-import net.lshift.diffa.scanning.plumbing.BufferingScanResultHandler
-import net.lshift.diffa.adapter.scanning.{ScanConstraint, SetConstraint, ScanResultEntry}
+import net.lshift.diffa.adapter.scanning.{ScanConstraint, SetConstraint}
+import net.lshift.diffa.scanning.plumbing.BufferedPruningHandler
 
 
 /**
@@ -791,10 +790,10 @@ class JooqDomainDifferenceStoreTest {
     val timestamp = new DateTime()
     domainDiffStore.addReportableUnmatchedEvent(VersionID(PairRef("pair1", space.id), "id1"), timestamp, "uV", "dV", timestamp)
 
-    val handler = new BufferingScanResultHandler()
+    val handler = new BufferedPruningHandler()
     domainDiffStore.scan(null,null,100, handler)
 
-    assertFalse(handler.getEntries.isEmpty)
+    assertFalse(handler.getAnswers.isEmpty)
 
   }
 
@@ -803,7 +802,7 @@ class JooqDomainDifferenceStoreTest {
     val extentConstraint: ScanConstraint = new SetConstraint("EXTENT", Set("1000000"))
     val pairRef = PairRef("pair1", space.id)
 
-    val handler = new BufferingScanResultHandler()
+    val handler = new BufferedPruningHandler()
     val timestamp = new DateTime()
 
     // Given
@@ -814,7 +813,7 @@ class JooqDomainDifferenceStoreTest {
     domainDiffStore.scan(Set(extentConstraint), null, 100, handler)
 
     // Then
-    assertTrue("Empty extent should have no diffs", handler.getEntries.isEmpty)
+    assertTrue("Empty extent should have no diffs", handler.getAnswers.isEmpty)
   }
 
   @Test
@@ -822,7 +821,7 @@ class JooqDomainDifferenceStoreTest {
     val timestamp = new DateTime()
     val pairRef = PairRef("pair1", space.id)
 
-    val handler = new BufferingScanResultHandler()
+    val handler = new BufferedPruningHandler()
 
     // Given
     domainDiffStore.addReportableUnmatchedEvent(
@@ -834,7 +833,7 @@ class JooqDomainDifferenceStoreTest {
     domainDiffStore.scan(Set(extentConstraint), null, 100, handler)
 
     // Then
-    assertFalse("Populated extent should have diffs", handler.getEntries.isEmpty)
+    assertFalse("Populated extent should have diffs", handler.getAnswers.isEmpty)
   }
 
   @Test

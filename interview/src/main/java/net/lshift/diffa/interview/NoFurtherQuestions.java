@@ -1,4 +1,4 @@
-package net.lshift.diffa.railyard;
+package net.lshift.diffa.interview;
 
 import net.lshift.diffa.adapter.scanning.ScanAggregation;
 import net.lshift.diffa.adapter.scanning.ScanConstraint;
@@ -8,6 +8,13 @@ import java.util.Set;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class NoFurtherQuestions implements Question {
+
+  public static final Question NO_FURTHER_QUESTIONS = new NoFurtherQuestions();
+
+  public static Question get() {
+    return NO_FURTHER_QUESTIONS;
+  }
+
   @Override
   public Set<ScanConstraint> getConstraints() {
     return null;

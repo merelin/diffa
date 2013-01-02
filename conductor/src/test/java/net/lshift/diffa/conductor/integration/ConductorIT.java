@@ -1,8 +1,9 @@
-package net.lshift.diffa.conductor;
+package net.lshift.diffa.conductor.integration;
 
 import com.google.common.collect.ImmutableMap;
 import net.lshift.diffa.dbapp.TestDBProvider;
 import net.lshift.diffa.dbapp.TestSchema;
+import net.lshift.diffa.conductor.*;
 import net.lshift.diffa.events.ChangeEvent;
 import net.lshift.diffa.railyard.RailYard;
 import net.lshift.diffa.railyard.RailYardClient;
@@ -93,7 +94,7 @@ public class ConductorIT {
 
     partitionAwareStore.scan(cons, aggs, maxSliceSize, handler);
 
-    List<ScanRequest> requests = store.continueInterview(left, cons, aggs, handler.getEntries());
+    List<ScanRequest> requests = store.continueInterview(left, cons, aggs, handler.getAnswers());
 
     assertTrue(requests.isEmpty());
 

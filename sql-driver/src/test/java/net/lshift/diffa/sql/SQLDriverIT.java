@@ -4,7 +4,9 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import net.lshift.diffa.adapter.scanning.*;
 import net.lshift.diffa.dbapp.TestDBProvider;
-import net.lshift.diffa.scanning.plumbing.BufferingScanResultHandler;
+import net.lshift.diffa.interview.Answer;
+import net.lshift.diffa.interview.SimpleGroupedAnswer;
+import net.lshift.diffa.scanning.plumbing.BufferedPruningHandler;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.joda.time.DateTime;
 import org.jooq.impl.Factory;
@@ -60,7 +62,7 @@ public class SQLDriverIT extends AbstractDatabaseAware {
     ScanAggregation dateAggregation = new DateAggregation("some_date", DateGranularityEnum.Yearly);
 
     PartitionAwareDriver driver = new PartitionAwareDriver(ds, metadata, TestDBProvider.getDialect());
-    BufferingScanResultHandler handler = new BufferingScanResultHandler();
+    BufferedPruningHandler handler = new BufferedPruningHandler();
 
     // When
     driver.scan(Collections.singleton(extentConstraint), Collections.singleton(dateAggregation), 1, handler);
@@ -68,10 +70,10 @@ public class SQLDriverIT extends AbstractDatabaseAware {
     // Then
     // There's only one record with an ID = '1', so we just have one entry in the 'extent'.
     String expectedAggregateVersion = md5(md5(md5(md5(md5(selectedExtent)))));
-    Set<ScanResultEntry> expectedResults = Collections.singleton(
-        ScanResultEntry.forAggregate("e8059811450b854a7b77cc653761282d", ImmutableMap.of("bizDate", "2005")));
+    Set<Answer> expectedResults = Collections.singleton(
+        (Answer) new SimpleGroupedAnswer("2005", "e8059811450b854a7b77cc653761282d"));
 
-    assertEquals(expectedResults, handler.getEntries());
+    assertEquals(expectedResults, handler.getAnswers());
   }
 
   @Test
@@ -83,7 +85,7 @@ public class SQLDriverIT extends AbstractDatabaseAware {
     Set<ScanConstraint> cons = null;
     Set<ScanAggregation> aggs = ImmutableSet.of(dateAggregation);
 
-    BufferingScanResultHandler handler = new BufferingScanResultHandler();
+    BufferedPruningHandler handler = new BufferedPruningHandler();
     driver.scan(cons, aggs, 100, handler);
 
     /**
@@ -91,13 +93,13 @@ public class SQLDriverIT extends AbstractDatabaseAware {
      * rather than forwards engineering the expected from some kind of logic ......
      */
 
-    Set<ScanResultEntry> expectedResults = new LinkedHashSet<ScanResultEntry>();
-    expectedResults.add(ScanResultEntry.forAggregate("696a51b5982b8521625d39631c1175bb", ImmutableMap.of("bizDate", "2005")));
-    expectedResults.add(ScanResultEntry.forAggregate("6b4ee3a8dcf9e71af301b5722406e52f", ImmutableMap.of("bizDate", "2006")));
-    expectedResults.add(ScanResultEntry.forAggregate("c7b7eb798fcf835ace16f469c6919e1c", ImmutableMap.of("bizDate", "2007")));
-    expectedResults.add(ScanResultEntry.forAggregate("0906f8b73c3e2ff365ff235b3cb020b7", ImmutableMap.of("bizDate", "2008")));
+    Set<Answer> expectedResults = new LinkedHashSet<Answer>();
+    expectedResults.add(new SimpleGroupedAnswer("2005", "696a51b5982b8521625d39631c1175bb"));
+    expectedResults.add(new SimpleGroupedAnswer("2006", "6b4ee3a8dcf9e71af301b5722406e52f"));
+    expectedResults.add(new SimpleGroupedAnswer("2007", "c7b7eb798fcf835ace16f469c6919e1c"));
+    expectedResults.add(new SimpleGroupedAnswer("2008", "0906f8b73c3e2ff365ff235b3cb020b7"));
 
-    assertEquals(expectedResults, handler.getEntries());
+    assertEquals(expectedResults, handler.getAnswers());
   }
 
   private static String md5(String msg) {

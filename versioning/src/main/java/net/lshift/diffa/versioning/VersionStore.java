@@ -5,6 +5,8 @@ import net.lshift.diffa.adapter.scanning.ScanConstraint;
 import net.lshift.diffa.adapter.scanning.ScanRequest;
 import net.lshift.diffa.adapter.scanning.ScanResultEntry;
 import net.lshift.diffa.events.ChangeEventHandler;
+import net.lshift.diffa.interview.Answer;
+import net.lshift.diffa.interview.Question;
 
 import java.util.List;
 import java.util.Set;
@@ -30,10 +32,10 @@ public interface VersionStore extends ChangeEventHandler {
    * This is the interview process that remote applications initiate when they
    * need to sync themselves with the version store
    */
-  List<ScanRequest> continueInterview(Long endpoint,
-                                      Set<ScanConstraint> constraints,
-                                      Set<ScanAggregation> aggregations,
-                                      Set<ScanResultEntry> entries);
+  Question continueInterview(Long endpoint,
+                             Set<ScanConstraint> constraints,
+                             Set<ScanAggregation> aggregations,
+                             Iterable<Answer> entries);
 
 
   void setMaxSliceSize(Long endpoint, int size);

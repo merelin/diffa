@@ -21,7 +21,9 @@ import net.lshift.diffa.adapter.scanning.ScanAggregation;
 import net.lshift.diffa.adapter.scanning.ScanConstraint;
 import net.lshift.diffa.adapter.scanning.ScanResultEntry;
 import net.lshift.diffa.adapter.scanning.SetConstraint;
-import net.lshift.diffa.scanning.ScanResultHandler;
+import net.lshift.diffa.interview.Answer;
+import net.lshift.diffa.interview.SimpleGroupedAnswer;
+import net.lshift.diffa.scanning.PruningHandler;
 import org.joda.time.DateTime;
 import org.jooq.*;
 import org.jooq.impl.Factory;
@@ -99,7 +101,7 @@ public class DateBasedAggregationScanner {
     this.bucketCount = cast(ceil(cast(count(), SQLDataType.REAL).div(maxSliceSize)), SQLDataType.INTEGER);
   }
 
-  public void scan(Set<ScanConstraint> constraints, Set<ScanAggregation> aggregations, ScanResultHandler handler) {
+  public void scan(Set<ScanConstraint> constraints, Set<ScanAggregation> aggregations, PruningHandler handler) {
     configureFields(constraints);
     configurePartitions();
     setFilters(constraints);
@@ -110,11 +112,10 @@ public class DateBasedAggregationScanner {
       Record record = cursor.fetchOne();
 
       String dateComponent = (new DateTime(record.getValueAsDate(year))).getYear() + "";
-
-      Map<String, String> partition = ImmutableMap.of("bizDate", dateComponent);
       String digestValue = record.getValueAsString(digest);
-      ScanResultEntry entry = ScanResultEntry.forAggregate(digestValue, partition);
-      handler.onEntry(entry);
+
+      Answer answer = new SimpleGroupedAnswer(dateComponent, digestValue);
+      handler.onPrune(answer);
     }
     cursor.close();
   }

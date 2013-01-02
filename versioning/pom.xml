@@ -27,7 +27,7 @@
 
     <dependency>
       <groupId>net.lshift.diffa</groupId>
-      <artifactId>adapter-support</artifactId>
+      <artifactId>interview</artifactId>
       <version>${project.version}</version>
     </dependency>
 

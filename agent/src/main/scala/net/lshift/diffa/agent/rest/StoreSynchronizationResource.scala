@@ -12,8 +12,8 @@ import net.lshift.diffa.kernel.differencing.DomainDifferenceStore
 import java.io.{BufferedOutputStream, OutputStream}
 import org.apache.avro.io.EncoderFactory
 import org.apache.avro.specific.SpecificDatumWriter
-import net.lshift.diffa.scanning.ScanResultHandler
-import net.lshift.diffa.adapter.avro.{ScanResultEntry => GeneratedScanResultEntry}
+import net.lshift.diffa.scanning.PruningHandler
+import net.lshift.diffa.interview.{GroupedAnswer, IndividualAnswer, Answer, SerializableGroupedAnswer}
 
 
 @Path("/store")
@@ -48,32 +48,20 @@ class StoreSynchronizationResource {
         // in the kernel module - should this code ever stabilize over time, we can think about getting rid of the
         // indirection
 
-        val writer = new SpecificDatumWriter[GeneratedScanResultEntry](classOf[GeneratedScanResultEntry]);
-        writer.setSchema(GeneratedScanResultEntry.SCHEMA$);
+        val writer = new SpecificDatumWriter[SerializableGroupedAnswer](classOf[SerializableGroupedAnswer]);
+        writer.setSchema(SerializableGroupedAnswer.SCHEMA$);
 
-        val handler = new ScanResultHandler {
-          def onEntry(entry: ScanResultEntry) {
-            val generated = new GeneratedScanResultEntry
-            if (entry.getId != null) {
-              generated.setId(entry.getId)
-            }
-            if (entry.getVersion != null) {
-              generated.setVersion(entry.getVersion)
-            }
-            if (entry.getLastUpdated != null) {
-              generated.setLastUpdated(entry.getLastUpdated.getMillis)
-            }
-            if (entry.getAttributes != null) {
+        val handler = new PruningHandler {
+          def onPrune(answer: Answer) = answer match {
+            case i:IndividualAnswer => throw new RuntimeException("Need to implement code to handle individual case: " + i)
+            case group:GroupedAnswer    =>
+              val builder = SerializableGroupedAnswer.newBuilder()
 
-              // If anybody can tell me why Scala needs to do this kind of thing, I'd like to know
+              builder.setDigest(group.getDigest)
+              builder.setGroup(group.getGroup)
 
-              val asString = entry.getAttributes
-              val asCharSequence = asString.map{ case (k,v) => (k.asInstanceOf[CharSequence],v.asInstanceOf[CharSequence])}
-              generated.setAttributes(asCharSequence)
-            }
-
-            writer.write(generated, encoder)
-            encoder.flush()
+              writer.write(builder.build(), encoder)
+              encoder.flush()
           }
 
           def onCompletion() {}

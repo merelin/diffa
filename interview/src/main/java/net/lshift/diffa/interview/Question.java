@@ -1,4 +1,4 @@
-package net.lshift.diffa.railyard;
+package net.lshift.diffa.interview;
 
 import net.lshift.diffa.adapter.scanning.ScanAggregation;
 import net.lshift.diffa.adapter.scanning.ScanConstraint;
