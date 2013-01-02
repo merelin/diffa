@@ -3,6 +3,8 @@ package net.lshift.diffa.sql;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import net.lshift.diffa.adapter.scanning.*;
+import net.lshift.diffa.interview.Answer;
+import net.lshift.diffa.interview.SimpleGroupedAnswer;
 import net.lshift.diffa.scanning.plumbing.BufferedPruningHandler;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.joda.time.DateTime;
@@ -63,12 +65,17 @@ public class SQLDriverIT extends AbstractDatabaseAware {
      * rather than forwards engineering the expected from some kind of logic ......
      */
 
-    Set<ScanResultEntry> expectedResults = new LinkedHashSet<ScanResultEntry>();
+    Set<Answer> expectedResults = new LinkedHashSet<Answer>();
+    expectedResults.add(new SimpleGroupedAnswer("2005", "696a51b5982b8521625d39631c1175bb"));
+    expectedResults.add(new SimpleGroupedAnswer("2006", "6b4ee3a8dcf9e71af301b5722406e52f"));
+    expectedResults.add(new SimpleGroupedAnswer("2007", "c7b7eb798fcf835ace16f469c6919e1c"));
+    expectedResults.add(new SimpleGroupedAnswer("2008", "0906f8b73c3e2ff365ff235b3cb020b7"));
+    /*
     expectedResults.add(ScanResultEntry.forAggregate("696a51b5982b8521625d39631c1175bb", ImmutableMap.of("bizDate", "2005")));
     expectedResults.add(ScanResultEntry.forAggregate("6b4ee3a8dcf9e71af301b5722406e52f", ImmutableMap.of("bizDate", "2006")));
     expectedResults.add(ScanResultEntry.forAggregate("c7b7eb798fcf835ace16f469c6919e1c", ImmutableMap.of("bizDate", "2007")));
     expectedResults.add(ScanResultEntry.forAggregate("0906f8b73c3e2ff365ff235b3cb020b7", ImmutableMap.of("bizDate", "2008")));
-
+    */
     assertEquals(expectedResults, handler.getAnswers());
 
   }
