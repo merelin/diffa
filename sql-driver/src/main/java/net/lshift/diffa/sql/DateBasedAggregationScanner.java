@@ -16,10 +16,8 @@
 
 package net.lshift.diffa.sql;
 
-import com.google.common.collect.ImmutableMap;
 import net.lshift.diffa.adapter.scanning.ScanAggregation;
 import net.lshift.diffa.adapter.scanning.ScanConstraint;
-import net.lshift.diffa.adapter.scanning.ScanResultEntry;
 import net.lshift.diffa.adapter.scanning.SetConstraint;
 import net.lshift.diffa.interview.Answer;
 import net.lshift.diffa.interview.SimpleGroupedAnswer;

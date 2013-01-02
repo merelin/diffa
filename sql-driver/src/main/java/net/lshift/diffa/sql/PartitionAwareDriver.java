@@ -4,8 +4,6 @@ import com.google.inject.Inject;
 import net.lshift.diffa.adapter.scanning.DateAggregation;
 import net.lshift.diffa.adapter.scanning.ScanAggregation;
 import net.lshift.diffa.adapter.scanning.ScanConstraint;
-import net.lshift.diffa.interview.GroupedAnswer;
-import net.lshift.diffa.interview.SimpleGroupedAnswer;
 import net.lshift.diffa.scanning.PruningHandler;
 import net.lshift.diffa.scanning.Scannable;
 import org.jooq.*;
