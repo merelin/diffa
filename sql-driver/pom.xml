@@ -18,7 +18,7 @@
     <commons.lang.version>3.1</commons.lang.version>
     <junit.version>4.10</junit.version>
     <hsqldb.version>2.2.8</hsqldb.version>
-    <jooq.version>2.5.1 </jooq.version>
+    <jooq.version>2.6.0</jooq.version>
     <bonecp.version>0.7.1.RELEASE</bonecp.version>
     <guice.version>3.0</guice.version>
   </properties>
