@@ -27,7 +27,7 @@ public class QuestionBuilderTest {
 
     CategoryDescriptor descriptor = new RangeCategoryDescriptor("date", lower, upper);
     ScanConstraint constraint = new DateRangeConstraint(name, lower, upper);
-    ScanAggregation aggregation = new DateAggregation(name, DateGranularityEnum.Yearly);
+    ScanAggregation aggregation = new DateAggregation(name, DateGranularityEnum.Yearly, null);
     return new Scenario(ImmutableMap.of(name, descriptor), ImmutableSet.of(constraint), ImmutableSet.of(aggregation));
   }
 
