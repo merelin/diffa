@@ -14,7 +14,7 @@ public class EntityIdBucketing {
 
   public static ScanAggregation getEquivalentAggregation(String bucket) {
     int length = bucket.replace(".", "").length() + 1;
-    return new StringPrefixAggregation(name, length);
+    return new StringPrefixAggregation(name, length, null);
   }
 
 

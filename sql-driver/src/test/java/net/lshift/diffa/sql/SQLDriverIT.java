@@ -52,7 +52,7 @@ public class SQLDriverIT extends AbstractDatabaseAware {
 
     PartitionAwareDriver driver = new PartitionAwareDriver(ds, metadata, TestDBProvider.getDialect());
 
-    ScanAggregation dateAggregation = new DateAggregation("some_date", DateGranularityEnum.Yearly);
+    ScanAggregation dateAggregation = new DateAggregation("some_date", DateGranularityEnum.Yearly, null);
 
     Set<ScanConstraint> cons = null;
     Set<ScanAggregation> aggs = ImmutableSet.of(dateAggregation);
