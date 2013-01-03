@@ -152,9 +152,9 @@ public class CassandraVersionStoreIT {
 
     partitionAwareStore.scan(cons, aggs, maxSliceSize, handler);
 
-    Question question = store.continueInterview(left, cons, aggs, handler.getAnswers());
+    Iterable<Question> questions = store.continueInterview(left, cons, aggs, handler.getAnswers());
 
-    assertTrue(question instanceof NoFurtherQuestions);
+    assertTrue(questions instanceof NoFurtherQuestions);
 
   }
 

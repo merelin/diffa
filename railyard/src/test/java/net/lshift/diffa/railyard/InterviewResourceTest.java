@@ -58,10 +58,18 @@ public class InterviewResourceTest {
   public void shouldCreateInitialQuestion() throws Exception {
 
 
-    Question question = interview.getNextQuestion(space, endpointName);
+    Iterable<Question> questions = interview.getNextQuestion(space, endpointName);
 
-    assertEquals(1, question.getAggregations().size());
-    assertEquals(1, question.getConstraints().size());
+    int aggregations = 0;
+    int constraints = 0;
+
+    for (Question question : questions) {
+      aggregations =+ question.getAggregations().size();
+      constraints =+ question.getConstraints().size();
+    }
+
+    assertEquals(1, aggregations);
+    assertEquals(1, constraints);
 
   }
 
@@ -95,8 +103,8 @@ public class InterviewResourceTest {
           any(Iterable.class))).
         thenReturn(new NoFurtherQuestions());
 
-    Question question = interview.getNextQuestion(space, endpointName, request);
+    Iterable<Question> question = interview.getNextQuestion(space, endpointName, request);
 
-    assertNotNull(question);
+    assertTrue(question instanceof NoFurtherQuestions);
   }
 }

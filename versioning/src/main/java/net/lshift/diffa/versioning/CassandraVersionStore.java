@@ -5,8 +5,7 @@ import com.ecyrd.speed4j.StopWatch;
 import com.ecyrd.speed4j.StopWatchFactory;
 import com.google.common.base.Joiner;
 import com.google.common.base.Predicate;
-import com.google.common.collect.MapDifference;
-import com.google.common.collect.Maps;
+import com.google.common.collect.*;
 import me.prettyprint.cassandra.serializers.BooleanSerializer;
 import me.prettyprint.cassandra.serializers.DynamicCompositeSerializer;
 import me.prettyprint.cassandra.serializers.StringSerializer;
@@ -226,7 +225,7 @@ public class CassandraVersionStore implements VersionStore {
     return diffs;
   }
 
-  public Question continueInterview(
+  public Iterable<Question> continueInterview(
       Long endpoint,
       Set<ScanConstraint> constraints,
       Set<ScanAggregation> aggregations,
@@ -234,53 +233,42 @@ public class CassandraVersionStore implements VersionStore {
 
 
     try {
-      /*
-      if (entries == null || entries.isEmpty()) {
+        if (aggregations != null && !aggregations.isEmpty()) {
 
-        throw new RuntimeException("Think about how to handle this ... ");
 
-      } else {
-      */
-        if (aggregations != null) {
+          // TODO Currently we only implement date based aggregation
+          Iterator<DateAggregation> dates = Iterables.filter(aggregations, DateAggregation.class).iterator();
 
-          for (ScanAggregation sa : aggregations) {
-            if (sa instanceof DateAggregation) {
-              DateAggregation dateAggregation = (DateAggregation) sa;
-              DateGranularityEnum g = dateAggregation.getGranularity();
+          if (!dates.hasNext()) {
+            throw new RuntimeException("Must supply 1 date based atrribute: " + aggregations);
+          }
+          else {
+            // TODO Currently we can only handle 1 aggregation
+            DateAggregation aggregation = dates.next();
+            DateGranularityEnum granularity = aggregation.getGranularity();
 
-              if (g == DateGranularityEnum.Yearly) {
+            if (granularity == DateGranularityEnum.Yearly) {
 
-                int maxSliceSize = getSliceSize(endpoint);
-                final String context = endpoint + "";
-                String key = "";
-                TreeLevelRollup qualified = getChildDigests(context, key, userDefinedDigestsTemplate, USER_DEFINED_HIERARCHY_CF, USER_DEFINED_DIGESTS_CF, USER_DEFINED_BUCKETS_CF, maxSliceSize);
-                TreeLevelRollup unqualified = unqualify(endpoint, qualified);
+              int maxSliceSize = getSliceSize(endpoint);
+              final String context = endpoint + "";
+              String key = "";
+              TreeLevelRollup qualified = getChildDigests(context, key, userDefinedDigestsTemplate, USER_DEFINED_HIERARCHY_CF, USER_DEFINED_DIGESTS_CF, USER_DEFINED_BUCKETS_CF, maxSliceSize);
+              TreeLevelRollup unqualified = unqualify(endpoint, qualified);
 
-                boolean isLeaf = false; // TODO It might be a bad decision to hard code this
-                Map<String,BucketDigest> remote = DifferencingUtils.convertAggregates(entries, isLeaf);
+              boolean isLeaf = false; // TODO It might be a bad decision to hard code this
+              Map<String,BucketDigest> remote = DifferencingUtils.convertAggregates(entries, isLeaf);
 
-                MapDifference<String,BucketDigest> d = Maps.difference(remote,unqualified.getMembers());
+              //MapDifference<String,BucketDigest> d = Maps.difference(remote, unqualified.getMembers());
 
-                if (d.areEqual()) {
-                  return NoFurtherQuestions.get();
-                }
-
-                else {
-                  List<ScanRequest> r = new ArrayList<ScanRequest>();
-
-                  ScanRequest re = new ScanRequest(constraints, aggregations);
-
-                  r.add(re);
-
-                  return new SimpleQuestion();
-                }
-              }
+              return getNextQuestion(remote, unqualified.getMembers());
             }
           }
 
+
+        } else {
+          throw new RuntimeException("Not aggregated query not yet implemented");
         }
 
-      //}
     } catch (HectorException he) {
       String reason = getReason(he);
       throw new VersionStoreException(reason);
@@ -293,6 +281,46 @@ public class CassandraVersionStore implements VersionStore {
   //////////////////////////////////////////////////////
   // Internal plumbing
   //////////////////////////////////////////////////////
+
+  private Iterable<Question> getNextQuestion(Map<String,BucketDigest> remote, Map<String,BucketDigest> local) {
+
+    MapDifference<String,BucketDigest> sides = Maps.difference(remote, local);
+
+    if (sides.areEqual()) {
+      return NoFurtherQuestions.get();
+    }
+
+    else {
+
+      List<Question> questions = new ArrayList<Question>();
+
+      for (Map.Entry<String, MapDifference.ValueDifference<BucketDigest>> entry :  sides.entriesDiffering().entrySet()) {
+
+
+        SimpleQuestion question = new SimpleQuestion();
+
+        questions.add(question);
+      }
+
+      // Retrieve the details of buckets that we haven't received locally
+
+      for (Map.Entry<String,BucketDigest> entry : sides.entriesOnlyOnLeft().entrySet()) {
+
+        SimpleQuestion question = new SimpleQuestion();
+
+        questions.add(question);
+      }
+
+      // Purge data that the remote system no longer cares about
+
+      for (Map.Entry<String,BucketDigest> entry : sides.entriesOnlyOnRight().entrySet()) {
+
+      }
+
+      return questions;
+    }
+
+  }
 
   private String getReason(HectorException he) {
     return he.getMessage();

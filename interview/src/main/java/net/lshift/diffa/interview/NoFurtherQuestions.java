@@ -1,32 +1,31 @@
 package net.lshift.diffa.interview;
 
-import net.lshift.diffa.adapter.scanning.ScanAggregation;
-import net.lshift.diffa.adapter.scanning.ScanConstraint;
-import org.codehaus.jackson.annotate.JsonIgnoreProperties;
+import java.util.Iterator;
 
-import java.util.Set;
+public class NoFurtherQuestions implements Iterable<Question> {
 
-@JsonIgnoreProperties(ignoreUnknown = true)
-public class NoFurtherQuestions implements Question {
+  public static final Iterable<Question> NO_FURTHER_QUESTIONS = new NoFurtherQuestions();
 
-  public static final Question NO_FURTHER_QUESTIONS = new NoFurtherQuestions();
-
-  public static Question get() {
+  public static Iterable<Question> get() {
     return NO_FURTHER_QUESTIONS;
   }
 
   @Override
-  public Set<ScanConstraint> getConstraints() {
-    return null;
-  }
+  public Iterator<Question> iterator() {
 
-  @Override
-  public Set<ScanAggregation> getAggregations() {
-    return null;
-  }
+    return new Iterator<Question>() {
+      @Override
+      public boolean hasNext() {
+        return false;
+      }
 
-  @Override
-  public int getMaxSliceSize() {
-    return 0;
+      @Override
+      public Question next() {
+        return null;
+      }
+
+      @Override
+      public void remove() {}
+    };
   }
 }
