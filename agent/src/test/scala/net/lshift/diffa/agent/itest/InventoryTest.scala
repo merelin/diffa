@@ -71,7 +71,7 @@ class InventoryTest extends AbstractEnvironmentTest {
   def shouldReturnNextStepTasksBasedOnAggregateInventoryUpload() {
     val tasks = env.inventoryClient.uploadInventory(env.upstreamEpName,
         Seq(new SetConstraint("someString", Set("ss"))),
-        Seq(new DateAggregation("someDate", DateGranularityEnum.Yearly)),
+        Seq(new DateAggregation("someDate", DateGranularityEnum.Yearly,null)),
         csv(
         "version,someString,someDate",
         "v1,ss,2012"
