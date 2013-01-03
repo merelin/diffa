@@ -189,7 +189,7 @@ public class RangeCategoryDescriptor extends AggregatingCategoryDescriptor {
   @Override
   public ScanAggregation getInitialBucketing(String name) {
     if (dataType.equals("date")) {
-      DateAggregation aggregation = new DateAggregation(name, DateGranularityEnum.Yearly);
+      DateAggregation aggregation = new DateAggregation(name, DateGranularityEnum.Yearly, null);
       return aggregation;
     }
     else {
