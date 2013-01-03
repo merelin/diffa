@@ -93,7 +93,7 @@ public class PartitionAwareDriver extends AbstractDatabaseAware implements Scann
 //    }
 
     // default to date based aggregation for now. TODO default to prefix aggregation or no aggregation.
-    DateBasedAggregationScanner scanner = new DateBasedAggregationScanner(db, config, maxSliceSize);
+    AggregatingScanner scanner = new PrefixBasedAggregationScanner(db, config, maxSliceSize);
     if (aggregations != null) {
       if (aggregations.size() == 1) {
         ScanAggregation head = aggregations.iterator().next();

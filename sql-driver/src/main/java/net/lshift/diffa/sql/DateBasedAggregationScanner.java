@@ -16,12 +16,11 @@
 
 package net.lshift.diffa.sql;
 
+import net.lshift.diffa.adapter.scanning.DateAggregation;
+import net.lshift.diffa.adapter.scanning.DateGranularityEnum;
 import net.lshift.diffa.adapter.scanning.ScanAggregation;
-import net.lshift.diffa.adapter.scanning.ScanConstraint;
-import net.lshift.diffa.adapter.scanning.SetConstraint;
 import net.lshift.diffa.interview.Answer;
 import net.lshift.diffa.interview.SimpleGroupedAnswer;
-import net.lshift.diffa.scanning.PruningHandler;
 import org.joda.time.DateTime;
 import org.jooq.*;
 import org.jooq.impl.Factory;
@@ -30,109 +29,60 @@ import org.jooq.impl.SQLDataType;
 import java.sql.Date;
 import java.util.*;
 
-import static org.jooq.impl.Factory.*;
-
 /**
  */
-public class DateBasedAggregationScanner {
+public class DateBasedAggregationScanner extends AggregatingScanner {
   private static final Field<Object> day = Factory.field("DAY");
   private static final Field<Object> month = Factory.field("MONTH");
   private static final Field<Object> year = Factory.field("YEAR");
 
-  private static final Field<Object> bucket = Factory.field("BUCKET");
-  private static final Field<Object> version = Factory.field("VERSION");
-  private static final Field<Object> id = Factory.field("ID");
-  private static final Field<Object> digest = Factory.field("DIGEST");
-
-  private final Factory db;
-  private final DynamicTable underlyingTable;
-  private final Field<String> underlyingId;
-  private final Field<String> underlyingVersion;
-  private final Field<?> partitionColumn;
-  private final int maxSliceSize;
-  private Table A;
-  private Table B;
-  private Field<String> A_ID;
-  private Field<String> B_ID;
-  private Field<String> A_VERSION;
   private Field<Date> truncDay;
-  private Field<Integer> bucketCount;
   private Field<Date> truncMonth;
   private Field<Date> truncYear;
 
-  private ArrayList<Condition> filters = new ArrayList<Condition>();
-
   public DateBasedAggregationScanner(Factory db, PartitionMetadata config, int maxSliceSize) {
-    this.db = db;
-    this.underlyingTable = config.getTable();
-    this.underlyingId = (Field<String>) config.getId();
-    this.underlyingVersion = (Field<String>) config.getVersion();
-    this.partitionColumn = config.partitionBy();
-    this.maxSliceSize = maxSliceSize;
-
-    // There should be at least one condition - this is just a place-holder which doesn't filter.
-    filters.add(trueCondition());
+    super(db, config, maxSliceSize);
   }
 
-  private void configureFields(Set<ScanConstraint> constraints) {
-    if (constraints != null) {
-      for (ScanConstraint constraint : constraints) {
-        // Hope that this can be implicitly converted to the appropriate data type.
-        underlyingTable.addField(constraint.getAttributeName(), SQLDataType.VARCHAR);
-      }
-    }
-
-    this.A = underlyingTable.as("A");
-    this.B = underlyingTable.as("B");
-    this.A_ID = A.getField(underlyingId);
-    this.B_ID = B.getField(underlyingId);
-    this.A_VERSION = A.getField(underlyingVersion);
-  }
-
-  private void configurePartitions() {
-    Field<?> underlyingPartition = this.partitionColumn;
-    Field<?> A_PARTITION = A.getField(underlyingPartition);
-    this.truncDay = Factory.field("trunc({0}, {1})", SQLDataType.DATE, A_PARTITION, Factory.inline("DD"));
-    this.truncMonth = Factory.field("trunc({0}, {1})", SQLDataType.DATE, day, Factory.inline("MM"));
-    this.truncYear = Factory.field("trunc({0}, {1})", SQLDataType.DATE, month, Factory.inline("YY"));
-
-    this.bucketCount = cast(ceil(cast(count(), SQLDataType.REAL).div(maxSliceSize)), SQLDataType.INTEGER);
-  }
-
-  public void scan(Set<ScanConstraint> constraints, Set<ScanAggregation> aggregations, PruningHandler handler) {
-    configureFields(constraints);
-    configurePartitions();
-    setFilters(constraints);
-
-    Cursor<Record> cursor = yearly().fetchLazy();
-
-    while (cursor.hasNext()) {
-      Record record = cursor.fetchOne();
-
-      String dateComponent = (new DateTime(record.getValueAsDate(year))).getYear() + "";
-      String digestValue = record.getValueAsString(digest);
-
-      Answer answer = new SimpleGroupedAnswer(dateComponent, digestValue);
-      handler.onPrune(answer);
-    }
-    cursor.close();
-  }
-
-  // Currently only gets the first set constraint (assumed to be the extent for now).
-  private void setFilters(Set<ScanConstraint> constraints) {
-    if (constraints != null) {
-      for (ScanConstraint constraint : constraints) {
-        if (constraint instanceof SetConstraint) {
-          SetConstraint setConstraint = (SetConstraint) constraint;
-          Field<String> A_set = (Field<String>) A.getField(setConstraint.getAttributeName());
-          Field<String> B_set = (Field<String>) B.getField(setConstraint.getAttributeName());
-          for (String value : setConstraint.getValues()) {
-            filters.add(A_set.eq(value));
-            filters.add(B_set.eq(value));
-          }
+  protected Cursor<Record> runScan(Set<ScanAggregation> aggregations) {
+    DateGranularityEnum granularity = DateGranularityEnum.Yearly;
+    if (aggregations != null && aggregations.size() == 1) {
+      for (ScanAggregation aggregation : aggregations) {
+        if (aggregation instanceof DateAggregation) {
+          DateAggregation dateAggregation = (DateAggregation) aggregation;
+          granularity = dateAggregation.getGranularity();
         }
       }
     }
+
+    return queryForGranularity(granularity).fetchLazy();
+  }
+
+  private SelectFinalStep queryForGranularity(DateGranularityEnum granularity) {
+    switch (granularity) {
+      case Yearly: return yearly();
+      case Monthly: return monthly();
+      default: return daily();
+    }
+  }
+
+  protected Answer recordToAnswer(Record record) {
+    String dateComponent = (new DateTime(record.getValueAsDate(year))).getYear() + "";
+    String digestValue = record.getValueAsString(digest);
+
+    return new SimpleGroupedAnswer(dateComponent, digestValue);
+  }
+
+  protected void configurePartitions() {
+    Field<?> underlyingPartition = this.partitionColumn;
+    Field<?> A_PARTITION = A.getField(underlyingPartition);
+    this.truncDay = truncDate(A_PARTITION, "DD");
+    this.truncMonth = truncDate(day, "MM");
+    this.truncYear = truncDate(month, "YY");
+  }
+
+  private Field<Date> truncDate(Field<?> column, String granularity) {
+    return Factory.field("trunc({0}, {1})", SQLDataType.DATE, column, Factory.inline(granularity));
   }
 
   private SelectLimitStep yearly() {
@@ -158,12 +108,12 @@ public class DateBasedAggregationScanner {
 
   private SelectLimitStep dailyAndSliced() {
     return db.select(day, bucket, md5(version, id)).
-        from(slicedAssignedEntities()).
+        from(sliceAssignedEntities()).
         groupBy(day, bucket).
         orderBy(day, bucket); // must order or else the roll-up to daily could be wrong.
   }
 
-  private SelectLimitStep slicedAssignedEntities() {
+  private SelectLimitStep sliceAssignedEntities() {
     return db.select(
           truncDay.as(day.getName()),
           A_ID.as(id.getName()),
@@ -173,9 +123,5 @@ public class DateBasedAggregationScanner {
         where(filters).
         groupBy(truncDay, A_ID, A_VERSION).
         orderBy(truncDay, bucket);
-  }
-
-  private Field<String> md5(Field<Object> of, Field<Object> orderBy) {
-    return function("md5", String.class, groupConcat(of).orderBy(orderBy.asc()).separator("")).as(digest.getName());
   }
 }

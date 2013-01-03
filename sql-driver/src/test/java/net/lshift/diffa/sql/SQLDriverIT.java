@@ -55,7 +55,7 @@ public class SQLDriverIT extends AbstractDatabaseAware {
   }
 
   @Test
-  public void shouldFilterByExtent() throws Exception {
+  public void shouldFilterByExtentWithDateBasedAggregation() throws Exception {
     // Given the standard test data with an 'extent' column named 'id'...
     String selectedExtent = "1";
     ScanConstraint extentConstraint = new SetConstraint("ID", Collections.singleton(selectedExtent));
@@ -71,7 +71,29 @@ public class SQLDriverIT extends AbstractDatabaseAware {
     // There's only one record with an ID = '1', so we just have one entry in the 'extent'.
     String expectedAggregateVersion = md5(md5(md5(md5(md5(selectedExtent)))));
     Set<Answer> expectedResults = Collections.singleton(
-        (Answer) new SimpleGroupedAnswer("2005", "e8059811450b854a7b77cc653761282d"));
+        (Answer) new SimpleGroupedAnswer("2005", expectedAggregateVersion));
+
+    assertEquals(expectedResults, handler.getAnswers());
+  }
+
+  @Test
+  public void shouldFilterByExtentWithPrefixBasedAggregation() throws Exception {
+    // Given the standard test data with an 'extent' column named 'id'...
+    String selectedExtent = "1";
+    ScanConstraint extentConstraint = new SetConstraint("ID", Collections.singleton(selectedExtent));
+    ScanAggregation prefixAggregation = new StringPrefixAggregation("ID", 1);
+
+    PartitionAwareDriver driver = new PartitionAwareDriver(ds, metadata, TestDBProvider.getDialect());
+    BufferedPruningHandler handler = new BufferedPruningHandler();
+
+    // When
+    driver.scan(Collections.singleton(extentConstraint), Collections.singleton(prefixAggregation), 1, handler);
+
+    // Then
+    // There's only one record with an ID = '1', so we just have one entry in the 'extent'.
+    String expectedAggregateVersion = md5(md5(md5(md5(selectedExtent))));
+    Set<Answer> expectedResults = Collections.singleton(
+        (Answer) new SimpleGroupedAnswer("1", expectedAggregateVersion));
 
     assertEquals(expectedResults, handler.getAnswers());
   }
