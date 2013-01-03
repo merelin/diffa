@@ -57,8 +57,9 @@ public class AggregationBuilder {
    */
   public void maybeAddDateAggregation(String attrName) {
     String attrGranularity = getGranularityAttr(attrName);
+    String parent = getParentAttr(attrName);
     if (attrGranularity != null) {
-      result.add(new DateAggregation(attrName, attrGranularity));
+      result.add(new DateAggregation(attrName, attrGranularity, parent));
     }
   }
 
@@ -68,8 +69,9 @@ public class AggregationBuilder {
    */
   public void maybeAddByNameAggregation(String attrName) {
     String attrGranularity = getGranularityAttr(attrName);
+    String parent = getParentAttr(attrName);
     if (attrGranularity != null && attrGranularity.equals("by-name")) {
-      result.add(new ByNameAggregation(attrName));
+      result.add(new ByNameAggregation(attrName, parent));
     }
   }
 
@@ -80,8 +82,9 @@ public class AggregationBuilder {
    */
   public void maybeAddIntegerAggregation(String attrName) {
     String attrGranularity = getGranularityAttr(attrName);
+    String parent = getParentAttr(attrName);
     if (attrGranularity != null) {
-      result.add(new IntegerAggregation(attrName, attrGranularity));
+      result.add(new IntegerAggregation(attrName, attrGranularity, parent));
     }
   }
 
@@ -92,12 +95,17 @@ public class AggregationBuilder {
    */
   public void maybeAddStringPrefixAggregation(String attrName) {
     String length = req.getParameter(attrName + "-length");
+    String parent = getParentAttr(attrName);
     if (length != null) {
-      result.add(new StringPrefixAggregation(attrName, length));
+      result.add(new StringPrefixAggregation(attrName, length, parent));
     }
   }
 
   private String getGranularityAttr(String attrName) {
     return req.getParameter(attrName + "-granularity");
+  }
+
+  private String getParentAttr(String attrName) {
+    return req.getParameter(attrName + "-parent");
   }
 }

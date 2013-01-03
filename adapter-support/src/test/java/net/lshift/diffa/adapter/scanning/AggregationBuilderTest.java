@@ -40,6 +40,7 @@ public class AggregationBuilderTest {
   public void shouldAddDateAggregationWhenParameterIsAvailable() {
     MockHttpServletRequest req = new MockHttpServletRequest();
     req.addParameter("bizDate-granularity", "monthly");
+    req.addParameter("bizDate-parent", "2009");
     AggregationBuilder builder = new AggregationBuilder(req);
 
     builder.maybeAddDateAggregation("bizDate");

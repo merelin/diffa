@@ -116,9 +116,25 @@ public class InterviewResource {
     @Override
     public void run() {
 
-      Question question = railyard.getNextQuestion(space, endpoint);
+      Iterable<Question> questions = railyard.getNextQuestions(space, endpoint);
 
-      while ( !(question instanceof NoFurtherQuestions) ) {
+      progressInterview(questions);
+
+      while ( !(questions instanceof NoFurtherQuestions) ) {
+
+
+
+      }
+
+      InterviewState state = interviews.get(id);
+      state.setEnd(new DateTime().toString());
+      state.setState("FINISHED");
+      interviews.put(id, state);
+
+    }
+
+    private void progressInterview(Iterable<Question> questions) {
+      for (Question question : questions) {
 
         Set<ScanConstraint> constraints = question.getConstraints();
         Set<ScanAggregation> aggregations = question.getAggregations();
@@ -128,15 +144,9 @@ public class InterviewResource {
 
         scannable.scan(constraints, aggregations, maxSliceSize, handler);
 
-        question = railyard.getNextQuestion(space, endpoint, question, handler);
-
+        Iterable<Question> nextQuestions = railyard.getNextQuestions(space, endpoint, question, handler);
+        progressInterview(nextQuestions);
       }
-
-      InterviewState state = interviews.get(id);
-      state.setEnd(new DateTime().toString());
-      state.setState("FINISHED");
-      interviews.put(id, state);
-
     }
   }
 }

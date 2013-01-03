@@ -22,12 +22,12 @@ public class StringPrefixAggregation extends AbstractScanAggregation {
   private final int length;
 
 
-  public StringPrefixAggregation(String name, String length) {
-    this(name, parseGranularity(length));
+  public StringPrefixAggregation(String name, String length, String parent) {
+    this(name, parseGranularity(length), parent);
   }
 
-  public StringPrefixAggregation(String name, int length) {
-    super(name);
+  public StringPrefixAggregation(String name, int length,  String parent) {
+    super(name, parent);
 
     this.length = length;
   }

@@ -62,7 +62,7 @@ public class RailYardClient implements RailYard {
   }
 
   @Override
-  public Iterable<Question> getNextQuestion(String space, String endpoint) {
+  public Iterable<Question> getNextQuestions(String space, String endpoint) {
 
     final String url = baseUrl + String.format("/%s/interview/%s", space, endpoint);
 
@@ -83,7 +83,7 @@ public class RailYardClient implements RailYard {
   }
 
   @Override
-  public Iterable<Question> getNextQuestion(String space, String endpoint, Question lastQuestion, Iterable<Answer> answers) {
+  public Iterable<Question> getNextQuestions(String space, String endpoint, Question lastQuestion, Iterable<Answer> answers) {
 
     final String url = baseUrl + String.format("/%s/interview/%s", space, endpoint);
 

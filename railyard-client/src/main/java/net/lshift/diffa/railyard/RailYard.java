@@ -7,6 +7,6 @@ import net.lshift.diffa.interview.Question;
 public interface RailYard {
 
   void postChanges(String space, String endpoint, Iterable<ChangeEvent> events);
-  Iterable<Question> getNextQuestion(String space, String endpoint);
-  Iterable<Question> getNextQuestion(String space, String endpoint, Question lastQuestion, Iterable<Answer> answers);
+  Iterable<Question> getNextQuestions(String space, String endpoint);
+  Iterable<Question> getNextQuestions(String space, String endpoint, Question lastQuestion, Iterable<Answer> answers);
 }
