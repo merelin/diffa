@@ -80,9 +80,10 @@ public class SQLDriverIT extends AbstractDatabaseAware {
   public void shouldFilterByExtentWithPrefixBasedAggregation() throws Exception {
     // Given the standard test data with an 'extent' column named 'id'...
     String selectedExtent = "1";
-    ScanConstraint extentConstraint = new SetConstraint("ID", Collections.singleton(selectedExtent));
-    ScanAggregation prefixAggregation = new StringPrefixAggregation("ID", 1);
-    metadata.partitionBy("ID", SQLDataType.VARCHAR);
+    String idColumn = "ID";
+    ScanConstraint extentConstraint = new SetConstraint(idColumn, Collections.singleton(selectedExtent));
+    ScanAggregation prefixAggregation = new StringPrefixAggregation(idColumn, 1);
+    metadata.partitionBy(idColumn, SQLDataType.VARCHAR);
 
     PartitionAwareDriver driver = new PartitionAwareDriver(ds, metadata, TestDBProvider.getDialect());
     BufferedPruningHandler handler = new BufferedPruningHandler();
