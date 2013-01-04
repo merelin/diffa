@@ -142,8 +142,8 @@ class ConfigurationTest {
                 views = List(EndpointViewDef("v1")))
     val ep2 = DomainEndpointDef(space = space.id, name = "downstream1", scanUrl = "http://localhost:5432/scan",
           categories = Map(
-            "c" -> new PrefixCategoryDescriptor(1, 5, 1),
-            "d" -> new PrefixCategoryDescriptor(1, 6, 1)
+            "c" -> new PrefixCategoryDescriptor(1, 5, 6),
+            "d" -> new PrefixCategoryDescriptor(1, 6, 7)
           ),
           views = List(EndpointViewDef("v1")))
     val config = new DiffaConfig(
@@ -200,8 +200,8 @@ class ConfigurationTest {
       // downstream1 is gone, downstream2 is added
     val ep2 = DomainEndpointDef(space = space.id, name = "downstream2", scanUrl = "http://localhost:54321/scan",
           categories = Map(
-            "c" -> new PrefixCategoryDescriptor(1, 5, 1),
-            "d" -> new PrefixCategoryDescriptor(1, 6, 1)
+            "c" -> new PrefixCategoryDescriptor(1, 5, 6),
+            "d" -> new PrefixCategoryDescriptor(1, 6, 7)
           ))
     val config = new DiffaConfig(
         // diffa.host is changed, a -> b is gone, c -> d is added

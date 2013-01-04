@@ -51,23 +51,13 @@ class CategoryDescriptorValidationTest extends DefValidationTestBase {
 
   @Test
   def shouldRejectPrefixDescriptorWithMaximumShorterThanStart() {
-    validateError(new PrefixCategoryDescriptor(5, 4, 1), "config: maximum must be equal to or larger than initial prefix length")
+    validateErrorOnConstruction(() => new PrefixCategoryDescriptor(5, 4, 1), "Offsets were not ascending: [5, 4, 1]")
   }
+
   @Test
-  def shouldAcceptPrefixDescriptorWithInitialLengthOf0() {
-    new PrefixCategoryDescriptor(0, 1, 1).validate("config")
+  def shouldRejectPrefixDescriptorWithOffsetLessThan1() {
+    validateError(new PrefixCategoryDescriptor(0, 1, 2), "config: offset cannot be less than 1: [0, 1, 2]")
+    validateError(new PrefixCategoryDescriptor(-6, 4, 6), "config: offset cannot be less than 1: [-6, 4, 6]")
   }
-  @Test
-  def shouldRejectPrefixDescriptorWithInitialLengthLessThan0() {
-    validateError(new PrefixCategoryDescriptor(-1, 5, 1), "config: length cannot be negative")
-  }
-  @Test
-  def shouldRejectPrefixDescriptorWithMaximumLessThan1() {
-    validateError(new PrefixCategoryDescriptor(0, 0, 1), "config: maximum must be at least 1")
-  }
-  @Test
-  def shouldRejectPrefixDescriptorWithStepLessThan1() {
-    validateError(new PrefixCategoryDescriptor(1, 5, 0), "config: step must be at least 1")
-    validateError(new PrefixCategoryDescriptor(1, 5, -1), "config: step must be at least 1")
-  }
+
 }

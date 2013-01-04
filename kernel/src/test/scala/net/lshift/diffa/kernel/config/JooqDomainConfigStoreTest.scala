@@ -63,7 +63,7 @@ class JooqDomainConfigStoreTest {
   val intCategoryType = "int"
   val intRangeCategoriesMap = Map(intCategoryName ->  new RangeCategoryDescriptor(intCategoryType))
 
-  val stringPrefixCategoriesMap = Map(stringCategoryName -> new PrefixCategoryDescriptor(1, 3, 1))
+  val stringPrefixCategoriesMap = Map(stringCategoryName -> new PrefixCategoryDescriptor(1, 3, 5))
 
   var space:Space = null
   
@@ -562,13 +562,13 @@ class JooqDomainConfigStoreTest {
 
     val down_v2 = down_v1.copy(categories = Map(
         "foo" -> new RangeCategoryDescriptor("date", null, null, null),
-        "bar" -> new PrefixCategoryDescriptor(1,3,1)
+        "bar" -> new PrefixCategoryDescriptor(1,3,5)
       ))
     verifyEndpoints(Seq(down_v2, up_v2))
 
     val down_v3 = down_v2.copy(categories = Map(
         "foo" -> new RangeCategoryDescriptor("date", null, null, null),
-        "bar" -> new PrefixCategoryDescriptor(1,3,1),
+        "bar" -> new PrefixCategoryDescriptor(1,3,5),
         "baz" -> new SetCategoryDescriptor(Set("a","b","c"))
       ))
     verifyEndpoints(Seq(down_v3, up_v2))
@@ -576,8 +576,8 @@ class JooqDomainConfigStoreTest {
     val down_v4 = down_v3.copy(categories = Map(
         "foo" -> new RangeCategoryDescriptor("date", null, null, null),
         "ibm" -> new RangeCategoryDescriptor("date", "1999-10-10", "1999-10-11", null),
-        "bar" -> new PrefixCategoryDescriptor(1,3,1),
-        "who" -> new PrefixCategoryDescriptor(2,3,2),
+        "bar" -> new PrefixCategoryDescriptor(1,3,5),
+        "who" -> new PrefixCategoryDescriptor(2,3,4),
         "baz" -> new SetCategoryDescriptor(Set("sierra","lima","yankie")),
         "pom" -> new SetCategoryDescriptor(Set("indigo","victor","charlie"))
       ))
@@ -585,12 +585,12 @@ class JooqDomainConfigStoreTest {
 
     val up_v3 = up_v0.copy(categories = Map(
       "november" -> new RangeCategoryDescriptor("date", null, "2010-11-11", null),
-      "zulu"     -> new PrefixCategoryDescriptor(3,6,3)),
+      "zulu"     -> new PrefixCategoryDescriptor(3,6,9)),
       views = List(EndpointViewDef(
         name = "view1",
         categories = Map(
           "november" -> new RangeCategoryDescriptor("date", null, "2010-11-11", null),
-          "zulu"     -> new PrefixCategoryDescriptor(3,6,3)
+          "zulu"     -> new PrefixCategoryDescriptor(3,6,9)
         )
     )))
     verifyEndpoints(Seq(down_v4, up_v3))
@@ -633,9 +633,7 @@ class JooqDomainConfigStoreTest {
     val endpoint = domainConfigStore.getEndpointDef(space.id, downstream2.name)
     assertNotNull(endpoint.categories)
     val descriptor = endpoint.categories(stringCategoryName).asInstanceOf[PrefixCategoryDescriptor]
-    assertEquals(1, descriptor.prefixLength)
-    assertEquals(3, descriptor.maxLength)
-    assertEquals(1, descriptor.step)
+    assertNotNull(descriptor.getOffsets)
   }
 
   @Test
