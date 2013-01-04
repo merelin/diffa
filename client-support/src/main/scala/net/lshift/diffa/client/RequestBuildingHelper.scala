@@ -42,7 +42,7 @@ object RequestBuildingHelper {
   def aggregationsToQueryArguments(params:MultivaluedMap[String,String], aggregations:Seq[ScanAggregation]) {
     aggregations.foreach {
       case spf:StringPrefixAggregation =>
-        params.add(spf.getAttributeName + "-length", spf.getLength.toString)
+        spf.getOffsets.foreach(o => params.add(spf.getAttributeName + "-offset", o.toString))
       case ga:GranularityAggregation =>
         params.add(ga.getAttributeName + "-granularity", ga.getGranularityString)
     }

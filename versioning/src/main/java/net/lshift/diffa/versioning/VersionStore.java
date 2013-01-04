@@ -32,10 +32,10 @@ public interface VersionStore extends ChangeEventHandler {
    * This is the interview process that remote applications initiate when they
    * need to sync themselves with the version store
    */
-  Question continueInterview(Long endpoint,
-                             Set<ScanConstraint> constraints,
-                             Set<ScanAggregation> aggregations,
-                             Iterable<Answer> entries);
+  Iterable<Question> continueInterview(Long endpoint,
+                                       Set<ScanConstraint> constraints,
+                                       Set<ScanAggregation> aggregations,
+                                       Iterable<Answer> entries);
 
 
   void setMaxSliceSize(Long endpoint, int size);

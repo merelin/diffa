@@ -16,6 +16,7 @@ import org.jboss.resteasy.spi.HttpRequest;
 import javax.ws.rs.*;
 import javax.ws.rs.core.Context;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -37,19 +38,24 @@ public class InterviewResource {
   @GET
   @Path("/{endpoint}")
   @Produces("application/json")
-  public Question getNextQuestion(@PathParam("space") String space, @PathParam("endpoint") String endpointName) {
+  public Iterable<Question> getNextQuestion(@PathParam("space") String space, @PathParam("endpoint") String endpointName) {
+
+    List<Question> questions = new ArrayList<Question>(1);
 
     Endpoint endpoint = systemConfig.getEndpoint(space, endpointName);
     Map<String,CategoryDescriptor> categories = endpoint.getCategories();
 
-    return QuestionBuilder.buildInitialQuestion(categories);
+    Question initialQuestion = QuestionBuilder.buildInitialQuestion(categories);
+    questions.add(initialQuestion);
+
+    return questions;
   }
 
   @POST
   @Path("/{endpoint}")
   @Produces("application/json")
-  public Question getNextQuestion(@PathParam("space") String space, @PathParam("endpoint") String endpointName,
-                                  @Context final HttpRequest request) throws IOException {
+  public Iterable<Question> getNextQuestion(@PathParam("space") String space, @PathParam("endpoint") String endpointName,
+                                            @Context final HttpRequest request) throws IOException {
 
     Endpoint endpoint = systemConfig.getEndpoint(space, endpointName);
 

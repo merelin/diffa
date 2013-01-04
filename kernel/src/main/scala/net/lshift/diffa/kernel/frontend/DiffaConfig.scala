@@ -172,6 +172,11 @@ case class EndpointViewDef(
   def this() = this(name = null)
 
   def validate(owner:EndpointDef, path:String = null) {
+
+    // TODO Need to validate that non-aggregating constraints from the underlying
+    // endpoint are not constrained any further by any view
+    // -> only aggregating attributes can be narrowed
+
     val viewPath = ValidationUtil.buildPath(path, "views", Map("name" -> this.name))
 
     ValidationUtil.requiredAndNotEmpty(viewPath, "name", this.name)

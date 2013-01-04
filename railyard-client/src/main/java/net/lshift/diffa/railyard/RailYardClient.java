@@ -18,10 +18,9 @@ import java.util.concurrent.Executors;
 
 public class RailYardClient implements RailYard {
 
-  private ObjectMapper mapper = new ObjectMapper();
   private JsonFactory factory = new JsonFactory();
   private ExecutorService executorService = Executors.newCachedThreadPool();
-  private AsyncHttpClient client = new AsyncHttpClient();
+  //private AsyncHttpClient client = new AsyncHttpClient();
   private String baseUrl;
 
   @Inject
@@ -46,47 +45,45 @@ public class RailYardClient implements RailYard {
           setBody(encoder).
           build();
 
+    AsyncHttpClient client = new AsyncHttpClient();
+
     try {
 
       Response response = client.prepareRequest(request).execute().get();
-      verifyResponse(response, 204);
+      ResponseHelper.verifyResponse(response, 204);
 
     } catch (Exception e) {
       throw new RuntimeException(e);
+    } finally {
+      client.closeAsynchronously();
     }
+
 
   }
 
   @Override
-  public Question getNextQuestion(String space, String endpoint) {
-
-    Question question = null;
+  public Iterable<Question> getNextQuestions(String space, String endpoint) {
 
     final String url = baseUrl + String.format("/%s/interview/%s", space, endpoint);
 
-    SimpleAsyncHttpClient httpClient = new SimpleAsyncHttpClient.Builder()
-        .setUrl(url)
-        .build();
-
-    BufferedJsonBodyConsumer consumer = new BufferedJsonBodyConsumer();
+    QuestionHandler handler = new QuestionHandler();
+    AsyncHttpClient client = new AsyncHttpClient();
 
     try {
 
-      Response response = httpClient.get(consumer).get();
-      verifyResponse(response, 200);
-      question = consumer.getValue(Question.class);
+      client.prepareGet(url).execute(handler);
 
     } catch (Exception e) {
       throw new RuntimeException(e);
+    } finally {
+      client.closeAsynchronously();
     }
 
-    return question;
+    return handler;
   }
 
   @Override
-  public Question getNextQuestion(String space, String endpoint, Question lastQuestion, Iterable<Answer> answers) {
-
-    Question question = null;
+  public Iterable<Question> getNextQuestions(String space, String endpoint, Question lastQuestion, Iterable<Answer> answers) {
 
     final String url = baseUrl + String.format("/%s/interview/%s", space, endpoint);
 
@@ -102,26 +99,27 @@ public class RailYardClient implements RailYard {
             setQueryParameters(queryParameters).
             build();
 
+    QuestionHandler handler = new QuestionHandler();
+    AsyncHttpClient client = new AsyncHttpClient();
+
     try {
 
-      Response response = client.prepareRequest(request).execute().get();
+      client.prepareRequest(request).execute(handler);
+      /*
       verifyResponse(response, 200);
 
       byte[] payload = response.getResponseBodyAsBytes();
       question = mapper.readValue(payload, Question.class);
+      */
 
     } catch (Exception e) {
       throw new RuntimeException(e);
+    } finally {
+      client.closeAsynchronously();
     }
 
-    return question;
+    return handler;
   }
 
-  private void verifyResponse(Response response, int code) {
-    if (response.getStatusCode() != code) {
-      switch (response.getStatusCode()) {
-        default: throw new RailYardException("HTTP " + response.getStatusCode() + " : " + response.getStatusText());
-      }
-    }
-  }
+
 }

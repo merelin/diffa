@@ -57,8 +57,9 @@ public class AggregationBuilder {
    */
   public void maybeAddDateAggregation(String attrName) {
     String attrGranularity = getGranularityAttr(attrName);
+    String parent = getParentAttr(attrName);
     if (attrGranularity != null) {
-      result.add(new DateAggregation(attrName, attrGranularity));
+      result.add(new DateAggregation(attrName, attrGranularity, parent));
     }
   }
 
@@ -68,8 +69,9 @@ public class AggregationBuilder {
    */
   public void maybeAddByNameAggregation(String attrName) {
     String attrGranularity = getGranularityAttr(attrName);
+    String parent = getParentAttr(attrName);
     if (attrGranularity != null && attrGranularity.equals("by-name")) {
-      result.add(new ByNameAggregation(attrName));
+      result.add(new ByNameAggregation(attrName, parent));
     }
   }
 
@@ -80,8 +82,9 @@ public class AggregationBuilder {
    */
   public void maybeAddIntegerAggregation(String attrName) {
     String attrGranularity = getGranularityAttr(attrName);
+    String parent = getParentAttr(attrName);
     if (attrGranularity != null) {
-      result.add(new IntegerAggregation(attrName, attrGranularity));
+      result.add(new IntegerAggregation(attrName, attrGranularity, parent));
     }
   }
 
@@ -91,13 +94,18 @@ public class AggregationBuilder {
    * @param attrName the name of the attribute
    */
   public void maybeAddStringPrefixAggregation(String attrName) {
-    String length = req.getParameter(attrName + "-length");
-    if (length != null) {
-      result.add(new StringPrefixAggregation(attrName, length));
+    String[] offsets = req.getParameterValues(attrName + "-offset");
+    String parent = getParentAttr(attrName);
+    if (offsets != null) {
+      result.add(new StringPrefixAggregation(attrName, parent, offsets));
     }
   }
 
   private String getGranularityAttr(String attrName) {
     return req.getParameter(attrName + "-granularity");
+  }
+
+  private String getParentAttr(String attrName) {
+    return req.getParameter(attrName + "-parent");
   }
 }

@@ -143,7 +143,7 @@ public class CassandraVersionStoreIT {
 
     // Begin the interview process
 
-    ScanAggregation dateAggregation = new DateAggregation(attributeName, DateGranularityEnum.Yearly);
+    ScanAggregation dateAggregation = new DateAggregation(attributeName, DateGranularityEnum.Yearly, null);
 
     Set<ScanConstraint> cons = null;
     Set<ScanAggregation> aggs = ImmutableSet.of(dateAggregation);
@@ -152,9 +152,9 @@ public class CassandraVersionStoreIT {
 
     partitionAwareStore.scan(cons, aggs, maxSliceSize, handler);
 
-    Question question = store.continueInterview(left, cons, aggs, handler.getAnswers());
+    Iterable<Question> questions = store.continueInterview(left, cons, aggs, handler.getAnswers());
 
-    assertTrue(question instanceof NoFurtherQuestions);
+    assertTrue(questions instanceof NoFurtherQuestions);
 
   }
 

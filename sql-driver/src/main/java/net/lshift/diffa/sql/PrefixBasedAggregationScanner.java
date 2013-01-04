@@ -20,6 +20,7 @@ import net.lshift.diffa.adapter.scanning.ScanAggregation;
 import net.lshift.diffa.adapter.scanning.StringPrefixAggregation;
 import net.lshift.diffa.interview.Answer;
 import net.lshift.diffa.interview.SimpleGroupedAnswer;
+
 import org.jooq.*;
 import org.jooq.impl.Factory;
 import org.jooq.impl.SQLDataType;
@@ -46,18 +47,18 @@ public class PrefixBasedAggregationScanner extends AggregatingScanner {
 
   @Override
   protected Cursor<Record> runScan(Set<ScanAggregation> aggregations) {
-    int prefixLength = 1;
+    int shortestPrefix = 1;
     if (aggregations != null && aggregations.size() == 1) {
       for (ScanAggregation aggregation : aggregations) {
         if (aggregation instanceof StringPrefixAggregation) {
           StringPrefixAggregation stringPrefixAggregation = (StringPrefixAggregation) aggregation;
-          prefixLength = stringPrefixAggregation.getLength();
+          shortestPrefix = stringPrefixAggregation.getOffsets().pollFirst();
           // TODO set 'step' based on stringPrefixAggregation.stepSize (coming soon).
           // TODO ditto for 'maxPrefixLength'.
         }
       }
     }
-    SelectLimitStep query = getQueryForPrefixLength(prefixLength);
+    SelectLimitStep query = getQueryForPrefixLength(shortestPrefix);
     String sql = query.toString();
     return db.fetchLazy(sql);
 //    return query.fetchLazy();

@@ -19,7 +19,10 @@ public class ScanRequestEncoder {
 
         if (aggregation instanceof StringPrefixAggregation) {
           StringPrefixAggregation spf = (StringPrefixAggregation) aggregation;
-          queryParams.add(spf.getAttributeName() + "-length", spf.getLength() + "");
+          for (int offset : spf.getOffsets()) {
+            queryParams.add(spf.getAttributeName() + "-offset", offset + "");
+          }
+
         }
         else if (aggregation instanceof GranularityAggregation) {
           GranularityAggregation ga = (GranularityAggregation) aggregation;

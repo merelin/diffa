@@ -1,6 +1,5 @@
 package net.lshift.diffa.sql;
 
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import net.lshift.diffa.adapter.scanning.*;
 import net.lshift.diffa.dbapp.TestDBProvider;
@@ -20,6 +19,7 @@ import java.sql.Date;
 import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.Set;
+import java.util.TreeSet;
 
 public class SQLDriverIT extends AbstractDatabaseAware {
   public SQLDriverIT() {
@@ -81,8 +81,10 @@ public class SQLDriverIT extends AbstractDatabaseAware {
     // Given the standard test data with an 'extent' column named 'id'...
     String selectedExtent = "1";
     String idColumn = "ID";
+    TreeSet<Integer> prefixLengths = new TreeSet<Integer>();
+    prefixLengths.add(1);
     ScanConstraint extentConstraint = new SetConstraint(idColumn, Collections.singleton(selectedExtent));
-    ScanAggregation prefixAggregation = new StringPrefixAggregation(idColumn, 1);
+    ScanAggregation prefixAggregation = new StringPrefixAggregation(idColumn, null, prefixLengths);
     metadata.partitionBy(idColumn, SQLDataType.VARCHAR);
 
     PartitionAwareDriver driver = new PartitionAwareDriver(ds, metadata, TestDBProvider.getDialect());
@@ -104,7 +106,7 @@ public class SQLDriverIT extends AbstractDatabaseAware {
   public void shouldPartitionByDate() throws Exception {
     PartitionAwareDriver driver = new PartitionAwareDriver(ds, metadata, TestDBProvider.getDialect());
 
-    ScanAggregation dateAggregation = new DateAggregation("some_date", DateGranularityEnum.Yearly);
+    ScanAggregation dateAggregation = new DateAggregation("some_date", DateGranularityEnum.Yearly, null);
 
     Set<ScanConstraint> cons = null;
     Set<ScanAggregation> aggs = ImmutableSet.of(dateAggregation);

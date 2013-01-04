@@ -52,7 +52,7 @@ public class MerkleUtils {
     for(Map.Entry<String,ScanAggregation> entry : aggregations.entrySet()) {
       String value = values.get(entry.getKey());
       ScanAggregation aggregation = entry.getValue();
-      String bucketName = aggregation.bucket(value);
+      //String bucketName = aggregation.bucket(value);
     }
 
     return null;
