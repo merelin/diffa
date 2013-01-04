@@ -82,6 +82,7 @@ public class SQLDriverIT extends AbstractDatabaseAware {
     String selectedExtent = "1";
     ScanConstraint extentConstraint = new SetConstraint("ID", Collections.singleton(selectedExtent));
     ScanAggregation prefixAggregation = new StringPrefixAggregation("ID", 1);
+    metadata.partitionBy("ID", SQLDataType.VARCHAR);
 
     PartitionAwareDriver driver = new PartitionAwareDriver(ds, metadata, TestDBProvider.getDialect());
     BufferedPruningHandler handler = new BufferedPruningHandler();
@@ -91,9 +92,9 @@ public class SQLDriverIT extends AbstractDatabaseAware {
 
     // Then
     // There's only one record with an ID = '1', so we just have one entry in the 'extent'.
-    String expectedAggregateVersion = md5(md5(md5(md5(selectedExtent))));
+    String expectedAggregateVersion = md5(md5(md5(md5(md5(selectedExtent)))));
     Set<Answer> expectedResults = Collections.singleton(
-        (Answer) new SimpleGroupedAnswer("1", expectedAggregateVersion));
+        (Answer) new SimpleGroupedAnswer(selectedExtent, expectedAggregateVersion));
 
     assertEquals(expectedResults, handler.getAnswers());
   }
