@@ -18,7 +18,7 @@
     <commons.lang.version>3.1</commons.lang.version>
     <junit.version>4.10</junit.version>
     <hsqldb.version>2.2.8</hsqldb.version>
-    <jooq.version>2.6.0</jooq.version>
+    <jooq.version>2.6.1</jooq.version>
     <bonecp.version>0.7.1.RELEASE</bonecp.version>
     <guice.version>3.0</guice.version>
   </properties>
@@ -132,14 +132,6 @@
       <activation>
         <activeByDefault>true</activeByDefault>
       </activation>
-      <dependencies>
-        <dependency>
-          <groupId>com.oracle</groupId>
-          <artifactId>ojdbc6</artifactId>
-          <version>11.2.0.1.0</version>
-          <scope>test</scope>
-        </dependency>
-      </dependencies>
       <build>
         <plugins>
           <plugin>
