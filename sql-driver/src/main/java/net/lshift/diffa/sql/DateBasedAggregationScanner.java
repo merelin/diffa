@@ -36,6 +36,8 @@ public class DateBasedAggregationScanner extends AggregatingScanner<DateAggregat
   private static final Field<Object> month = Factory.field("MONTH");
   private static final Field<Object> year = Factory.field("YEAR");
 
+  private DateAggregation aggregation;
+
   private Field<Date> truncDay;
   private Field<Date> truncMonth;
   private Field<Date> truncYear;
@@ -45,18 +47,8 @@ public class DateBasedAggregationScanner extends AggregatingScanner<DateAggregat
   }
 
   @Override
-  protected Cursor<Record> runScan(Set<ScanAggregation> aggregations) {
-    DateGranularityEnum granularity = DateGranularityEnum.Yearly;
-    if (aggregations != null && aggregations.size() == 1) {
-      for (ScanAggregation aggregation : aggregations) {
-        if (aggregation instanceof DateAggregation) {
-          DateAggregation dateAggregation = (DateAggregation) aggregation;
-          granularity = dateAggregation.getGranularity();
-        }
-      }
-    }
-
-    return queryByGranularity(granularity).fetchLazy();
+  protected Cursor<Record> runScan() {
+    return queryByGranularity(aggregation.getGranularity()).fetchLazy();
   }
 
   private SelectFinalStep queryByGranularity(DateGranularityEnum granularity) {
@@ -76,7 +68,7 @@ public class DateBasedAggregationScanner extends AggregatingScanner<DateAggregat
   }
 
   @Override
-  protected void configurePartitions(DateAggregation aggregation) {
+  protected void configurePartitions() {
     Field<?> underlyingPartition = this.partitionColumn;
     Field<?> A_PARTITION = A.getField(underlyingPartition);
     this.truncDay = truncDate(A_PARTITION, "DD");
@@ -85,15 +77,22 @@ public class DateBasedAggregationScanner extends AggregatingScanner<DateAggregat
   }
 
   @Override
-  protected DateAggregation getAggregation(Set<ScanAggregation> aggregations) {
-    DateAggregation aggregation = null;
-    if (aggregations != null && !aggregations.isEmpty()) {
-      for (ScanAggregation agg : aggregations) {
-        if (agg instanceof DateAggregation) {
-          aggregation = (DateAggregation) agg;
+  protected void setAggregation(Set<ScanAggregation> aggregations) {
+    if (aggregation == null) {
+      aggregation = new DateAggregation(this.partitionColumn.getName(), DateGranularityEnum.Yearly);
+      if (aggregations != null) {
+        for (ScanAggregation agg : aggregations) {
+          if (agg instanceof DateAggregation) {
+            aggregation = (DateAggregation) agg;
+          }
         }
       }
     }
+  }
+
+  @Override
+  protected DateAggregation getAggregation(Set<ScanAggregation> aggregations) {
+    setAggregation(aggregations);
     return aggregation;
   }
 

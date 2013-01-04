@@ -73,11 +73,11 @@ public abstract class AggregatingScanner<AggregationType> {
 
   public void scan(Set<ScanConstraint> constraints, Set<ScanAggregation> aggregations, PruningHandler handler) {
     configureFields(constraints);
-    AggregationType aggregation = getAggregation(aggregations);
-    configurePartitions(aggregation);
+    setAggregation(aggregations);
+    configurePartitions();
     setFilters(constraints);
 
-    Cursor<Record> cursor = runScan(aggregations);
+    Cursor<Record> cursor = runScan();
 
     while (cursor.hasNext()) {
       Record record = cursor.fetchOne();
@@ -88,8 +88,9 @@ public abstract class AggregatingScanner<AggregationType> {
   }
 
   protected abstract AggregationType getAggregation(Set<ScanAggregation> aggregations);
-  protected abstract Cursor<Record> runScan(Set<ScanAggregation> aggregations);
-  protected abstract void configurePartitions(AggregationType aggregation);
+  protected abstract void setAggregation(Set<ScanAggregation> aggregations);
+  protected abstract Cursor<Record> runScan();
+  protected abstract void configurePartitions();
   protected abstract Answer recordToAnswer(Record record);
 
   protected Field<String> md5(Field<Object> of, Field<?> orderBy) {

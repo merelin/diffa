@@ -39,24 +39,22 @@ public class PrefixBasedAggregationScanner extends AggregatingScanner<StringPref
   }
 
   @Override
-  protected Cursor<Record> runScan(Set<ScanAggregation> aggregations) {
+  protected Cursor<Record> runScan() {
     int shortestPrefix = 1;
-    StringPrefixAggregation aggregation = getAggregation(aggregations);
     if (aggregation != null) {
-      shortestPrefix = aggregation.getOffsets().pollFirst();
+      shortestPrefix = aggregation.getOffsets().first();
     }
     SelectLimitStep query = getQueryForPrefixLength(shortestPrefix);
     String sql = query.toString();
     return db.fetchLazy(sql);
   }
 
-  // This is just a temporary solution.
-  // TODO replace with dynamic implementation that doesn't have a fixed depth.
   private SelectLimitStep getQueryForPrefixLength(int prefixLength) {
-    switch (prefixLength) {
-      case 1: return rollupToLengthN(1);
-      case 2: return rollupToLengthN(2);
-      default: return rollupToLengthMax(3);
+    Integer longestPrefix = aggregation.getOffsets().last();
+    if (prefixLength >= longestPrefix) {
+      return rollupToLengthMax(longestPrefix);
+    } else {
+      return rollupToLength(prefixLength);
     }
   }
 
@@ -69,27 +67,7 @@ public class PrefixBasedAggregationScanner extends AggregatingScanner<StringPref
   }
 
   @Override
-  protected void configurePartitions(StringPrefixAggregation aggregation) {
-    Field<?> underlyingPartition = this.partitionColumn;
-    Field<?> A_PARTITION = A.getField(underlyingPartition);
-
-    if (aggregation == null) {
-      preficesByLength.put(1, columnPrefix((Field<String>) A_PARTITION, 1));
-    } else {
-      Integer longestPrefix;
-      NavigableSet<Integer> prefixLengths = aggregation.getOffsets();
-      longestPrefix = prefixLengths.pollLast();
-      preficesByLength.put(longestPrefix, columnPrefix((Field<String>) A_PARTITION, longestPrefix));
-      prefixAliases.put(longestPrefix, aliasForPrefixField(longestPrefix));
-      while ((longestPrefix = prefixLengths.lower(longestPrefix)) != null) {
-        preficesByLength.put(longestPrefix, columnPrefix(aliasForPrefixField(longestPrefix + 1), longestPrefix));
-        prefixAliases.put(longestPrefix, aliasForPrefixField(longestPrefix));
-      }
-    }
-  }
-
-  @Override
-  protected StringPrefixAggregation getAggregation(Set<ScanAggregation> aggregations) {
+  protected void setAggregation(Set<ScanAggregation> aggregations) {
     if (aggregation == null) {
       NavigableSet<Integer> defaultPrefixLengths = new TreeSet<Integer>();
       Collections.addAll(defaultPrefixLengths, 1, 2, 3);
@@ -103,7 +81,32 @@ public class PrefixBasedAggregationScanner extends AggregatingScanner<StringPref
         }
       }
     }
+  }
 
+  @Override
+  protected void configurePartitions() {
+    Field<?> underlyingPartition = this.partitionColumn;
+    Field<?> A_PARTITION = A.getField(underlyingPartition);
+
+    if (aggregation == null) {
+      preficesByLength.put(1, columnPrefix((Field<String>) A_PARTITION, 1));
+    } else {
+      Integer longestPrefix;
+      NavigableSet<Integer> prefixLengths = aggregation.getOffsets();
+      longestPrefix = prefixLengths.last();
+      preficesByLength.put(longestPrefix, columnPrefix((Field<String>) A_PARTITION, longestPrefix));
+      prefixAliases.put(longestPrefix, aliasForPrefixField(longestPrefix));
+      while ((longestPrefix = prefixLengths.lower(longestPrefix)) != null) {
+        preficesByLength.put(longestPrefix,
+            columnPrefix(aliasForPrefixField(prefixLengths.higher(longestPrefix)), longestPrefix));
+        prefixAliases.put(longestPrefix, aliasForPrefixField(longestPrefix));
+      }
+    }
+  }
+
+  @Override
+  protected StringPrefixAggregation getAggregation(Set<ScanAggregation> aggregations) {
+    setAggregation(aggregations);
     return aggregation;
   }
 
@@ -122,15 +125,21 @@ public class PrefixBasedAggregationScanner extends AggregatingScanner<StringPref
         orderBy(f1a);
   }
 
-  private SelectLimitStep rollupToLengthN(int prefixLength) {
+  private Integer getNextPrefixLength(int prefixLength) {
+    return aggregation.getOffsets().higher(prefixLength);
+  }
+
+  private SelectLimitStep rollupToLength(int prefixLength) {
     SelectLimitStep nextRollup;
-    if (prefixLength <= 1) {
-      nextRollup = rollupToLengthN(prefixLength + 1);
+    Integer nextPrefixLength = getNextPrefixLength(prefixLength);
+    if (nextPrefixLength == null || getNextPrefixLength(nextPrefixLength) == null) {
+      nextRollup = rollupToLengthMax(nextPrefixLength != null ? nextPrefixLength : aggregation.getOffsets().last());
     } else {
-      nextRollup = rollupToLengthMax(prefixLength + 1);
+      nextRollup = rollupToLength(nextPrefixLength);
     }
+
     return step(preficesByLength.get(prefixLength), prefixAliases.get(prefixLength), digest,
-        prefixAliases.get(prefixLength + 1), nextRollup);
+        prefixAliases.get(nextPrefixLength), nextRollup);
   }
 
   private SelectLimitStep rollupToLengthMax(int prefixLength) {
