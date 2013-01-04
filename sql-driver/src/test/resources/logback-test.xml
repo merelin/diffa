@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-
-    Copyright (C) 2010-2011 LShift Ltd.
+    Copyright (C) 2010-2012 LShift Ltd.
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -14,7 +13,6 @@
     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
     See the License for the specific language governing permissions and
     limitations under the License.
-
 -->
 
 <configuration>
@@ -26,8 +24,11 @@
   </appender>
 
 
-  <logger name="org.jooq" level="INFO" />
-  <logger name="net.lshift" level="INFO" />
+  <logger name="com" level="WARN" />
+  <logger name="org" level="WARN" />
+  <logger name="org.jooq" level="WARN" />
+  <logger name="net" level="WARN" />
+  <logger name="net.lshift" level="WARN" />
 
   <!--
     Test cases that valid rejection cause way too much log noise since Hibernate logs and rethrows.
@@ -36,7 +37,7 @@
   <logger name="org.hibernate.event.def.AbstractFlushingEventListener" level="OFF" />
   <logger name="org.hibernate.util.JDBCExceptionReporter" level="OFF" />
 
-  <root level="INFO">
+  <root level="WARN">
     <appender-ref ref="STDOUT" />
   </root>
 
