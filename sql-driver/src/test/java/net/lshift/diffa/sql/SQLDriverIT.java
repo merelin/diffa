@@ -82,7 +82,7 @@ public class SQLDriverIT extends AbstractDatabaseAware {
     String selectedExtent = "1";
     String idColumn = "ID";
     TreeSet<Integer> prefixLengths = new TreeSet<Integer>();
-    prefixLengths.add(1);
+    Collections.addAll(prefixLengths, 1,2,3);
     ScanConstraint extentConstraint = new SetConstraint(idColumn, Collections.singleton(selectedExtent));
     ScanAggregation prefixAggregation = new StringPrefixAggregation(idColumn, null, prefixLengths);
     metadata.partitionBy(idColumn, SQLDataType.VARCHAR);

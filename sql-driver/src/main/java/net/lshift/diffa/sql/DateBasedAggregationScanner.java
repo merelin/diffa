@@ -31,7 +31,7 @@ import java.util.*;
 
 /**
  */
-public class DateBasedAggregationScanner extends AggregatingScanner {
+public class DateBasedAggregationScanner extends AggregatingScanner<DateAggregation> {
   private static final Field<Object> day = Factory.field("DAY");
   private static final Field<Object> month = Factory.field("MONTH");
   private static final Field<Object> year = Factory.field("YEAR");
@@ -76,12 +76,25 @@ public class DateBasedAggregationScanner extends AggregatingScanner {
   }
 
   @Override
-  protected void configurePartitions() {
+  protected void configurePartitions(DateAggregation aggregation) {
     Field<?> underlyingPartition = this.partitionColumn;
     Field<?> A_PARTITION = A.getField(underlyingPartition);
     this.truncDay = truncDate(A_PARTITION, "DD");
     this.truncMonth = truncDate(day, "MM");
     this.truncYear = truncDate(month, "YY");
+  }
+
+  @Override
+  protected DateAggregation getAggregation(Set<ScanAggregation> aggregations) {
+    DateAggregation aggregation = null;
+    if (aggregations != null && !aggregations.isEmpty()) {
+      for (ScanAggregation agg : aggregations) {
+        if (agg instanceof DateAggregation) {
+          aggregation = (DateAggregation) agg;
+        }
+      }
+    }
+    return aggregation;
   }
 
   private Field<Date> truncDate(Field<?> column, String granularity) {

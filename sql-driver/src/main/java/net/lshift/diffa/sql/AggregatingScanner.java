@@ -34,7 +34,7 @@ import static org.jooq.impl.Factory.*;
  * A template for executing aggregating queries and bringing the result back to the client in a format amenable
  * to use with other Diffa components.
  */
-public abstract class AggregatingScanner {
+public abstract class AggregatingScanner<AggregationType> {
   protected static final Field<Object> bucket = Factory.field("BUCKET");
   protected static final Field<Object> version = Factory.field("VERSION");
   protected static final Field<Object> id = Factory.field("ID");
@@ -73,7 +73,8 @@ public abstract class AggregatingScanner {
 
   public void scan(Set<ScanConstraint> constraints, Set<ScanAggregation> aggregations, PruningHandler handler) {
     configureFields(constraints);
-    configurePartitions();
+    AggregationType aggregation = getAggregation(aggregations);
+    configurePartitions(aggregation);
     setFilters(constraints);
 
     Cursor<Record> cursor = runScan(aggregations);
@@ -86,8 +87,9 @@ public abstract class AggregatingScanner {
     cursor.close();
   }
 
+  protected abstract AggregationType getAggregation(Set<ScanAggregation> aggregations);
   protected abstract Cursor<Record> runScan(Set<ScanAggregation> aggregations);
-  protected abstract void configurePartitions();
+  protected abstract void configurePartitions(AggregationType aggregation);
   protected abstract Answer recordToAnswer(Record record);
 
   protected Field<String> md5(Field<Object> of, Field<?> orderBy) {
