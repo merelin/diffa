@@ -20,8 +20,8 @@ package net.lshift.diffa.adapter.scanning;
  */
 public abstract class AbstractScanAggregation implements ScanAggregation {
 
-  private final String attrName;
-  private final String parent;
+  protected final String attrName;
+  protected final String parent;
 
   public AbstractScanAggregation(String attrName, String parent) {
     this.attrName = attrName;

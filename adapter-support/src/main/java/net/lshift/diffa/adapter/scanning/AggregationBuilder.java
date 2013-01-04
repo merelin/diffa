@@ -94,10 +94,10 @@ public class AggregationBuilder {
    * @param attrName the name of the attribute
    */
   public void maybeAddStringPrefixAggregation(String attrName) {
-    String length = req.getParameter(attrName + "-length");
+    String[] offsets = req.getParameterValues(attrName + "-offset");
     String parent = getParentAttr(attrName);
-    if (length != null) {
-      result.add(new StringPrefixAggregation(attrName, length, parent));
+    if (offsets != null) {
+      result.add(new StringPrefixAggregation(attrName, parent, offsets));
     }
   }
 
