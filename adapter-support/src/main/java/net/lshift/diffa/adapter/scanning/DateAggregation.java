@@ -35,7 +35,7 @@ public class DateAggregation extends AbstractScanAggregation implements Granular
   private final DateGranularityEnum granularity;
 
   public DateAggregation(String name, DateGranularityEnum granularity) {
-    this(name, granularity, granularity.name());
+    this(name, granularity, null);
   }
 
   public DateAggregation(String name, String granularity, String parent) {
