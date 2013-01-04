@@ -32,13 +32,13 @@ public class PrefixBasedAggregationScanner extends AggregatingScanner {
   private int maxPrefixLength = 3;
   private int step = 1;
 
-  private Field<String> truncDay; // truncDay
-  private Field<String> truncMonth; // truncMonth
-  private Field<String> truncYear; // truncYear
+  private Field<String> prefixLength3;
+  private Field<String> prefixLength2;
+  private Field<String> prefixLength1;
 
-  private final Field<String> day = Factory.field("P3", SQLDataType.VARCHAR); // day
-  private final Field<String> month = Factory.field("P2", SQLDataType.VARCHAR); // month
-  private final Field<String> year = Factory.field("P1", SQLDataType.VARCHAR); // year
+  private final Field<String> aliasP3 = Factory.field("P3", SQLDataType.VARCHAR);
+  private final Field<String> aliasP2 = Factory.field("P2", SQLDataType.VARCHAR);
+  private final Field<String> aliasP1 = Factory.field("P1", SQLDataType.VARCHAR);
 
   public PrefixBasedAggregationScanner(Factory db, PartitionMetadata config, int maxSliceSize) {
     super(db, config, maxSliceSize);
@@ -57,9 +57,20 @@ public class PrefixBasedAggregationScanner extends AggregatingScanner {
         }
       }
     }
-    SelectLimitStep query = yearly();
+    SelectLimitStep query = getQueryForPrefixLength(prefixLength);
     String sql = query.toString();
     return db.fetchLazy(sql);
+//    return query.fetchLazy();
+  }
+
+  // This is just a temporary solution.
+  // TODO replace with dynamic implementation that doesn't have a fixed depth.
+  private SelectLimitStep getQueryForPrefixLength(int prefixLength) {
+    switch (prefixLength) {
+      case 1: return rollupToLength1();
+      case 2: return rollupToLength2();
+      default: return rollupToLength3();
+    }
   }
 
   @Override
@@ -75,9 +86,9 @@ public class PrefixBasedAggregationScanner extends AggregatingScanner {
     Field<?> underlyingPartition = this.partitionColumn;
     Field<?> A_PARTITION = A.getField(underlyingPartition);
 
-    this.truncDay = columnPrefix((Field<String>) A_PARTITION, 3); // truncDay
-    this.truncMonth = columnPrefix(day, 2); // truncMonth
-    this.truncYear = columnPrefix(month, 1); // truncYear
+    this.prefixLength3 = columnPrefix((Field<String>) A_PARTITION, 3);
+    this.prefixLength2 = columnPrefix(aliasP3, 2);
+    this.prefixLength1 = columnPrefix(aliasP2, 1);
   }
 
   private Field<String> columnPrefix(Field<String> column, int length) {
@@ -91,37 +102,37 @@ public class PrefixBasedAggregationScanner extends AggregatingScanner {
         orderBy(f1a);
   }
 
-  private SelectLimitStep yearly() {
-    return step(truncYear, year, digest, month, monthly());
+  private SelectLimitStep rollupToLength1() {
+    return step(prefixLength1, aliasP1, digest, aliasP2, rollupToLength2());
   }
 
-  private SelectLimitStep monthly() {
-    return step(truncMonth, month, digest, day, daily());
+  private SelectLimitStep rollupToLength2() {
+    return step(prefixLength2, aliasP2, digest, aliasP3, rollupToLength3());
   }
 
-  private SelectLimitStep daily() {
-    return db.select(day, md5(digest, bucket)).
+  private SelectLimitStep rollupToLength3() {
+    return db.select(aliasP3, md5(digest, bucket)).
         from(sliced()).
-        groupBy(day).
-        orderBy(day);
+        groupBy(aliasP3).
+        orderBy(aliasP3);
   }
 
-  private SelectLimitStep sliced() { // dailyAndSliced()
-    return db.select(day, bucket, md5(version, id)).
+  private SelectLimitStep sliced() {
+    return db.select(aliasP3, bucket, md5(version, id)).
         from(sliceAssignedEntities()).
-        groupBy(day, bucket).
-        orderBy(day, bucket);
+        groupBy(aliasP3, bucket).
+        orderBy(aliasP3, bucket);
   }
 
   private SelectLimitStep sliceAssignedEntities() {
     return db.select(
-          truncDay.as(day.getName()),
+          prefixLength3.as(aliasP3.getName()),
           A_ID.as(id.getName()),
           A_VERSION.as(version.getName()),
           bucketCount.as(bucket.getName())).
         from(A).join(B).on(A_ID.ge(B_ID)).
         where(filters).
-        groupBy(truncDay, A_ID, A_VERSION).
-        orderBy(day, bucket);
+        groupBy(prefixLength3, A_ID, A_VERSION).
+        orderBy(aliasP3, bucket);
   }
 }
