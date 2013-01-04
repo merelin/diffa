@@ -44,6 +44,7 @@ public class DateBasedAggregationScanner extends AggregatingScanner {
     super(db, config, maxSliceSize);
   }
 
+  @Override
   protected Cursor<Record> runScan(Set<ScanAggregation> aggregations) {
     DateGranularityEnum granularity = DateGranularityEnum.Yearly;
     if (aggregations != null && aggregations.size() == 1) {
@@ -55,10 +56,10 @@ public class DateBasedAggregationScanner extends AggregatingScanner {
       }
     }
 
-    return queryForGranularity(granularity).fetchLazy();
+    return queryByGranularity(granularity).fetchLazy();
   }
 
-  private SelectFinalStep queryForGranularity(DateGranularityEnum granularity) {
+  private SelectFinalStep queryByGranularity(DateGranularityEnum granularity) {
     switch (granularity) {
       case Yearly: return yearly();
       case Monthly: return monthly();
@@ -66,6 +67,7 @@ public class DateBasedAggregationScanner extends AggregatingScanner {
     }
   }
 
+  @Override
   protected Answer recordToAnswer(Record record) {
     String dateComponent = (new DateTime(record.getValueAsDate(year))).getYear() + "";
     String digestValue = record.getValueAsString(digest);
@@ -73,6 +75,7 @@ public class DateBasedAggregationScanner extends AggregatingScanner {
     return new SimpleGroupedAnswer(dateComponent, digestValue);
   }
 
+  @Override
   protected void configurePartitions() {
     Field<?> underlyingPartition = this.partitionColumn;
     Field<?> A_PARTITION = A.getField(underlyingPartition);
@@ -85,18 +88,19 @@ public class DateBasedAggregationScanner extends AggregatingScanner {
     return Factory.field("trunc({0}, {1})", SQLDataType.DATE, column, Factory.inline(granularity));
   }
 
+  private <T,U>SelectLimitStep step(Field<T> f1, Field<U> f1a, Field<Object> digest, Field<U> f2a, SelectLimitStep next) {
+    return db.select(f1.as(f1a.getName()), md5(digest, f2a)).
+        from(next).
+        groupBy(f1).
+        orderBy(f1a);
+  }
+
   private SelectLimitStep yearly() {
-    return db.select(truncYear.as(year.getName()), md5(digest, month)).
-        from(monthly()).
-        groupBy(truncYear).
-        orderBy(year);
+    return step(truncYear, year, digest, month, monthly());
   }
 
   private SelectLimitStep monthly() {
-    return db.select(truncMonth.as(month.getName()), md5(digest, day)).
-        from(daily()).
-        groupBy(truncMonth).
-        orderBy(month);
+    return step(truncMonth, month, digest, day, daily());
   }
 
   private SelectLimitStep daily() {
