@@ -29,17 +29,20 @@ import java.util.Set;
 /**
  */
 public class PrefixBasedAggregationScanner extends AggregatingScanner {
-  private static final Field<String> PREFIX_ALIAS = Factory.field("PREF", SQLDataType.VARCHAR);
-
   private int maxPrefixLength = 3;
   private int step = 1;
+
+  private Field<String> truncDay; // truncDay
+  private Field<String> truncMonth; // truncMonth
+  private Field<String> truncYear; // truncYear
+
+  private final Field<String> day = Factory.field("P3", SQLDataType.VARCHAR); // day
+  private final Field<String> month = Factory.field("P2", SQLDataType.VARCHAR); // month
+  private final Field<String> year = Factory.field("P1", SQLDataType.VARCHAR); // year
 
   public PrefixBasedAggregationScanner(Factory db, PartitionMetadata config, int maxSliceSize) {
     super(db, config, maxSliceSize);
   }
-
-  @Override
-  protected void configurePartitions() {} // determined dynamically.
 
   @Override
   protected Cursor<Record> runScan(Set<ScanAggregation> aggregations) {
@@ -54,54 +57,71 @@ public class PrefixBasedAggregationScanner extends AggregatingScanner {
         }
       }
     }
-    SelectLimitStep query = aggregateByPrefixOfLength(prefixLength);
-    return query.fetchLazy();
+    SelectLimitStep query = yearly();
+    String sql = query.toString();
+    return db.fetchLazy(sql);
   }
 
   @Override
   protected Answer recordToAnswer(Record record) {
-    String idComponent = record.getValueAsString(PREFIX_ALIAS);
+    String idComponent = (String) record.getValue(0);
     String digestValue = record.getValueAsString(digest);
-//    String digestValue = "abc";
 
     return new SimpleGroupedAnswer(idComponent, digestValue);
   }
 
-  private SelectLimitStep aggregateByPrefixOfLength(int prefixLength) {
-    if (prefixLength >= maxPrefixLength) {
-      return sliced();
-    } else {
-      return db.select(columnPrefix(PREFIX_ALIAS, prefixLength).as(PREFIX_ALIAS.getName()), md5(digest, PREFIX_ALIAS)).
-          from(aggregateByPrefixOfLength(prefixLength + step)).
-          groupBy(columnPrefix(PREFIX_ALIAS, prefixLength).as(PREFIX_ALIAS.getName())).
-          orderBy(1);
-    }
+  @Override
+  protected void configurePartitions() {
+    Field<?> underlyingPartition = this.partitionColumn;
+    Field<?> A_PARTITION = A.getField(underlyingPartition);
+
+    this.truncDay = columnPrefix((Field<String>) A_PARTITION, 3); // truncDay
+    this.truncMonth = columnPrefix(day, 2); // truncMonth
+    this.truncYear = columnPrefix(month, 1); // truncYear
   }
 
-  private Field<String> getPrefixAlias(int prefixLength) {
-    return Factory.field("PREF" + prefixLength, SQLDataType.VARCHAR);
+  private Field<String> columnPrefix(Field<String> column, int length) {
+    return Factory.substring(column, 1, length); // substring offset index is 1-based.
   }
 
-  private SelectLimitStep sliced() {
-    return db.select(PREFIX_ALIAS, bucket, md5(version, id)).
+  private <T,U>SelectLimitStep step(Field<T> f1, Field<U> f1a, Field<Object> digest, Field<U> f2a, SelectLimitStep next) {
+    return db.select(f1.as(f1a.getName()), md5(digest, f2a)).
+        from(next).
+        groupBy(f1).
+        orderBy(f1a);
+  }
+
+  private SelectLimitStep yearly() {
+    return step(truncYear, year, digest, month, monthly());
+  }
+
+  private SelectLimitStep monthly() {
+    return step(truncMonth, month, digest, day, daily());
+  }
+
+  private SelectLimitStep daily() {
+    return db.select(day, md5(digest, bucket)).
+        from(sliced()).
+        groupBy(day).
+        orderBy(day);
+  }
+
+  private SelectLimitStep sliced() { // dailyAndSliced()
+    return db.select(day, bucket, md5(version, id)).
         from(sliceAssignedEntities()).
-        groupBy(PREFIX_ALIAS, bucket).
-        orderBy(1, 2);
+        groupBy(day, bucket).
+        orderBy(day, bucket);
   }
 
   private SelectLimitStep sliceAssignedEntities() {
     return db.select(
-          columnPrefix(A_ID, maxPrefixLength).as(PREFIX_ALIAS.getName()),
-          bucketCount.as(bucket.getName()),
+          truncDay.as(day.getName()),
           A_ID.as(id.getName()),
-          A_VERSION.as(version.getName())).
+          A_VERSION.as(version.getName()),
+          bucketCount.as(bucket.getName())).
         from(A).join(B).on(A_ID.ge(B_ID)).
         where(filters).
-        groupBy(columnPrefix(A_ID, maxPrefixLength), A_ID, A_VERSION).
-        orderBy(1, 2);
-  }
-
-  private Field<String> columnPrefix(Field<String> column, int length) {
-    return Factory.substring(column, 0, length);
+        groupBy(truncDay, A_ID, A_VERSION).
+        orderBy(day, bucket);
   }
 }
