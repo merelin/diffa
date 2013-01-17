@@ -20,62 +20,60 @@ package net.lshift.diffa.config;
 import net.lshift.diffa.adapter.scanning.ScanConstraint;
 import net.lshift.diffa.adapter.scanning.StringPrefixConstraint;
 
+import java.util.*;
+
 /**
  * This describes a category that can be constrained by a prefix.
  */
 public class PrefixCategoryDescriptor extends AggregatingCategoryDescriptor {
 
   public PrefixCategoryDescriptor() {
+    this.offsets = new TreeSet<Integer>();
   }
 
-  public PrefixCategoryDescriptor(int prefixLength, int maxLength, int step) {
-    this.prefixLength = prefixLength;
-    this.maxLength = maxLength;
-    this.step = step;
+  public PrefixCategoryDescriptor(NavigableSet<Integer> offsets) {
+    this.offsets = offsets;
   }
 
-  public int prefixLength;
-  public int maxLength;
-  public int step;
+  public PrefixCategoryDescriptor(Integer ... offsets) {
 
-  public int getPrefixLength() {
-    return prefixLength;
+    boolean ascending = true;
+
+    for (int i = 1; i < offsets.length && ascending; i++) {
+      ascending = ascending && offsets[i] > offsets[i-1];
+    }
+
+    if (!ascending) {
+      throw new IllegalArgumentException("Offsets were not ascending: " + Arrays.asList(offsets));
+    }
+
+    this.offsets = new TreeSet<Integer>();
+    Collections.addAll(this.offsets, offsets);
+
   }
 
-  public void setPrefixLength(int prefixLength) {
-    this.prefixLength = prefixLength;
+  public NavigableSet<Integer> offsets;
+
+  public NavigableSet<Integer> getOffsets() {
+    return offsets;
   }
 
-  public int getMaxLength() {
-    return maxLength;
-  }
-
-  public void setMaxLength(int maxLength) {
-    this.maxLength = maxLength;
-  }
-
-  public int getStep() {
-    return step;
-  }
-
-  public void setStep(int step) {
-    this.step = step;
+  public void addOffset(int offset) {
+    offsets.add(offset);
   }
 
   @Override
   public void validate(String path) {
-    if (getPrefixLength() < 0) {
-      throw new ConfigValidationException(path, "length cannot be negative");
+    if (getOffsets() == null || getOffsets().size() == 0) {
+      throw new ConfigValidationException(path, "offsets cannot be empty");
     }
-    if (getMaxLength() < 1) {
-      throw new ConfigValidationException(path, "maximum must be at least 1");
+
+    for (int offset : getOffsets()) {
+      if (offset < 1) {
+        throw new ConfigValidationException(path, "offset cannot be less than 1: " + getOffsets());
+      }
     }
-    if (getStep() < 1) {
-      throw new ConfigValidationException(path, "step must be at least 1");
-    }
-    if (getPrefixLength() > getMaxLength()) {
-      throw new ConfigValidationException(path, "maximum must be equal to or larger than initial prefix length");
-    }
+
   }
 
   @Override
@@ -101,25 +99,13 @@ public class PrefixCategoryDescriptor extends AggregatingCategoryDescriptor {
       throw new InvalidConstraintException(constraint.getAttributeName(),
         "Prefix Categories only support Prefix Constraints - provided constraint was " + constraint.getClass().getName());
     }
-
-    StringPrefixConstraint pConstraint = (StringPrefixConstraint) constraint;
-    if (pConstraint.getPrefix().length() < this.getPrefixLength()) {
-      throw new InvalidConstraintException(constraint.getAttributeName(),
-        "Prefix " + pConstraint.getPrefix() + " is shorter than configured start length " + getPrefixLength());
-    }
-    if (pConstraint.getPrefix().length() > this.getMaxLength()) {
-      throw new InvalidConstraintException(constraint.getAttributeName(),
-        "Prefix " + pConstraint.getPrefix() + " is longer than configured max length " + getMaxLength());
-    }
   }
 
   @Override
   public String toString() {
     return "PrefixCategoryDescriptor{" +
-      "prefixLength=" + prefixLength +
-      ", maxLength=" + maxLength +
-      ", step=" + step +
-      '}';
+        "offsets=" + offsets +
+        '}';
   }
 
   @Override
@@ -129,18 +115,13 @@ public class PrefixCategoryDescriptor extends AggregatingCategoryDescriptor {
 
     PrefixCategoryDescriptor that = (PrefixCategoryDescriptor) o;
 
-    if (maxLength != that.maxLength) return false;
-    if (prefixLength != that.prefixLength) return false;
-    if (step != that.step) return false;
+    if (offsets != null ? !offsets.equals(that.offsets) : that.offsets != null) return false;
 
     return true;
   }
 
   @Override
   public int hashCode() {
-    int result = prefixLength;
-    result = 31 * result + maxLength;
-    result = 31 * result + step;
-    return result;
+    return offsets != null ? offsets.hashCode() : 0;
   }
 }

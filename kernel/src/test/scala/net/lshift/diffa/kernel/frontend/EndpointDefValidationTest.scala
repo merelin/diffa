@@ -9,6 +9,7 @@ import org.junit.runner.RunWith
 import org.junit.experimental.theories.{Theory, DataPoint, Theories}
 import net.lshift.diffa.config.{AggregatingCategoryDescriptor, SetCategoryDescriptor, PrefixCategoryDescriptor, RangeCategoryDescriptor}
 import net.lshift.diffa.adapter.scanning.{UnorderedCollation, UnicodeCollation, AsciiCollation}
+import java.util
 
 /**
  * Verify that EndpointDef constraints are enforced.
@@ -145,5 +146,11 @@ object EndpointDefValidationTest {
   @DataPoint def daily = Scenario(new RangeCategoryDescriptor("date", "2012-01-01", "2012-01-02", "daily"))
   @DataPoint def setCat = Scenario(new SetCategoryDescriptor(Set("a")))
   */
-  @DataPoint def prefixCat = Scenario(new PrefixCategoryDescriptor(1, 2, 1))
+  @DataPoint def prefixCat = Scenario(
+    new PrefixCategoryDescriptor(
+      new java.util.TreeSet[java.lang.Integer](
+        java.util.Arrays.asList(2:java.lang.Integer)
+      )
+    )
+  )
 }
