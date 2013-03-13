@@ -186,6 +186,7 @@ object JooqConfigStoreCompanion {
       results.iterator().foreach(record => {
 
         val currentEndpoint = DomainEndpointDef(
+          domain = record.getValue(ENDPOINT.DOMAIN),
           name = record.getValue(ENDPOINT.NAME),
           scanUrl = record.getValue(ENDPOINT.SCAN_URL),
           contentRetrievalUrl = record.getValue(ENDPOINT.CONTENT_RETRIEVAL_URL),
