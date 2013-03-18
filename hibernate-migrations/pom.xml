@@ -4,7 +4,7 @@
 
   <groupId>net.lshift</groupId>
   <artifactId>hibernate-migrations</artifactId>
-  <version>1.5.8</version>
+  <version>1.5.9=SNAPSHOT-SNAPSHOT</version>
 
   <name>LShift Hibernate Migrations</name>
 
