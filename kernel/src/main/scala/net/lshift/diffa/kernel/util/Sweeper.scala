@@ -28,7 +28,14 @@ class Sweeper(val period:Int, diffStore:DomainDifferenceStore) {
 
   val sweepTask = new TimerTask {
     def run() {
-      diffStore.expireMatches(new DateTime().minusMinutes(matchAgeMins))
+      try {
+        diffStore.expireMatches(new DateTime().minusMinutes(matchAgeMins))
+      } catch {
+        case e: Throwable =>
+          // Log errors for alerting but continue so if, for example, we lose the database momentarily,
+          // the sweeper timer can continue to fire until the database issue is resolved.
+          log.error("An exception was thrown while expiring matches: " + e.getMessage)
+      }
     }
   }
 
