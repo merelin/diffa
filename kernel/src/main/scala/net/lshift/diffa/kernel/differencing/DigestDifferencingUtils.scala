@@ -21,6 +21,7 @@ import net.lshift.diffa.kernel.participants._
 import net.lshift.diffa.kernel.config.AggregatingCategoryDescriptor
 import scala.collection.JavaConversions._
 import net.lshift.diffa.participant.scanning.{ScanConstraint, ScanResultEntry}
+import org.joda.time.DateTimeZone
 
 /**
  * Utility methods for differencing sequences of digests.
@@ -37,12 +38,12 @@ object DigestDifferencingUtils {
 
     ds1Ids.foreach { case (label, ds1Digest) => {
       val (otherMatches, otherDigest, otherDigestUpdated) = ds2Ids.remove(label) match {
-        case Some(hs2Digest) => (ds1Digest.getVersion == hs2Digest.getVersion, hs2Digest.getVersion, hs2Digest.getLastUpdated)
+        case Some(hs2Digest) => (ds1Digest.getVersion == hs2Digest.getVersion, hs2Digest.getVersion, hs2Digest.getLastUpdated.withZone(DateTimeZone.UTC))
         case None => (false, null, null)
       }
 
       if (!otherMatches) {
-        result += VersionMismatch(label, AttributesUtil.toTypedMap(categories, ds1Digest.getAttributes.toMap), ds1Digest.getLastUpdated, ds1Digest.getVersion, otherDigest)
+        result += VersionMismatch(label, AttributesUtil.toTypedMap(categories, ds1Digest.getAttributes.toMap), ds1Digest.getLastUpdated.withZone(DateTimeZone.UTC), ds1Digest.getVersion, otherDigest)
       }
     }}
 
@@ -53,7 +54,7 @@ object DigestDifferencingUtils {
       }
 
       if (!otherMatches) {
-        result += VersionMismatch(label, AttributesUtil.toTypedMap(categories, hs2Digest.getAttributes.toMap), hs2Digest.getLastUpdated, null, hs2Digest.getVersion)
+        result += VersionMismatch(label, AttributesUtil.toTypedMap(categories, hs2Digest.getAttributes.toMap), hs2Digest.getLastUpdated.withZone(DateTimeZone.UTC), null, hs2Digest.getVersion)
       }
     }}
 
