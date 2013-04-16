@@ -18,11 +18,13 @@ package net.lshift.diffa.kernel.util
 import net.lshift.diffa.kernel.differencing.DomainDifferenceStore
 import java.util.{TimerTask, Timer}
 import org.joda.time.DateTime
+import org.slf4j.LoggerFactory
 
 /**
  * Component responsible for periodically cleaning up internal system resources.
  */
 class Sweeper(val period:Int, diffStore:DomainDifferenceStore) {
+  val log = LoggerFactory.getLogger(getClass)
   val timer = new Timer()
   val matchAgeMins = 5    // How long ago matches should be purged from
 
