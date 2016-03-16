@@ -305,6 +305,28 @@ Diffa.Models.Diff = Backbone.Model.extend({
 
     this.pendingUpstreamRequest = getContent("upstreamContent", "upstream", this.pendingUpstreamRequest);
     this.pendingDownstreamRequest = getContent("downstreamContent", "downstream", this.pendingDownstreamRequest);
+
+    // Only retrieve the pair repair action links if we don't already have it
+    if (!self.get('repairActionLinks')) {
+      $.get(
+          "/domains/" + self.collection.domain.id + '/config/pairs/' + this.get('objId').pair.key + '/repair-actions',
+          function(actions) {
+            var links = {};
+            var linksSize = 0;
+            for (var i = 0; i < actions.length; i++) {
+              var name = actions[i]['name'];
+              var url = actions[i]['url'];
+              if (url.indexOf("link|") == 0) {
+                links[name] = url.substring(5);
+                linksSize++;
+              }
+            }
+            if (linksSize > 0) {
+              self.set({repairActionLinks: links});
+            }
+          }
+      );
+    }
   },
 
   /**
@@ -1306,16 +1328,20 @@ Diffa.Views.DiffDetail = Backbone.View.extend({
 
     var pairKey = event.get('objId').pair.key;
     var itemID = event.get('objId').id;
+    var links = event.get('repairActionLinks');
     var actionListContainer = this.$(".actionlist").empty();
     var actionListCallback = function(actionList, status, xhr) {
       if (!actionList) {
         return;
       }
-      
+
       self.$(".actionlist").empty();
       $.each(actionList, function(i, action) {
         var repairStatus = self.$('.repairstatus');
-        appendActionButtonToContainer(actionListContainer, action, pairKey, itemID, repairStatus);
+        var link = (typeof links != "undefined" && links != null && action.name in links)
+            ? links[action.name].replace("{id}", itemID)
+            : null;
+        appendActionButtonToContainer(actionListContainer, action, pairKey, itemID, repairStatus, link);
       });
     };
 

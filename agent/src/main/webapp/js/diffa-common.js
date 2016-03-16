@@ -25,7 +25,7 @@ var Diffa = {
   Helpers: {}
 };
 
-function appendActionButtonToContainer($container, action, pairKey, itemID, $repairStatus) {
+function appendActionButtonToContainer($container, action, pairKey, itemID, $repairStatus, link) {
   // Reset the status box
   if ($repairStatus != null) $repairStatus.text("No repairs in progress");
   $('<button class="repair">' + action.name +  '</button>')
@@ -39,32 +39,39 @@ function appendActionButtonToContainer($container, action, pairKey, itemID, $rep
       }
       $button.addClass('disabled');
       if ($repairStatus != null) $repairStatus.text('Repairing...');
-      $.ajax({
-            type: "POST",
-            url: url,
-            success: function(data, status, xhr) {
-              if ($repairStatus != null) $repairStatus.html('Repair status: ' + data.code + '<br/>output: ' + data.output);
-            },
-            error: function(xhr, status, ex) {
-              if (console && console.log) {
-                var error = {
-                  type: "POST",
-                  url: url,
-                  status: status,
-                  exception: ex,
-                  xhr: xhr
-                };
-                if (itemID != null)
-                  console.log("error during repair for item " + itemID + ": ", error);
-                else
-                  console.log("error during repair for pair " + pairKey + ": ", error);
-              }
-              if ($repairStatus != null) $repairStatus.text('Error during repair: ' + (status || ex.message));
-            },
-            complete: function() {
-              $button.removeClass('disabled');
+
+      if (link == null) {
+        $.ajax({
+          type: "POST",
+          url: url,
+          success: function (data, status, xhr) {
+            if ($repairStatus != null)
+              $repairStatus.html('Repair status: ' + data.code + '<br/>output: ' + data.output);
+          },
+          error: function (xhr, status, ex) {
+            if (console && console.log) {
+              var error = {
+                type: "POST",
+                url: url,
+                status: status,
+                exception: ex,
+                xhr: xhr
+              };
+              if (itemID != null)
+                console.log("error during repair for item " + itemID + ": ", error);
+              else
+                console.log("error during repair for pair " + pairKey + ": ", error);
             }
-          });
+            if ($repairStatus != null) $repairStatus.text('Error during repair: ' + (status || ex.message));
+          },
+          complete: function () {
+            $button.removeClass('disabled');
+          }
+        });
+      } else {
+        var win = window.open(link, '_blank');
+        win.focus();
+      }
       return false;
     })
     .appendTo($container);
